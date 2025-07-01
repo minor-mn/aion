@@ -1,0 +1,27 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 1
+  shop_id:
+    type: integer
+    example: 1
+  staff_id:
+    type: integer
+    example: 2
+  start_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T09:00:00Z"
+  end_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T17:00:00Z"
+  created_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T08:00:00Z"
+  updated_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T08:30:00Z"

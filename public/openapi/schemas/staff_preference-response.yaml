@@ -1,0 +1,22 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 10
+  staff_id:
+    type: integer
+    example: 1
+  user_id:
+    type: integer
+    example: 1
+  score:
+    type: integer
+    example: 5
+  created_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T10:00:00Z"
+  updated_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T10:00:00Z"

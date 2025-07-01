@@ -1,0 +1,24 @@
+type: object
+properties:
+  staff_id:
+    type: integer
+  name:
+    type: string
+  shop_id:
+    type: integer
+  shop_name:
+    type: string
+  datetime_begin:
+    type: string
+    format: date-time
+  datetime_end:
+    type: string
+    format: date-time
+  score:
+    type: integer
+required:
+  - staff_id
+  - name
+  - datetime_begin
+  - datetime_end
+  - score

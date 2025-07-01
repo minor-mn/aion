@@ -1,0 +1,65 @@
+get:
+  summary: スタッフシフト一覧取得
+  tags:
+    - StaffShifts
+  parameters:
+    - name: shop_id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "200":
+      description: スタッフシフト一覧
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              staff_shifts:
+                type: array
+                items:
+                  $ref: "../../schemas/staff_shift-response.yaml"
+
+post:
+  summary: スタッフシフト作成
+  tags:
+    - StaffShifts
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: shop_id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/staff_shift-request.yaml"
+  responses:
+    "201":
+      description: 作成成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              staff_shift:
+                $ref: "../../schemas/staff_shift-response.yaml"
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            errors:
+              - "start_atは必須です"
+

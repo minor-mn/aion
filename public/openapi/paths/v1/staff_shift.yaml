@@ -1,0 +1,105 @@
+get:
+  summary: スタッフシフト詳細取得
+  tags:
+    - StaffShifts
+  parameters:
+    - name: shop_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "200":
+      description: スタッフシフト詳細
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              staff_shift:
+                $ref: "../../schemas/staff_shift-response.yaml"
+
+put:
+  summary: スタッフシフト更新
+  tags:
+    - StaffShifts
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: shop_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/staff_shift-request.yaml"
+  responses:
+    "200":
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              staff_shift:
+                $ref: "../../schemas/staff_shift-response.yaml"
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            errors:
+              - "start_atは必須です"
+
+delete:
+  summary: スタッフシフト削除
+  tags:
+    - StaffShifts
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: shop_id
+      in: path
+      required: true
+      schema:
+        type: integer
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "204":
+      description: 削除成功
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+    "404":
+      description: 見つかりません
+      content:
+        application/json:
+          example:
+            error: "Not Found"

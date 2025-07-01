@@ -1,0 +1,19 @@
+type: object
+properties:
+  name:
+    type: string
+    example: "New Shop"
+  latitude:
+    type: number
+    example: 35.1
+  longitude:
+    type: number
+    example: 135.1
+  site_url:
+    type: string
+    example: "https://shop.new.com"
+  image_url:
+    type: string
+    example: "https://shop.new.com/image.png"
+required:
+  - name

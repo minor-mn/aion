@@ -1,0 +1,24 @@
+delete:
+  summary: ログアウト
+  tags:
+    - Users
+  security:
+    - bearerAuth: []
+  responses:
+    "200":
+      description: ログアウト成功（JWT無効化）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          example:
+            message: "Logged out."
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"

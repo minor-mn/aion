@@ -1,0 +1,51 @@
+post:
+  summary: ログイン
+  tags:
+    - Users
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+                - email
+                - password
+        example:
+          user:
+            email: "user@example.com"
+            password: "password"
+  responses:
+    "200":
+      description: ログイン成功
+      headers:
+        Authorization:
+          description: Bearerトークン
+          schema:
+            type: string
+            example: "Bearer <jwt-token>"
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          example:
+            message: "Logged in."
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"

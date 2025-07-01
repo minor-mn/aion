@@ -1,0 +1,17 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 1
+  email:
+    type: string
+    format: email
+    example: "user@example.com"
+  created_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T12:00:00Z"
+  updated_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T12:00:00Z"

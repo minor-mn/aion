@@ -1,0 +1,12 @@
+type: object
+properties:
+  staff_id:
+    type: integer
+    example: 1
+  score:
+    type: integer
+    example: 5
+required:
+  - staff_id
+  - score
+

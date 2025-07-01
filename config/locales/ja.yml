@@ -1,0 +1,10 @@
+ja:
+  errors:
+    not_found: 見つかりませんでした。
+    parameter_missing: 必須のパラメータが不足しています。
+    record_not_unique: 一意性制約に違反しています。
+    not_null_violation: 必須項目が空欄です。
+    jwt_decode_error: トークンが不正です。
+    jwt_expired: トークンの有効期限が切れています。
+    unauthorized: 認証に失敗しました。
+    session_disabled: セッションは無効です。トークン認証を使用してください。

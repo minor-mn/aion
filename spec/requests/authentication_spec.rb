@@ -44,7 +44,6 @@ RSpec.describe "User authentication", type: :request do
     expect(response).to have_http_status(:ok)
 
     json = JSON.parse(response.body)
-    pp json
     expect(json["user"]["email"]).to eq(user.email)
   end
 

@@ -17,4 +17,7 @@ Rails.application.routes.draw do
     resources :staffs, only: [ :index, :create, :show, :update, :destroy ]
     resources :staff_shifts, only: [ :index, :create, :show, :update, :destroy ]
   end
+
+  # preference
+  resources :staff_preferences, only: [ :index, :create ]
 end

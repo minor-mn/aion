@@ -1,0 +1,2 @@
+class ActionLog < ApplicationRecord
+end

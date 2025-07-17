@@ -12,4 +12,9 @@ Rails.application.routes.draw do
     get "me", to: "me#show"
   end
 
+  # shops
+  resources :shops, only: [ :index, :create, :show, :update, :destroy ] do
+    resources :staffs, only: [ :index, :create, :show, :update, :destroy ]
+    resources :staff_shifts, only: [ :index, :create, :show, :update, :destroy ]
+  end
 end

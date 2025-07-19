@@ -28,4 +28,12 @@
 #       enabled: "ON"
 
 en:
-  hello: "Hello world"
+  errors:
+    not_found: Not found.
+    parameter_missing: Required parameter is missing.
+    record_not_unique: Record violates uniqueness constraint.
+    not_null_violation: Required field is missing.
+    jwt_decode_error: Invalid token.
+    jwt_expired: Token has expired.
+    unauthorized: Unauthorized access.
+    session_disabled: Session is disabled. Use token-based authentication.

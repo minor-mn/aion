@@ -33,6 +33,17 @@ RSpec.describe "User authentication", type: :request do
     expect(token).to start_with("Bearer ")
   end
 
+  # ログイン失敗
+  it "fails to log in with incorrect credentials" do
+    User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+
+    post "/users/sign_in", params: { user: { email: "test@example.com", password: "wrongpassword" } }.to_json, headers: headers
+
+    expect(response).to have_http_status(:unauthorized)
+    json = JSON.parse(response.body)
+    expect(json["error"]).to eq("Authentication failed")
+  end
+
   # ユーザ情報
   it "fetches current user info with valid token" do
     user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password")

@@ -11,15 +11,15 @@ RSpec.describe "StaffPreferences", type: :request do
     { "Authorization" => token }
   end
 
-  describe "POST /staff_preferences" do
+  describe "POST /v1/staff_preferences" do
     it "creates a staff preference" do
-      post "/staff_preferences", params: { staff_preference: { staff_id: staff.id, score: 5 } }, headers: headers
+      post "/v1/staff_preferences", params: { staff_preference: { staff_id: staff.id, score: 5 } }, headers: headers
       expect(response).to have_http_status(:created)
       expect(JSON.parse(response.body)["staff_preference"]["score"]).to eq(5)
     end
   end
 
-  describe "GET /staff_preferences" do
+  describe "GET /v1/staff_preferences" do
     before do
       StaffPreference.create!(user_id: user.id, staff_id: staff.id, score: 8)
       StaffShift.create!(
@@ -31,13 +31,13 @@ RSpec.describe "StaffPreferences", type: :request do
     end
 
     it "returns current month's shifts by default" do
-      get "/staff_preferences", headers: headers
+      get "/v1/staff_preferences", headers: headers
       expect(response).to have_http_status(:ok)
       expect(JSON.parse(response.body)).to have_key("staff_shifts")
     end
 
     it "returns shifts for valid date" do
-      get "/staff_preferences", params: { date: "2025-07-01" }, headers: headers
+      get "/v1/staff_preferences", params: { date: "2025-07-01" }, headers: headers
       expect(response).to have_http_status(:ok)
       json = JSON.parse(response.body)
       expect(json).to have_key("staff_shifts")
@@ -45,7 +45,7 @@ RSpec.describe "StaffPreferences", type: :request do
     end
 
     it "returns error for invalid date format" do
-      get "/staff_preferences", params: { date: "invalid-date" }, headers: headers
+      get "/v1/staff_preferences", params: { date: "invalid-date" }, headers: headers
       expect(response).to have_http_status(:bad_request)
       expect(JSON.parse(response.body)["error"]).to eq("Invalid date format")
     end

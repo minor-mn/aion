@@ -16,6 +16,10 @@ class Users::RegistrationsController < Devise::RegistrationsController
 
   private
 
+  def sign_up_params
+    params.require(:user).permit(:email, :password, :password_confirmation)
+  end
+
   def respond_to_on_destroy
     head :no_content
   end

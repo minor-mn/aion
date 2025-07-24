@@ -1,4 +1,4 @@
-class StaffPreferencesController < ApplicationController
+class V1::StaffPreferencesController < ApplicationController
   before_action :authenticate_user!
 
   def index

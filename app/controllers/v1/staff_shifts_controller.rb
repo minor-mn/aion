@@ -1,4 +1,4 @@
-class StaffShiftsController < ApplicationController
+class V1::StaffShiftsController < ApplicationController
   before_action :authenticate_user!, only: %i[create update destroy]
   before_action :require_shop_id
   before_action :set_staff_shift, only: %i[show update destroy]

@@ -1,5 +1,4 @@
 Rails.application.routes.draw do
-  # devise
   devise_for :users,
     defaults: { format: :json },
     controllers: {
@@ -7,17 +6,19 @@ Rails.application.routes.draw do
       registrations: "users/registrations"
     }
 
-  # user
-  namespace :user do
-    get "me", to: "me#show"
-  end
+  namespace :v1, defaults: { format: :json } do
+    # user
+    namespace :user do
+      get "me", to: "me#show"
+    end
 
-  # shops
-  resources :shops, only: [ :index, :create, :show, :update, :destroy ] do
-    resources :staffs, only: [ :index, :create, :show, :update, :destroy ]
-    resources :staff_shifts, only: [ :index, :create, :show, :update, :destroy ]
-  end
+    # shops
+    resources :shops, only: [ :index, :create, :show, :update, :destroy ] do
+      resources :staffs, only: [ :index, :create, :show, :update, :destroy ]
+      resources :staff_shifts, only: [ :index, :create, :show, :update, :destroy ]
+    end
 
-  # preference
-  resources :staff_preferences, only: [ :index, :create ]
+    # preference
+    resources :staff_preferences, only: [ :index, :create ]
+  end
 end

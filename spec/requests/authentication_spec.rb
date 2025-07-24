@@ -12,12 +12,13 @@ RSpec.describe "User authentication", type: :request do
   end
 
   let(:headers) do
-    { "Content-Type" => "application/json" }
+    { "Content-Type" => "application/json", "Accept" => "application/json" }
   end
 
   # ユーザ作成
   it "registers a user" do
     post "/users", params: user_params.to_json, headers: headers
+
     expect(response).to have_http_status(:ok)
     expect(JSON.parse(response.body)["message"]).to eq("Registered.")
   end
@@ -26,7 +27,7 @@ RSpec.describe "User authentication", type: :request do
   it "logs in and returns a JWT" do
     User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
 
-    post "/users/sign_in", params: { user: { email: "test@example.com", password: "password" } }.to_json, headers: headers
+    post "/users/sign_in", params: { user: { email: "test@example.com", password: "password" } }, headers: headers, as: :json
 
     expect(response).to have_http_status(:ok)
     token = response.headers["Authorization"]
@@ -51,7 +52,7 @@ RSpec.describe "User authentication", type: :request do
     post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
     token = response.headers["Authorization"]
 
-    get "/user/me", headers: headers.merge("Authorization" => token)
+    get "/v1/user/me", headers: headers.merge("Authorization" => token)
     expect(response).to have_http_status(:ok)
 
     json = JSON.parse(response.body)

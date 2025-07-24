@@ -1,4 +1,4 @@
-class ShopsController < ApplicationController
+class V1::ShopsController < ApplicationController
   before_action :authenticate_user!, except: %i[index show]
 
   def index

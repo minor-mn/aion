@@ -1,4 +1,4 @@
-class StaffsController < ApplicationController
+class V1::StaffsController < ApplicationController
   before_action :authenticate_user!, only: %i[create update destroy]
   before_action :validate_shop_id
 

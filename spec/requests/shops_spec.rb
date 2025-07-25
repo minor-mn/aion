@@ -21,7 +21,7 @@ RSpec.describe "Shops", type: :request do
 
   describe "POST /v1/shops" do
     it "creates a new shop" do
-      post "/v1/shops", params: { shop: { name: "New Shop" } }, headers: auth_headers
+      post "/v1/shops", params: { name: "New Shop" }, headers: auth_headers
       expect(response).to have_http_status(:created)
       expect(JSON.parse(response.body)["name"]).to eq("New Shop")
     end
@@ -41,7 +41,7 @@ RSpec.describe "Shops", type: :request do
     let!(:shop) { Shop.create!(name: "Old Name") }
 
     it "updates a shop" do
-      patch "/v1/shops/#{shop.id}", params: { shop: { name: "Updated Name" } }, headers: auth_headers
+      patch "/v1/shops/#{shop.id}", params: { name: "Updated Name" }, headers: auth_headers
       expect(response).to have_http_status(:ok)
       expect(JSON.parse(response.body)["name"]).to eq("Updated Name")
     end

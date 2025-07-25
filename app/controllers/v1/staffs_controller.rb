@@ -54,6 +54,6 @@ class V1::StaffsController < ApplicationController
   end
 
   def staff_params
-    params.require(:staff).permit(:name, :image_url, :site_url)
+    params.permit(:name, :image_url, :site_url)
   end
 end

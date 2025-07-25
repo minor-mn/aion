@@ -1,0 +1,47 @@
+get:
+  summary: 評価済スタッフのシフト集計（日別）
+  tags:
+    - StaffSchedules
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: datetime_begin
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+        example: "2024-05-01T12:00"
+      description: "開始日（省略時は本日の0:00:00）"
+    - name: datetime_end
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+        example: "2024-05-31T23:00:00"
+      description: "終了日（省略時は本日の23:59:59）"
+  responses:
+    "200":
+      description: 期間内シフトとスコアのリスト
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              days:
+                type: array
+                items:
+                  $ref: "../../schemas/schedule-day-response.yaml"
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+    "400":
+      description: パラメータ不備
+      content:
+        application/json:
+          example:
+            error: "Invalid date format"

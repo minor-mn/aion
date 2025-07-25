@@ -1,0 +1,64 @@
+put:
+  summary: スタッフへの好感度を更新
+  tags:
+    - StaffPreferences
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/staff_preference-request.yaml"
+  responses:
+    "200":
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: "../../schemas/staff_preference-response.yaml"
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+    "404":
+      description: 見つからない
+      content:
+        application/json:
+          example:
+            error: "Not Found"
+delete:
+  summary: スタッフへの好感度を削除
+  tags:
+    - StaffPreferences
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "204":
+      description: 削除成功
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+    "404":
+      description: 見つからない
+      content:
+        application/json:
+          example:
+            error: "Not Found"

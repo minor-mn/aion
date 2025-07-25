@@ -3,11 +3,9 @@ require "rails_helper"
 RSpec.describe "User authentication", type: :request do
   let(:user_params) do
     {
-      user: {
-        email: "test@example.com",
-        password: "password",
-        password_confirmation: "password"
-      }
+      email: "test@example.com",
+      password: "password",
+      password_confirmation: "password"
     }
   end
 
@@ -68,6 +66,30 @@ RSpec.describe "User authentication", type: :request do
 
     delete "/users/sign_out", headers: headers.merge("Authorization" => token)
     expect(response).to have_http_status(:ok)
+  end
+
+  # 更新
+  it "updates user email and password" do
+    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+
+    # ログインしてトークン取得
+    post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
+    token = response.headers["Authorization"]
+
+    # ユーザー情報を更新
+    patch "/users",
+      params: {
+        email: "updated@example.com",
+        password: "newpassword",
+        password_confirmation: "newpassword",
+        current_password: "password"
+      }.to_json,
+      headers: headers.merge("Authorization" => token)
+
+    expect(response).to have_http_status(:ok)
+    json = JSON.parse(response.body)
+    expect(json["message"]).to eq("Updated.")
+    expect(json["user"]["email"]).to eq("updated@example.com")
   end
 
   # 削除

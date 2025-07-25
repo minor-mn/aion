@@ -1,0 +1,65 @@
+get:
+  summary: スタッフ情報取得
+  tags:
+    - Staffs
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "200":
+      description: スタッフ情報
+      content:
+        application/json:
+          schema:
+            $ref: "../../schemas/staff-response.yaml"
+
+put:
+  summary: スタッフ情報更新
+  tags:
+    - Staffs
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/staff-request.yaml"
+  responses:
+    "200":
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: "../../schemas/staff-response.yaml"
+    "401":
+      description: 認証エラー
+    "422":
+      description: バリデーションエラー
+
+delete:
+  summary: スタッフ削除
+  tags:
+    - Staffs
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "204":
+      description: 削除成功
+    "401":
+      description: 認証エラー

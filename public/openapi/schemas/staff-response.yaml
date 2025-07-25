@@ -1,0 +1,33 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 1
+  name:
+    type: string
+    example: "佐藤太郎"
+  image_url:
+    type: string
+    format: uri
+    example: "https://example.com/staff_image.png"
+  site_url:
+    type: string
+    format: uri
+    example: "https://example.com/staff_profile"
+  shop_id:
+    type: integer
+    example: 1
+  created_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T10:00:00Z"
+  updated_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T10:00:00Z"
+required:
+  - id
+  - name
+  - shop_id
+  - created_at
+  - updated_at

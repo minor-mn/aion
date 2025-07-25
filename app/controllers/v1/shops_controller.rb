@@ -45,6 +45,6 @@ class V1::ShopsController < ApplicationController
   end
 
   def shop_params
-    params.require(:shop).permit(:name, :latitude, :longitude, :site_url, :image_url)
+    params.permit(:name, :latitude, :longitude, :site_url, :image_url)
   end
 end

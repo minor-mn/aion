@@ -1,0 +1,30 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 1
+  name:
+    type: string
+    example: "Sample Shop"
+  latitude:
+    type: number
+    example: 35.0
+  longitude:
+    type: number
+    example: 135.0
+  site_url:
+    type: string
+    example: "https://shop.example.com"
+  image_url:
+    type: string
+    example: "https://shop.example.com/image.png"
+  created_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T00:00:00Z"
+  updated_at:
+    type: string
+    format: date-time
+    example: "2025-07-24T00:00:00Z"
+required:
+  - name

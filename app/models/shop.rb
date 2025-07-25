@@ -1,6 +1,5 @@
 class Shop < ApplicationRecord
-  has_many :staff_shifts
-  has_many :staffs, through: :staff_shifts
+  has_many :staffs
 
   validates :name, presence: true
 end

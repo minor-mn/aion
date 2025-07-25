@@ -1,0 +1,106 @@
+post:
+  summary: ユーザー登録
+  tags:
+    - Users
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../schemas/user-request.yaml"
+        example:
+          email: "user@example.com"
+          password: "password"
+          password_confirmation: "password"
+  responses:
+    "200":
+      description: 登録成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Registered."
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            errors:
+              - "メールアドレスを入力してください"
+put:
+  summary: ユーザー情報を更新
+  tags:
+    - Users
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+              example: "new@example.com"
+            password:
+              type: string
+              example: "newpassword"
+            password_confirmation:
+              type: string
+              example: "newpassword"
+            current_password:
+              type: string
+              example: "password"
+          required:
+            - current_password
+        example:
+          email: "new@example.com"
+          password: "newpassword"
+          password_confirmation: "newpassword"
+          current_password: "password"
+  responses:
+    "200":
+      description: 更新成功
+      content:
+        application/json:
+          example:
+            message: "Updated."
+            user:
+              id: 1
+              email: "new@example.com"
+              created_at: "2025-07-24T12:00:00Z"
+              updated_at: "2025-07-24T12:30:00Z"
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            message: "Update failed."
+            errors:
+              - "現在のパスワードが正しくありません"
+delete:
+  summary: ユーザーを削除
+  tags:
+    - Users
+  security:
+    - bearerAuth: []
+  responses:
+    "204":
+      description: アカウント削除成功（レスポンスボディなし）
+    "401":
+      description: 認証エラー
+      content:
+        application/json:
+          example:
+            error: "Authentication failed"
+

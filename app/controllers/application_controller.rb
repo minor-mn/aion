@@ -1,6 +1,10 @@
 class ApplicationController < ActionController::API
   include ActionController::MimeResponds
 
+  rescue_from ParameterError do |e|
+    render json: { error: e.message.presence || I18n.t("errors.parameter_invalid") }, status: :bad_request
+  end
+
   rescue_from ActiveRecord::RecordNotFound do |e|
     render json: { error: I18n.t("errors.not_found") }, status: :not_found
   end

@@ -13,12 +13,20 @@ Rails.application.routes.draw do
     end
 
     # shops
-    resources :shops, only: [ :index, :create, :show, :update, :destroy ] do
-      resources :staffs, only: [ :index, :create, :show, :update, :destroy ]
-      resources :staff_shifts, only: [ :index, :create, :show, :update, :destroy ]
+    resources :shops, only: %i[index create show update destroy]
+
+    # staffs
+    resources :staffs, only: %i[index create show update destroy]
+
+    # staff_shifts
+    resources :shops do
+      resources :staff_shifts, only: %i[index create show update destroy]
     end
 
-    # preference
-    resources :staff_preferences, only: [ :index, :create ]
+    # preferences
+    resources :staff_preferences, only: %i[index create show update destroy ]
+
+    # shedules
+    resources :schedules, only: %i[index]
   end
 end

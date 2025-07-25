@@ -1,0 +1,75 @@
+get:
+  summary: 店舗詳細取得
+  tags:
+    - Shops
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "200":
+      description: 正常取得
+      content:
+        application/json:
+          schema:
+            $ref: "../../schemas/shop-response.yaml"
+    "404":
+      description: 店舗が見つかりません
+
+put:
+  summary: 店舗情報更新
+  tags:
+    - Shops
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/shop-request.yaml"
+  responses:
+    "200":
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            $ref: "../../schemas/shop-response.yaml"
+    "401":
+      description: 認証エラー
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            errors:
+              - "名前を入力してください"
+
+delete:
+  summary: 店舗削除
+  tags:
+    - Shops
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "204":
+      description: 削除成功
+    "401":
+      description: 認証エラー
+    "404":
+      description: 店舗が見つかりません
+

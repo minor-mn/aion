@@ -1,0 +1,37 @@
+openapi: 3.0.3
+info:
+  title: Aion API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+paths:
+  /v1/schedules:
+    $ref: "./paths/v1/schedules.yaml"
+  /v1/shops:
+    $ref: "./paths/v1/shops.yaml"
+  /v1/shops/{id}:
+    $ref: "./paths/v1/shop.yaml"
+  /v1/staffs:
+    $ref: "./paths/v1/staffs.yaml"
+  /v1/staffs/{id}:
+    $ref: "./paths/v1/staff.yaml"
+  /v1/shops/{shop_id}/staff_shifts:
+    $ref: "./paths/v1/staff_shifts.yaml"
+  /v1/shops/{shop_id}/staff_shifts/{id}:
+    $ref: "./paths/v1/staff_shift.yaml"
+  /v1/staff_preferences:
+    $ref: "./paths/v1/staff_preferences.yaml"
+  /v1/staff_preferences/{id}:
+    $ref: "./paths/v1/staff_preference.yaml"
+  /users/sign_in:
+    $ref: "./paths/users/sign_in.yaml"
+  /v1/user/me:
+    $ref: "./paths/v1/user.yaml"
+  /users:
+    $ref: "./paths/users.yaml"

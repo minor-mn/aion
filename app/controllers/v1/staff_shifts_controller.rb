@@ -1,6 +1,6 @@
 class V1::StaffShiftsController < ApplicationController
   before_action :authenticate_user!, only: %i[create update destroy]
-  before_action :require_shop_id
+  before_action :require_shop_id, only: %i[index show create update destroy]
   before_action :set_staff_shift, only: %i[show update destroy]
 
   def index
@@ -57,6 +57,6 @@ class V1::StaffShiftsController < ApplicationController
   end
 
   def staff_shift_params
-    params.require(:staff_shift).permit(:staff_id, :start_at, :end_at)
+    params.permit(:staff_id, :start_at, :end_at)
   end
 end

@@ -1,15 +1,10 @@
 class V1::StaffPreferencesController < ApplicationController
   before_action :authenticate_user!
+  before_action :set_preference, only: %i[update destroy]
 
   def index
-    begin
-      date = params[:date].present? ? Date.parse(params[:date]) : Date.current
-    rescue ArgumentError
-      render json: { error: "Invalid date format" }, status: :bad_request and return
-    end
-
-    shifts = current_user.staff_preferences.shifts_by_date(current_user, date)
-    render json: { staff_shifts: shifts }
+    preferences = current_user.staff_preferences.includes(:staff)
+    render json: { staff_preferences: preferences }
   end
 
   def create
@@ -24,9 +19,29 @@ class V1::StaffPreferencesController < ApplicationController
     end
   end
 
+  def update
+    if @preference.update(score: params[:score])
+      ActionLogger.log(user: current_user, action_type: "update", target: @preference)
+      render json: { staff_preference: @preference }
+    else
+      render json: { errors: @preference.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    ActionLogger.log(user: current_user, action_type: "destroy", target: @preference)
+    @preference.destroy
+    head :no_content
+  end
+
   private
 
   def preference_params
-    params.require(:staff_preference).permit(:staff_id, :score)
+    params.permit(:staff_id, :score)
+  end
+
+  def set_preference
+    @preference = current_user.staff_preferences.find_by(staff_id: params[:id])
+    render json: { error: "Not Found" }, status: :not_found unless @preference
   end
 end

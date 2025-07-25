@@ -30,5 +30,6 @@ module Aion
     config.api_only = true
 
     config.i18n.default_locale = :ja
+    config.autoload_paths << Rails.root.join("app/errors")
   end
 end

@@ -11,48 +11,48 @@ RSpec.describe "Staffs", type: :request do
     { "Authorization" => response.headers["Authorization"] }
   end
 
-  describe "GET /v1/shops/:shop_id/staffs" do
+  describe "GET /v1/staffs" do
     it "returns a list of staffs" do
       Staff.create!(name: "Test Staff", shop_id: shop.id)
-      get "/v1/shops/#{shop.id}/staffs"
+      get "/v1/staffs", params: { shop_id: shop.id }
       expect(response).to have_http_status(:ok)
       expect(JSON.parse(response.body)).to have_key("staffs")
     end
   end
 
-  describe "POST /v1/shops/:shop_id/staffs" do
+  describe "POST /v1/staffs" do
     it "creates a new staff" do
-      post "/v1/shops/#{shop.id}/staffs", params: { staff: { name: "New Staff" } }, headers: auth_headers
+      post "/v1/staffs", params: { name: "New Staff", shop_id: shop.id }, headers: auth_headers
       expect(response).to have_http_status(:created)
       expect(JSON.parse(response.body)["name"]).to eq("New Staff")
     end
   end
 
-  describe "GET /v1/shops/:shop_id/staffs/:id" do
+  describe "GET /v1/staffs/:id" do
     let!(:staff) { Staff.create!(name: "Existing Staff", shop_id: shop.id) }
 
     it "shows a staff" do
-      get "/v1/shops/#{shop.id}/staffs/#{staff.id}"
+      get "/v1/staffs/#{staff.id}", params: { shop_id: shop.id }
       expect(response).to have_http_status(:ok)
       expect(JSON.parse(response.body)["name"]).to eq("Existing Staff")
     end
   end
 
-  describe "PATCH /v1/shops/:shop_id/staffs/:id" do
+  describe "PATCH /v1/staffs/:id" do
     let!(:staff) { Staff.create!(name: "Old Staff", shop_id: shop.id) }
 
     it "updates a staff" do
-      patch "/v1/shops/#{shop.id}/staffs/#{staff.id}", params: { staff: { name: "Updated Staff" } }, headers: auth_headers
+      patch "/v1/staffs/#{staff.id}", params: { name: "Updated Staff", shop_id: shop.id }, headers: auth_headers
       expect(response).to have_http_status(:ok)
       expect(JSON.parse(response.body)["name"]).to eq("Updated Staff")
     end
   end
 
-  describe "DELETE /v1/shops/:shop_id/staffs/:id" do
+  describe "DELETE /v1/staffs/:id" do
     let!(:staff) { Staff.create!(name: "To Be Deleted", shop_id: shop.id) }
 
     it "deletes a staff" do
-      delete "/v1/shops/#{shop.id}/staffs/#{staff.id}", headers: auth_headers
+      delete "/v1/staffs/#{staff.id}", params: { shop_id: shop.id }, headers: auth_headers
       expect(response).to have_http_status(:no_content)
     end
   end

@@ -1,0 +1,49 @@
+get:
+  summary: ユーザーのスタッフ好感度一覧取得
+  tags:
+    - StaffPreferences
+  security:
+    - bearerAuth: []
+  responses:
+    "200":
+      description: 一覧取得成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              staff_preferences:
+                type: array
+                items:
+                  $ref: "../../schemas/staff_preference-response.yaml"
+
+post:
+  summary: スタッフ好感度を作成・更新
+  tags:
+    - StaffPreferences
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/staff_preference-request.yaml"
+  responses:
+    "201":
+      description: 作成・更新成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              staff_preference:
+                $ref: "../../schemas/staff_preference-response.yaml"
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            errors:
+              - "スコアは-10から10の間で指定してください"
+

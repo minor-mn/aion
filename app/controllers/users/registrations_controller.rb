@@ -8,7 +8,11 @@ class Users::RegistrationsController < Devise::RegistrationsController
 
     resource.save
     if resource.persisted?
-      render json: { message: "Registered.", user: resource }, status: :ok
+      if resource.active_for_authentication?
+        render json: { message: "Registered.", user: resource }, status: :ok
+      else
+        render json: { message: "A confirmation email has been sent to #{resource.email}." }, status: :ok
+      end
     else
       render json: { message: "Registration failed.", errors: resource.errors.full_messages }, status: :unprocessable_entity
     end

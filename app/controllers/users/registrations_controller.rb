@@ -11,10 +11,18 @@ class Users::RegistrationsController < Devise::RegistrationsController
       if resource.active_for_authentication?
         render json: { message: "Registered.", user: resource }, status: :ok
       else
-        render json: { message: "A confirmation email has been sent to #{resource.email}." }, status: :ok
+        render json: { message: "確認メールを #{resource.email} に送信しました。メール内のリンクをクリックして登録を完了してください。" }, status: :ok
       end
     else
-      render json: { message: "Registration failed.", errors: resource.errors.full_messages }, status: :unprocessable_entity
+      # If email is already taken, check if the existing user is unconfirmed
+      # and resend the confirmation email instead of showing an error.
+      existing = User.find_by(email: sign_up_params[:email])
+      if existing && !existing.confirmed?
+        existing.resend_confirmation_instructions
+        render json: { message: "このメールアドレスは登録済みですが未確認です。確認メールを再送しました。" }, status: :ok
+      else
+        render json: { message: "登録に失敗しました。", errors: resource.errors.full_messages }, status: :unprocessable_entity
+      end
     end
   end
 

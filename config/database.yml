@@ -82,7 +82,7 @@ production:
   primary: &primary_production
     <<: *default
     database: aion_production
-    username: <%= ENV.fetch("DB_USERNAME", "nacci") %>
+    username: <%= ENV.fetch("DB_USERNAME", "aion") %>
     password: <%= ENV["AION_DATABASE_PASSWORD"] %>
   cache:
     <<: *primary_production

@@ -664,10 +664,12 @@ app.component('shift-form-page', {
     </div>
   `,
   data() {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     return {
       selectedShopId: '',
       selectedStaffId: '',
-      entries: [this.newEntry()],
+      entries: [{ date: dateStr, startTime: '', endTime: '' }],
       submitting: false,
       localError: '',
       localSuccess: ''

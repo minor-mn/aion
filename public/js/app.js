@@ -752,12 +752,13 @@ app.component('shift-form-page', {
       }
 
       if (successCount > 0) {
-        this.localSuccess = `${successCount}件の出勤を登録しました`;
-        // Reset entries to a single empty row
+        const skipped = this.entries.length - successCount;
+        this.localSuccess = skipped > 0
+          ? `${successCount}件の出勤を登録しました（${skipped}件は時間重複のためスキップ）`
+          : `${successCount}件の出勤を登録しました`;
         this.entries = [this.newEntry()];
-      }
-      if (errors.length > 0) {
-        this.localError = errors.join('\n');
+      } else if (errors.length > 0) {
+        this.localError = '登録できるシフトがありませんでした（時間帯が重複しています）';
       }
       this.submitting = false;
     }

@@ -20,11 +20,17 @@ const API = {
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
-    const opts = { method, headers };
+    const opts = { method, headers, cache: 'no-store' };
     if (body) {
       opts.body = JSON.stringify(body);
     }
-    const res = await fetch(path, opts);
+    // Add cache-busting timestamp to GET requests
+    let url = path;
+    if (method === 'GET') {
+      const sep = path.includes('?') ? '&' : '?';
+      url = `${path}${sep}_=${Date.now()}`;
+    }
+    const res = await fetch(url, opts);
 
     // Extract JWT token from Authorization header on sign_in
     const authHeader = res.headers.get('Authorization');

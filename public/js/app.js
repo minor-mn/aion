@@ -262,6 +262,18 @@ const app = createApp({
 
     // ========== Init ==========
     onMounted(async () => {
+      // Handle email confirmation redirect
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('confirmed') === 'true') {
+        success.value = 'メールアドレスが確認されました。ログインしてください。';
+        currentView.value = 'login';
+        window.history.replaceState({}, '', '/');
+      } else if (params.get('confirmation_error')) {
+        error.value = params.get('confirmation_error');
+        currentView.value = 'login';
+        window.history.replaceState({}, '', '/');
+      }
+
       await checkAuth();
       await loadHomeData();
     });

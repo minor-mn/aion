@@ -7,9 +7,9 @@ class Users::ConfirmationsController < Devise::ConfirmationsController
     self.resource = resource_class.confirm_by_token(params[:confirmation_token])
 
     if resource.errors.empty?
-      render json: { message: "Email confirmed successfully." }, status: :ok
+      redirect_to "/?confirmed=true", allow_other_host: false
     else
-      render json: { errors: resource.errors.full_messages }, status: :unprocessable_entity
+      redirect_to "/?confirmation_error=#{resource.errors.full_messages.join(', ')}", allow_other_host: false
     end
   end
 

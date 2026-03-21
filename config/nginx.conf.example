@@ -14,11 +14,21 @@ upstream aion_puma {
   server 127.0.0.1:3000 fail_timeout=0;
 }
 
-# HTTP -> HTTPS redirect
+# HTTP
 server {
   listen 80;
   server_name umr.biz;
-  return 301 https://$host$request_uri;
+
+  # proxy.pac must be accessible via HTTP (browser auto-config)
+  location = /proxy.pac {
+    root /var/www/html;
+    types { application/x-ns-proxy-autoconfig pac; }
+  }
+
+  # Everything else redirects to HTTPS
+  location / {
+    return 301 https://$host$request_uri;
+  }
 }
 
 # HTTPS
@@ -32,6 +42,12 @@ server {
   ssl_ciphers         HIGH:!aNULL:!MD5;
 
   root /home/nacci/dev/aion/public;
+
+  # proxy.pac (also accessible via HTTPS)
+  location = /proxy.pac {
+    root /var/www/html;
+    types { application/x-ns-proxy-autoconfig pac; }
+  }
 
   # Serve static files directly via nginx
   location ^~ /assets/ {

@@ -33,6 +33,9 @@ class PopBeforeSmtpInterceptor
     begin
       pop.start(pop_user, pop_pass)
       pop.finish
+    rescue OpenSSL::SSL::SSLError => e
+      Rails.logger.error("[POP before SMTP] SSL error — check POP_ENABLE_SSL and POP_PORT settings: #{e.message}")
+      raise
     rescue Net::POPError => e
       Rails.logger.error("[POP before SMTP] POP3 authentication failed: #{e.message}")
       raise

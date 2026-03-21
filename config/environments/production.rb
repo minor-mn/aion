@@ -58,15 +58,19 @@ Rails.application.configure do
 
   # SMTP settings for sending emails.
   config.action_mailer.delivery_method = :smtp
-  config.action_mailer.smtp_settings = {
+  smtp_settings = {
     address: ENV.fetch("SMTP_ADDRESS", "localhost"),
     port: ENV.fetch("SMTP_PORT", 587).to_i,
     domain: ENV.fetch("SMTP_DOMAIN", "example.com"),
-    user_name: ENV["SMTP_USERNAME"],
-    password: ENV["SMTP_PASSWORD"],
-    authentication: ENV["POP_ADDRESS"].present? ? nil : :plain,
-    enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "true") == "true"
+    enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "false") == "true"
   }
+  # When using POP before SMTP, skip SMTP authentication entirely.
+  unless ENV["POP_ADDRESS"].present?
+    smtp_settings[:user_name] = ENV["SMTP_USERNAME"]
+    smtp_settings[:password] = ENV["SMTP_PASSWORD"]
+    smtp_settings[:authentication] = :plain
+  end
+  config.action_mailer.smtp_settings = smtp_settings
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).

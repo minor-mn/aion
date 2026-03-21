@@ -40,15 +40,21 @@ Rails.application.configure do
 
   # SMTP settings for sending emails.
   config.action_mailer.delivery_method = :smtp
-  config.action_mailer.smtp_settings = {
+  smtp_settings = {
     address: ENV.fetch("SMTP_ADDRESS", "localhost"),
     port: ENV.fetch("SMTP_PORT", 1025).to_i,
     domain: ENV.fetch("SMTP_DOMAIN", "localhost"),
-    user_name: ENV["SMTP_USERNAME"],
-    password: ENV["SMTP_PASSWORD"],
-    authentication: ENV["SMTP_USERNAME"].present? && ENV["POP_ADDRESS"].blank? ? :plain : nil,
-    enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "true") == "true"
+    enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "false") == "true"
   }
+  # When using POP before SMTP, skip SMTP authentication entirely.
+  unless ENV["POP_ADDRESS"].present?
+    if ENV["SMTP_USERNAME"].present?
+      smtp_settings[:user_name] = ENV["SMTP_USERNAME"]
+      smtp_settings[:password] = ENV["SMTP_PASSWORD"]
+      smtp_settings[:authentication] = :plain
+    end
+  end
+  config.action_mailer.smtp_settings = smtp_settings
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

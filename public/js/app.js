@@ -37,6 +37,9 @@ const app = createApp({
     // Staff edit state
     const editingStaff = ref(null);
 
+    // Shop edit state
+    const editingShop = ref(null);
+
     // ========== Auth ==========
     async function checkAuth() {
       if (!API.isLoggedIn()) {
@@ -326,6 +329,14 @@ const app = createApp({
       } catch (e) { /* ignore */ }
     }
 
+    function editShop(shopInfo) {
+      const full = shops.value.find(s => s.id === shopInfo.id || s.id == shopInfo.id)
+        || todayShops.value.find(s => s.id === shopInfo.id || s.id == shopInfo.id);
+      editingShop.value = full || shopInfo;
+      modalOpen.value = false;
+      currentView.value = 'shopForm';
+    }
+
     // ========== Staff name helper ==========
     function getStaffName(staffId) {
       const staff = staffs.value.find(s => s.id === staffId);
@@ -368,12 +379,12 @@ const app = createApp({
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
       todayShops, todayShifts, shops, staffs,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
-      editingShift, editingStaff,
+      editingShift, editingStaff, editingShop,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayShopGroups, closeModal,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift,
-      editStaff, confirmDeleteStaff,
+      editStaff, confirmDeleteStaff, editShop,
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient
@@ -469,7 +480,7 @@ app.component('shop-form-page', {
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 
-      <h3 style="margin-bottom:12px">新規店舗登録</h3>
+      <h3 style="margin-bottom:12px">{{ editMode ? '店舗編集' : '新規店舗登録' }}</h3>
       <div class="form-group">
         <label>店舗名 *</label>
         <input v-model="form.name" type="text" placeholder="店舗名">
@@ -482,10 +493,23 @@ app.component('shop-form-page', {
         <label>画像URL</label>
         <input v-model="form.image_url" type="url" placeholder="https://...">
       </div>
-      <div class="form-actions" style="margin-bottom:32px">
-        <button class="btn btn-primary" @click="createShop" :disabled="submitting">
-          {{ submitting ? '登録中...' : '店舗を登録' }}
-        </button>
+      <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
+        <template v-if="editMode">
+          <button class="btn btn-primary" @click="updateShop" :disabled="submitting" style="flex:1">
+            {{ submitting ? '更新中...' : '更新' }}
+          </button>
+          <button class="btn btn-danger" @click="deleteShopWithCascade" :disabled="submitting" style="flex:1">
+            削除
+          </button>
+          <button class="btn btn-secondary" @click="cancelEdit" style="flex:1">
+            キャンセル
+          </button>
+        </template>
+        <template v-else>
+          <button class="btn btn-primary" @click="createShop" :disabled="submitting">
+            {{ submitting ? '登録中...' : '店舗を登録' }}
+          </button>
+        </template>
       </div>
 
       <h3 style="margin-bottom:12px">登録済み店舗</h3>
@@ -504,6 +528,8 @@ app.component('shop-form-page', {
   data() {
     return {
       form: { name: '', site_url: '', image_url: '' },
+      editMode: false,
+      editShopId: null,
       submitting: false,
       localError: '',
       localSuccess: ''
@@ -511,8 +537,26 @@ app.component('shop-form-page', {
   },
   async mounted() {
     await this.$root.loadShops();
+    const es = this.$root.editingShop;
+    if (es) {
+      this.form = {
+        name: es.name || '',
+        site_url: es.site_url || '',
+        image_url: es.image_url || ''
+      };
+      this.editMode = true;
+      this.editShopId = es.id;
+      this.$root.editingShop = null;
+    }
   },
   methods: {
+    cancelEdit() {
+      this.editMode = false;
+      this.editShopId = null;
+      this.form = { name: '', site_url: '', image_url: '' };
+      this.localError = '';
+      this.localSuccess = '';
+    },
     async createShop() {
       if (!this.form.name) {
         this.localError = '店舗名は必須です';
@@ -531,11 +575,44 @@ app.component('shop-form-page', {
       }
       this.submitting = false;
     },
+    async updateShop() {
+      if (!this.form.name) {
+        this.localError = '店舗名は必須です';
+        return;
+      }
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        await API.updateShop(this.editShopId, this.form);
+        this.localSuccess = '店舗を更新しました';
+        this.cancelEdit();
+        await this.$root.loadShops();
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
+      }
+      this.submitting = false;
+    },
+    async deleteShopWithCascade() {
+      if (!confirm('削除しますか？ 所属するキャストも削除されます')) return;
+      this.submitting = true;
+      this.localError = '';
+      try {
+        await API.deleteShop(this.editShopId);
+        this.localSuccess = '店舗と所属キャストを削除しました';
+        this.cancelEdit();
+        await this.$root.loadShops();
+        await this.$root.loadStaffs();
+      } catch (e) {
+        this.localError = '削除に失敗しました';
+      }
+      this.submitting = false;
+    },
     async deleteShop(shop) {
-      if (!confirm(`「${shop.name}」を削除しますか？`)) return;
+      if (!confirm('削除しますか？ 所属するキャストも削除されます')) return;
       try {
         await API.deleteShop(shop.id);
-        this.localSuccess = '削除しました';
+        this.localSuccess = '店舗と所属キャストを削除しました';
         await this.$root.loadShops();
       } catch (e) {
         this.localError = '削除に失敗しました';

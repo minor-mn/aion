@@ -95,7 +95,7 @@
                 <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                      class="shop-block"
                      :style="{ background: scoreToGradient(group.totalScore) }">
-                  <div class="shop-block-name">{{ group.shop_name }}</div>
+                  <div class="shop-block-name cast-name-link" @click.stop="editShop({ id: group.shop_id, name: group.shop_name })">{{ group.shop_name }}</div>
                   <div class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
                   <ul class="cast-list">
                     <li v-for="staff in group.staffs" :key="staff.staff_id" class="cast-item">
@@ -121,7 +121,7 @@
           <div v-if="todayShops.length === 0" class="no-data">店舗が登録されていません</div>
           <template v-for="shop in todayShops" :key="shop.id">
             <div v-if="todayShifts[shop.id] && todayShifts[shop.id].length > 0" class="shop-block" style="background:#f8f9fa">
-              <div class="shop-block-name">{{ shop.name }}</div>
+              <div class="shop-block-name cast-name-link" @click="editShop(shop)">{{ shop.name }}</div>
               <ul class="cast-list">
                 <li v-for="shift in todayShifts[shop.id]" :key="shift.id" class="cast-item">
                   <span class="cast-name cast-name-link" @click="openStaffSchedule(shift.staff_id, getStaffName(shift.staff_id), shift.shop_id || shop.id)">{{ getStaffName(shift.staff_id) }}</span>

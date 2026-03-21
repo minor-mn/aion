@@ -526,6 +526,13 @@ app.component('shop-form-page', {
           </div>
         </div>
       </div>
+      <!-- 更新完了モーダル -->
+      <div v-if="showSuccessModal" class="modal-overlay" @click.self="closeSuccessModal">
+        <div class="modal-content" style="text-align:center;padding:32px">
+          <p style="font-size:1.1rem;margin-bottom:20px">更新しました</p>
+          <button class="btn btn-primary" @click="closeSuccessModal">OK</button>
+        </div>
+      </div>
     </div>
   `,
   data() {
@@ -535,7 +542,8 @@ app.component('shop-form-page', {
       editShopId: null,
       submitting: false,
       localError: '',
-      localSuccess: ''
+      localSuccess: '',
+      showSuccessModal: false
     };
   },
   async mounted() {
@@ -553,6 +561,9 @@ app.component('shop-form-page', {
     }
   },
   methods: {
+    closeSuccessModal() {
+      this.showSuccessModal = false;
+    },
     editExistingShop(shop) {
       this.form = {
         name: shop.name || '',
@@ -600,9 +611,9 @@ app.component('shop-form-page', {
       this.localSuccess = '';
       try {
         await API.updateShop(this.editShopId, this.form);
-        this.localSuccess = '店舗を更新しました';
         this.cancelEdit();
         await this.$root.loadShops();
+        this.showSuccessModal = true;
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }

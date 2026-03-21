@@ -107,6 +107,10 @@ const API = {
     return this.request('POST', `/v1/shops/${shopId}/staff_shifts`, data);
   },
 
+  updateStaffShift(shopId, id, data) {
+    return this.request('PATCH', `/v1/shops/${shopId}/staff_shifts/${id}`, data);
+  },
+
   deleteStaffShift(shopId, id) {
     return this.request('DELETE', `/v1/shops/${shopId}/staff_shifts/${id}`);
   },

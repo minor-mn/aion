@@ -55,6 +55,9 @@
       <!-- Shift Form -->
       <shift-form-page v-if="currentView === 'shiftForm'"></shift-form-page>
 
+      <!-- Shift Edit -->
+      <shift-edit-page v-if="currentView === 'shiftEdit'"></shift-edit-page>
+
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">
 
@@ -96,7 +99,10 @@
                   <div class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
                   <ul class="cast-list">
                     <li v-for="staff in group.staffs" :key="staff.staff_id" class="cast-item">
-                      <span class="cast-name">{{ staff.name }}</span>
+                      <span class="cast-name cast-name-link" @click.stop="openStaffSchedule(staff.staff_id, staff.name, staff.shop_id)">{{ staff.name }}</span>
+                      <span class="cast-shift-time">
+                        {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                      </span>
                       <span class="cast-score"
                             :class="{ positive: staff.score > 0, negative: staff.score < 0, neutral: staff.score === 0 }">
                         {{ staff.score > 0 ? '+' : '' }}{{ staff.score }}
@@ -118,7 +124,7 @@
               <div class="shop-block-name">{{ shop.name }}</div>
               <ul class="cast-list">
                 <li v-for="shift in todayShifts[shop.id]" :key="shift.id" class="cast-item">
-                  <span class="cast-name">{{ getStaffName(shift.staff_id) }}</span>
+                  <span class="cast-name cast-name-link" @click="openStaffSchedule(shift.staff_id, getStaffName(shift.staff_id), shift.shop_id || shop.id)">{{ getStaffName(shift.staff_id) }}</span>
                   <span style="font-size:0.8rem;color:#888">
                     {{ new Date(shift.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
                     〜
@@ -132,6 +138,53 @@
         </div>
 
       </div>
+
+      <!-- Staff Schedule Modal -->
+      <template v-if="staffScheduleOpen">
+        <div class="modal-overlay" @click="closeStaffSchedule">
+          <div class="modal-content" @click.stop>
+            <div class="modal-header">
+              <h3>{{ staffScheduleStaff?.name }}</h3>
+              <button class="modal-close" @click="closeStaffSchedule">&times;</button>
+            </div>
+            <div class="modal-body">
+              <!-- Cast Info Section -->
+              <div v-if="currentUser" class="staff-detail-section">
+                <div class="staff-detail-label">キャスト情報</div>
+                <div class="staff-detail-actions">
+                  <button class="btn btn-outline btn-sm" @click="editStaff(staffScheduleStaff)">キャスト編集</button>
+                  <button class="btn btn-danger btn-sm" @click="confirmDeleteStaff(staffScheduleStaff)">キャスト削除</button>
+                </div>
+              </div>
+              <hr class="staff-detail-divider">
+              <!-- Shifts Section -->
+              <div class="staff-detail-label">スケジュール</div>
+              <div v-if="staffScheduleLoading" class="loading">読み込み中</div>
+              <div v-else-if="staffScheduleShifts.length === 0" class="no-data">今日以降のスケジュールはありません</div>
+              <div v-else>
+                <div v-for="shift in staffScheduleShifts" :key="shift.id" class="staff-schedule-item">
+                  <div class="staff-schedule-info">
+                    <div class="staff-schedule-date">
+                      {{ new Date(shift.start_at).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric',weekday:'short'}) }}
+                    </div>
+                    <div class="staff-schedule-time">
+                      {{ new Date(shift.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                      〜
+                      {{ new Date(shift.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                    </div>
+                    <div class="staff-schedule-shop">{{ shift._shop_name }}</div>
+                  </div>
+                  <div v-if="currentUser" class="staff-schedule-actions">
+                    <button class="btn btn-outline btn-sm" @click="editShift(shift)">編集</button>
+                    <button class="btn btn-danger btn-sm" @click="confirmDeleteShift(shift)">削除</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
     </template>
   </div>
 

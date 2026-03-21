@@ -638,11 +638,11 @@ app.component('shift-form-page', {
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label>開始時刻</label>
-              <input type="time" v-model="entry.startTime">
+              <input type="time" v-model="entry.startTime" step="3600">
             </div>
             <div class="form-group" style="margin-bottom:0">
               <label>終了時刻</label>
-              <input type="time" v-model="entry.endTime">
+              <input type="time" v-model="entry.endTime" step="3600">
             </div>
             <button v-if="entries.length > 1" class="btn btn-danger btn-sm shift-remove-btn" @click="removeEntry(index)">&times;</button>
           </div>
@@ -669,7 +669,7 @@ app.component('shift-form-page', {
     return {
       selectedShopId: '',
       selectedStaffId: '',
-      entries: [{ date: dateStr, startTime: '', endTime: '' }],
+      entries: [{ date: dateStr, startTime: '21:00', endTime: '05:00' }],
       submitting: false,
       localError: '',
       localSuccess: ''
@@ -692,7 +692,14 @@ app.component('shift-form-page', {
       return { date: dateStr, startTime: '', endTime: '' };
     },
     addEntry() {
-      this.entries.push(this.newEntry());
+      const last = this.entries[this.entries.length - 1];
+      const entry = this.newEntry();
+      if (last) {
+        entry.date = last.date;
+        entry.startTime = last.startTime;
+        entry.endTime = last.endTime;
+      }
+      this.entries.push(entry);
     },
     removeEntry(index) {
       this.entries.splice(index, 1);

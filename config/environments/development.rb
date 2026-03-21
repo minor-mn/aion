@@ -46,7 +46,7 @@ Rails.application.configure do
     domain: ENV.fetch("SMTP_DOMAIN", "localhost"),
     user_name: ENV["SMTP_USERNAME"],
     password: ENV["SMTP_PASSWORD"],
-    authentication: ENV["SMTP_USERNAME"].present? ? :plain : nil,
+    authentication: ENV["SMTP_USERNAME"].present? && ENV["POP_ADDRESS"].blank? ? :plain : nil,
     enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "true") == "true"
   }
 

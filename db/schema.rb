@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_17_122828) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_21_184901) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -22,6 +22,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_17_122828) do
     t.jsonb "detail"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "shop_id"
+    t.bigint "staff_id"
   end
 
   create_table "jwt_denylists", force: :cascade do |t|
@@ -66,6 +68,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_17_122828) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "shop_id", null: false
+    t.index ["shop_id", "name"], name: "index_staffs_on_shop_id_and_name", unique: true
   end
 
   create_table "users", force: :cascade do |t|
@@ -76,6 +79,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_17_122828) do
     t.datetime "remember_created_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "confirmation_token"
+    t.datetime "confirmed_at"
+    t.datetime "confirmation_sent_at"
+    t.string "unconfirmed_email"
+    t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end

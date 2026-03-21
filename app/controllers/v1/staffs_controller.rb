@@ -23,8 +23,9 @@ class V1::StaffsController < ApplicationController
   end
 
   def update
+    before_data = staff.as_json
     if staff.update(staff_params)
-      ActionLogger.log(user: current_user, action_type: "update", target: staff)
+      ActionLogger.log(user: current_user, action_type: "update", target: staff, detail: before_data)
       render json: staff
     else
       render json: { errors: staff.errors.full_messages }, status: :unprocessable_entity
@@ -33,7 +34,7 @@ class V1::StaffsController < ApplicationController
 
   def destroy
     if staff
-      ActionLogger.log(user: current_user, action_type: "destroy", target: staff)
+      ActionLogger.log(user: current_user, action_type: "destroy", target: staff, detail: staff.as_json)
       staff.destroy
       head :no_content
     else

@@ -4,7 +4,7 @@ const app = createApp({
   setup() {
     // ========== State ==========
     const currentUser = ref(null);
-    const currentView = ref('home'); // home, login, register, shopForm, staffForm
+    const currentView = ref('home'); // home, login, register, shopForm, staffForm, shiftForm
     const menuOpen = ref(false);
     const loading = ref(true);
     const error = ref('');
@@ -258,6 +258,7 @@ const app = createApp({
       success.value = '';
       if (view === 'shopForm') loadShops();
       if (view === 'staffForm') { loadShops(); loadStaffs(); }
+      if (view === 'shiftForm') { loadShops(); loadStaffs(); }
     }
 
     // ========== Init ==========
@@ -599,6 +600,156 @@ app.component('staff-form-page', {
     },
     async loadFilteredStaffs() {
       // staffs are already loaded, filtering is done by computed
+    }
+  }
+});
+
+// ========== Shift Form Component ==========
+app.component('shift-form-page', {
+  template: `
+    <div class="register-container">
+      <h2>出勤登録</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+
+      <div class="form-group">
+        <label>店舗 *</label>
+        <select v-model="selectedShopId" @change="onShopChange">
+          <option value="">選択してください</option>
+          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>キャスト *</label>
+        <select v-model="selectedStaffId" :disabled="!selectedShopId">
+          <option value="">選択してください</option>
+          <option v-for="staff in filteredStaffs" :key="staff.id" :value="staff.id">{{ staff.name }}</option>
+        </select>
+      </div>
+
+      <template v-if="selectedShopId && selectedStaffId">
+        <h3 style="margin-top:16px;margin-bottom:12px">出勤日時</h3>
+        <div v-for="(entry, index) in entries" :key="index" class="shift-entry">
+          <div class="shift-entry-fields">
+            <div class="form-group" style="margin-bottom:0">
+              <label>日付</label>
+              <input type="date" v-model="entry.date">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>開始時刻</label>
+              <input type="time" v-model="entry.startTime">
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>終了時刻</label>
+              <input type="time" v-model="entry.endTime">
+            </div>
+            <button v-if="entries.length > 1" class="btn btn-danger btn-sm shift-remove-btn" @click="removeEntry(index)">&times;</button>
+          </div>
+          <div v-if="entry.endTime && entry.startTime && entry.endTime <= entry.startTime" class="shift-hint">
+            ※ 終了時刻が開始時刻以前のため、翌日の終了として扱います
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <button class="btn btn-secondary btn-sm" @click="addEntry">+ 追加</button>
+        </div>
+
+        <div class="form-actions" style="margin-bottom:32px">
+          <button class="btn btn-primary" @click="submitShifts" :disabled="submitting">
+            {{ submitting ? '登録中...' : '出勤を登録' }}
+          </button>
+        </div>
+      </template>
+    </div>
+  `,
+  data() {
+    return {
+      selectedShopId: '',
+      selectedStaffId: '',
+      entries: [this.newEntry()],
+      submitting: false,
+      localError: '',
+      localSuccess: ''
+    };
+  },
+  computed: {
+    filteredStaffs() {
+      if (!this.selectedShopId) return [];
+      return this.$root.staffs.filter(s => s.shop_id == this.selectedShopId);
+    }
+  },
+  async mounted() {
+    await this.$root.loadShops();
+    await this.$root.loadStaffs();
+  },
+  methods: {
+    newEntry() {
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      return { date: dateStr, startTime: '', endTime: '' };
+    },
+    addEntry() {
+      this.entries.push(this.newEntry());
+    },
+    removeEntry(index) {
+      this.entries.splice(index, 1);
+    },
+    onShopChange() {
+      this.selectedStaffId = '';
+    },
+    buildDatetime(date, time, isNextDay) {
+      const dt = new Date(`${date}T${time}:00`);
+      if (isNextDay) {
+        dt.setDate(dt.getDate() + 1);
+      }
+      return dt.toISOString();
+    },
+    async submitShifts() {
+      this.localError = '';
+      this.localSuccess = '';
+
+      // Validate
+      for (let i = 0; i < this.entries.length; i++) {
+        const e = this.entries[i];
+        if (!e.date || !e.startTime || !e.endTime) {
+          this.localError = `${i + 1}行目: 日付・開始時刻・終了時刻を全て入力してください`;
+          return;
+        }
+      }
+
+      this.submitting = true;
+      let successCount = 0;
+      const errors = [];
+
+      for (let i = 0; i < this.entries.length; i++) {
+        const e = this.entries[i];
+        const isNextDay = e.endTime <= e.startTime;
+        const startAt = this.buildDatetime(e.date, e.startTime, false);
+        const endAt = this.buildDatetime(e.date, e.endTime, isNextDay);
+
+        try {
+          await API.createStaffShift(this.selectedShopId, {
+            staff_id: this.selectedStaffId,
+            start_at: startAt,
+            end_at: endAt
+          });
+          successCount++;
+        } catch (err) {
+          const msg = err.data?.errors?.join(', ') || '登録に失敗しました';
+          errors.push(`${i + 1}行目: ${msg}`);
+        }
+      }
+
+      if (successCount > 0) {
+        this.localSuccess = `${successCount}件の出勤を登録しました`;
+        // Reset entries to a single empty row
+        this.entries = [this.newEntry()];
+      }
+      if (errors.length > 0) {
+        this.localError = errors.join('\n');
+      }
+      this.submitting = false;
     }
   }
 });

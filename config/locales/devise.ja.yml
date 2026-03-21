@@ -1,5 +1,18 @@
 ja:
   activerecord:
+    errors:
+      models:
+        user:
+          attributes:
+            email:
+              taken: はすでに使用されています
+              blank: を入力してください
+              invalid: は有効な形式ではありません
+            password:
+              too_short: は%{count}文字以上で入力してください
+              blank: を入力してください
+            password_confirmation:
+              confirmation: が一致しません
     attributes:
       user:
         confirmation_sent_at: パスワード確認送信時刻

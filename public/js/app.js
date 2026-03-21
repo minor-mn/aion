@@ -256,6 +256,7 @@ const app = createApp({
       menuOpen.value = false;
       error.value = '';
       success.value = '';
+      if (view === 'home') loadHomeData();
       if (view === 'shopForm') loadShops();
       if (view === 'staffForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftForm') { loadShops(); loadStaffs(); }

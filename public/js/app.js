@@ -307,7 +307,9 @@ const app = createApp({
     }
 
     function editStaff(staffInfo) {
-      editingStaff.value = staffInfo;
+      // Look up full staff data from already-loaded staffs array
+      const full = staffs.value.find(st => st.id === staffInfo.id || st.id == staffInfo.id);
+      editingStaff.value = full || staffInfo;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
       currentView.value = 'staffForm';
@@ -631,19 +633,16 @@ app.component('staff-form-page', {
     await this.$root.loadShops();
     await this.$root.loadStaffs();
     await this.loadPreferences();
-    if (this.$root.editingStaff) {
-      const s = this.$root.editingStaff;
-      const full = this.$root.staffs.find(st => st.id === s.id || st.id == s.id);
-      if (full) {
-        this.form = {
-          name: full.name || '',
-          shop_id: full.shop_id || '',
-          site_url: full.site_url || '',
-          image_url: full.image_url || ''
-        };
-        this.editMode = true;
-        this.editStaffId = full.id;
-      }
+    const es = this.$root.editingStaff;
+    if (es) {
+      this.form = {
+        name: es.name || '',
+        shop_id: es.shop_id || '',
+        site_url: es.site_url || '',
+        image_url: es.image_url || ''
+      };
+      this.editMode = true;
+      this.editStaffId = es.id;
       this.$root.editingStaff = null;
     }
   },

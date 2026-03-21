@@ -493,15 +493,15 @@ app.component('shop-form-page', {
         <label>画像URL</label>
         <input v-model="form.image_url" type="url" placeholder="https://...">
       </div>
-      <div class="form-actions" style="margin-bottom:16px">
+      <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
         <template v-if="editMode">
-          <button class="btn btn-primary" @click="updateShop" :disabled="submitting">
-            {{ submitting ? '更新中...' : '店舗を更新' }}
+          <button class="btn btn-primary" @click="updateShop" :disabled="submitting" style="flex:1">
+            {{ submitting ? '更新中...' : '更新' }}
           </button>
-          <button class="btn btn-danger" @click="deleteShopWithCascade" :disabled="submitting" style="margin-left:8px">
+          <button class="btn btn-danger" @click="deleteShopWithCascade" :disabled="submitting" style="flex:1">
             削除
           </button>
-          <button class="btn btn-secondary" @click="cancelEdit" style="margin-left:8px">
+          <button class="btn btn-secondary" @click="cancelEdit" style="flex:1">
             キャンセル
           </button>
         </template>

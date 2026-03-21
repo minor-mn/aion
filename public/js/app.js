@@ -520,7 +520,10 @@ app.component('shop-form-page', {
             <div class="shop-block-name">{{ shop.name }}</div>
             <div v-if="shop.site_url" style="font-size:0.8rem;color:#666">{{ shop.site_url }}</div>
           </div>
-          <button class="btn btn-danger btn-sm" @click="deleteShop(shop)">削除</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" @click="editExistingShop(shop)">編集</button>
+            <button class="btn btn-danger btn-sm" @click="deleteShop(shop)">削除</button>
+          </div>
         </div>
       </div>
     </div>
@@ -550,6 +553,18 @@ app.component('shop-form-page', {
     }
   },
   methods: {
+    editExistingShop(shop) {
+      this.form = {
+        name: shop.name || '',
+        site_url: shop.site_url || '',
+        image_url: shop.image_url || ''
+      };
+      this.editMode = true;
+      this.editShopId = shop.id;
+      this.localError = '';
+      this.localSuccess = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
     cancelEdit() {
       this.editMode = false;
       this.editShopId = null;

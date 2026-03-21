@@ -4,7 +4,7 @@ const app = createApp({
   setup() {
     // ========== State ==========
     const currentUser = ref(null);
-    const currentView = ref('home'); // home, login, register, shopForm, staffForm, shiftForm
+    const currentView = ref('home'); // home, login, register, shopForm, staffForm, shiftForm, shiftEdit
     const menuOpen = ref(false);
     const loading = ref(true);
     const error = ref('');
@@ -24,6 +24,15 @@ const app = createApp({
     // Form data
     const shops = ref([]);
     const staffs = ref([]);
+
+    // Staff schedule modal state
+    const staffScheduleOpen = ref(false);
+    const staffScheduleStaff = ref(null);
+    const staffScheduleShifts = ref([]);
+    const staffScheduleLoading = ref(false);
+
+    // Shift edit state
+    const editingShift = ref(null);
 
     // ========== Auth ==========
     async function checkAuth() {
@@ -244,6 +253,56 @@ const app = createApp({
       selectedDate.value = null;
     }
 
+    // ========== Staff Schedule Modal ==========
+    async function openStaffSchedule(staffId, staffName, shopId) {
+      staffScheduleStaff.value = { id: staffId, name: staffName, shop_id: shopId };
+      staffScheduleShifts.value = [];
+      staffScheduleOpen.value = true;
+      staffScheduleLoading.value = true;
+      try {
+        const allShifts = [];
+        for (const shop of (shops.value.length > 0 ? shops.value : todayShops.value)) {
+          try {
+            const data = await API.getStaffShifts(shop.id);
+            const shifts = (data.staff_shifts || []).filter(s => s.staff_id === staffId);
+            for (const s of shifts) {
+              s._shop_id = shop.id;
+              s._shop_name = shop.name;
+            }
+            allShifts.push(...shifts);
+          } catch (e) { /* skip */ }
+        }
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        staffScheduleShifts.value = allShifts
+          .filter(s => new Date(s.start_at) >= now)
+          .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
+          .slice(0, 30);
+      } catch (e) { /* ignore */ }
+      staffScheduleLoading.value = false;
+    }
+
+    function closeStaffSchedule() {
+      staffScheduleOpen.value = false;
+      staffScheduleStaff.value = null;
+      staffScheduleShifts.value = [];
+    }
+
+    async function confirmDeleteShift(shift) {
+      if (!confirm('このシフトを削除しますか？')) return;
+      try {
+        await API.deleteStaffShift(shift._shop_id, shift.id);
+        staffScheduleShifts.value = staffScheduleShifts.value.filter(s => s.id !== shift.id);
+      } catch (e) { /* ignore */ }
+    }
+
+    function editShift(shift) {
+      editingShift.value = shift;
+      staffScheduleOpen.value = false;
+      modalOpen.value = false;
+      currentView.value = 'shiftEdit';
+    }
+
     // ========== Staff name helper ==========
     function getStaffName(staffId) {
       const staff = staffs.value.find(s => s.id === staffId);
@@ -260,6 +319,7 @@ const app = createApp({
       if (view === 'shopForm') loadShops();
       if (view === 'staffForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftForm') { loadShops(); loadStaffs(); }
+      if (view === 'shiftEdit') { loadShops(); }
     }
 
     // ========== Init ==========
@@ -284,9 +344,12 @@ const app = createApp({
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
       todayShops, todayShifts, shops, staffs,
+      staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
+      editingShift,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayShopGroups, closeModal,
+      openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift,
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient
@@ -759,6 +822,116 @@ app.component('shift-form-page', {
         this.entries = [this.newEntry()];
       } else if (errors.length > 0) {
         this.localError = '登録できるシフトがありませんでした（時間帯が重複しています）';
+      }
+      this.submitting = false;
+    }
+  }
+});
+
+// ========== Shift Edit Component ==========
+app.component('shift-edit-page', {
+  template: `
+    <div class="register-container">
+      <h2>シフト編集</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+
+      <div class="form-group">
+        <label>店舗</label>
+        <input type="text" :value="shopName" disabled>
+      </div>
+      <div class="form-group">
+        <label>キャスト</label>
+        <input type="text" :value="staffName" disabled>
+      </div>
+      <div class="form-group">
+        <label>開始日時</label>
+        <div class="shift-entry-fields">
+          <div class="form-group" style="margin-bottom:0">
+            <input type="date" v-model="form.startDate">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <input type="time" v-model="form.startTime" step="3600">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>終了日時</label>
+        <div class="shift-entry-fields">
+          <div class="form-group" style="margin-bottom:0">
+            <input type="date" v-model="form.endDate">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <input type="time" v-model="form.endTime" step="3600">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-bottom:16px">
+        <button class="btn btn-primary" @click="save" :disabled="submitting">
+          {{ submitting ? '保存中...' : '保存' }}
+        </button>
+      </div>
+      <button class="btn btn-outline" @click="$root.navigate('home')">戻る</button>
+    </div>
+  `,
+  data() {
+    return {
+      form: { startDate: '', startTime: '', endDate: '', endTime: '' },
+      submitting: false,
+      localError: '',
+      localSuccess: ''
+    };
+  },
+  computed: {
+    shift() { return this.$root.editingShift; },
+    shopName() {
+      if (!this.shift) return '';
+      const shop = this.$root.shops.find(s => s.id == this.shift._shop_id);
+      return shop ? shop.name : (this.shift._shop_name || '');
+    },
+    staffName() {
+      if (!this.shift) return '';
+      return this.$root.getStaffName(this.shift.staff_id);
+    }
+  },
+  mounted() {
+    if (!this.shift) {
+      this.$root.navigate('home');
+      return;
+    }
+    const start = new Date(this.shift.start_at);
+    const end = new Date(this.shift.end_at);
+    this.form.startDate = this.toDateStr(start);
+    this.form.startTime = this.toTimeStr(start);
+    this.form.endDate = this.toDateStr(end);
+    this.form.endTime = this.toTimeStr(end);
+  },
+  methods: {
+    toDateStr(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    },
+    toTimeStr(d) {
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    },
+    async save() {
+      this.localError = '';
+      this.localSuccess = '';
+      if (!this.form.startDate || !this.form.startTime || !this.form.endDate || !this.form.endTime) {
+        this.localError = '全ての項目を入力してください';
+        return;
+      }
+      this.submitting = true;
+      try {
+        const startAt = new Date(`${this.form.startDate}T${this.form.startTime}:00`).toISOString();
+        const endAt = new Date(`${this.form.endDate}T${this.form.endTime}:00`).toISOString();
+        await API.updateStaffShift(this.shift._shop_id, this.shift.id, {
+          start_at: startAt,
+          end_at: endAt
+        });
+        this.localSuccess = 'シフトを更新しました';
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }
       this.submitting = false;
     }

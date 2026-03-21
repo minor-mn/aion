@@ -583,6 +583,58 @@ body {
   margin-top: 4px;
 }
 
+/* ========== Staff Schedule Modal Items ========== */
+.cast-name-link {
+  color: #4a6cf7;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.cast-name-link:hover {
+  opacity: 0.7;
+}
+
+.staff-schedule-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.staff-schedule-item:last-child {
+  border-bottom: none;
+}
+
+.staff-schedule-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.staff-schedule-date {
+  font-weight: 700;
+  font-size: 0.9rem;
+  min-width: 80px;
+}
+
+.staff-schedule-time {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.staff-schedule-shop {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.staff-schedule-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
   .container {

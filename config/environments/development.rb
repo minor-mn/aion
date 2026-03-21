@@ -38,6 +38,24 @@ Rails.application.configure do
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # SMTP settings for sending emails.
+  config.action_mailer.delivery_method = :smtp
+  smtp_settings = {
+    address: ENV.fetch("SMTP_ADDRESS", "localhost"),
+    port: ENV.fetch("SMTP_PORT", 1025).to_i,
+    domain: ENV.fetch("SMTP_DOMAIN", "localhost"),
+    enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "false") == "true"
+  }
+  # When using POP before SMTP, skip SMTP authentication entirely.
+  unless ENV["POP_ADDRESS"].present?
+    if ENV["SMTP_USERNAME"].present?
+      smtp_settings[:user_name] = ENV["SMTP_USERNAME"]
+      smtp_settings[:password] = ENV["SMTP_PASSWORD"]
+      smtp_settings[:authentication] = :plain
+    end
+  end
+  config.action_mailer.smtp_settings = smtp_settings
+
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 
@@ -61,6 +79,9 @@ Rails.application.configure do
 
   # Uncomment if you wish to allow Action Cable access from any origin.
   # config.action_cable.disable_request_forgery_protection = true
+
+  # Allow all hosts in development.
+  config.hosts.clear
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true

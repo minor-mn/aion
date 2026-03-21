@@ -585,9 +585,7 @@ body {
 
 /* ========== Staff Schedule Modal Items ========== */
 .cast-name-link {
-  color: #4a6cf7;
   cursor: pointer;
-  text-decoration: underline;
 }
 
 .cast-name-link:hover {

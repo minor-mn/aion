@@ -633,6 +633,37 @@ body {
   flex-shrink: 0;
 }
 
+.cast-shift-time {
+  font-size: 0.8rem;
+  color: #888;
+  margin-left: 4px;
+}
+
+.staff-detail-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.staff-detail-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #333;
+  margin-bottom: 6px;
+}
+
+.staff-detail-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.staff-detail-divider {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 8px 0;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
   .container {

@@ -303,6 +303,23 @@ const app = createApp({
       currentView.value = 'shiftEdit';
     }
 
+    function editStaff(staffInfo) {
+      staffScheduleOpen.value = false;
+      modalOpen.value = false;
+      currentView.value = 'staffForm';
+    }
+
+    async function confirmDeleteStaff(staffInfo) {
+      if (!confirm(`「${staffInfo.name}」を削除しますか？`)) return;
+      try {
+        await API.deleteStaff(staffInfo.id);
+        staffScheduleOpen.value = false;
+        modalOpen.value = false;
+        await loadStaffs();
+        await loadHomeData();
+      } catch (e) { /* ignore */ }
+    }
+
     // ========== Staff name helper ==========
     function getStaffName(staffId) {
       const staff = staffs.value.find(s => s.id === staffId);
@@ -350,6 +367,7 @@ const app = createApp({
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayShopGroups, closeModal,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift,
+      editStaff, confirmDeleteStaff,
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient

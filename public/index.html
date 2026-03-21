@@ -31,6 +31,7 @@
         <h3>メニュー</h3>
         <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
         <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
+        <button class="menu-item" @click="navigate('shiftForm')">出勤登録</button>
       </div>
     </template>
 
@@ -50,6 +51,9 @@
 
       <!-- Staff Form -->
       <staff-form-page v-if="currentView === 'staffForm'"></staff-form-page>
+
+      <!-- Shift Form -->
+      <shift-form-page v-if="currentView === 'shiftForm'"></shift-form-page>
 
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">

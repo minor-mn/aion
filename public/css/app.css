@@ -553,6 +553,36 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* ========== Shift Entry ========== */
+.shift-entry {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.shift-entry-fields {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.shift-entry-fields .form-group {
+  flex: 1;
+}
+
+.shift-remove-btn {
+  align-self: flex-end;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.shift-hint {
+  font-size: 0.78rem;
+  color: #e67e00;
+  margin-top: 4px;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
   .container {
@@ -571,5 +601,14 @@ body {
 
   .header-title {
     font-size: 1.1rem;
+  }
+
+  .shift-entry-fields {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .shift-remove-btn {
+    align-self: flex-start;
   }
 }

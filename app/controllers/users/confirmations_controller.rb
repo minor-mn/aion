@@ -9,7 +9,8 @@ class Users::ConfirmationsController < Devise::ConfirmationsController
     if resource.errors.empty?
       redirect_to "/?confirmed=true", allow_other_host: false
     else
-      redirect_to "/?confirmation_error=#{resource.errors.full_messages.join(', ')}", allow_other_host: false
+      error_message = URI.encode_www_form_component(resource.errors.full_messages.join(", "))
+      redirect_to "/?confirmation_error=#{error_message}", allow_other_host: false
     end
   end
 

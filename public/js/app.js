@@ -34,6 +34,9 @@ const app = createApp({
     // Shift edit state
     const editingShift = ref(null);
 
+    // Staff edit state
+    const editingStaff = ref(null);
+
     // ========== Auth ==========
     async function checkAuth() {
       if (!API.isLoggedIn()) {
@@ -304,6 +307,7 @@ const app = createApp({
     }
 
     function editStaff(staffInfo) {
+      editingStaff.value = staffInfo;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
       currentView.value = 'staffForm';
@@ -362,7 +366,7 @@ const app = createApp({
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
       todayShops, todayShifts, shops, staffs,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
-      editingShift,
+      editingShift, editingStaff,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayShopGroups, closeModal,
@@ -546,7 +550,7 @@ app.component('staff-form-page', {
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 
-      <h3 style="margin-bottom:12px">新規キャスト登録</h3>
+      <h3 style="margin-bottom:12px">{{ editMode ? 'キャスト編集' : '新規キャスト登録' }}</h3>
       <div class="form-group">
         <label>キャスト名 *</label>
         <input v-model="form.name" type="text" placeholder="キャスト名">
@@ -566,10 +570,13 @@ app.component('staff-form-page', {
         <label>画像URL</label>
         <input v-model="form.image_url" type="url" placeholder="https://...">
       </div>
-      <div class="form-actions" style="margin-bottom:32px">
-        <button class="btn btn-primary" @click="createStaff" :disabled="submitting">
-          {{ submitting ? '登録中...' : 'キャストを登録' }}
+      <div class="form-actions" style="margin-bottom:12px">
+        <button class="btn btn-primary" @click="editMode ? updateStaff() : createStaff()" :disabled="submitting">
+          {{ submitting ? (editMode ? '更新中...' : '登録中...') : (editMode ? 'キャストを更新' : 'キャストを登録') }}
         </button>
+      </div>
+      <div v-if="editMode" style="margin-bottom:32px">
+        <button class="btn btn-outline" @click="cancelEdit">新規登録に切り替え</button>
       </div>
 
       <h3 style="margin-bottom:12px">登録済みキャスト</h3>
@@ -605,6 +612,8 @@ app.component('staff-form-page', {
   data() {
     return {
       form: { name: '', shop_id: '', site_url: '', image_url: '' },
+      editMode: false,
+      editStaffId: null,
       submitting: false,
       localError: '',
       localSuccess: '',
@@ -622,6 +631,21 @@ app.component('staff-form-page', {
     await this.$root.loadShops();
     await this.$root.loadStaffs();
     await this.loadPreferences();
+    if (this.$root.editingStaff) {
+      const s = this.$root.editingStaff;
+      const full = this.$root.staffs.find(st => st.id === s.id || st.id == s.id);
+      if (full) {
+        this.form = {
+          name: full.name || '',
+          shop_id: full.shop_id || '',
+          site_url: full.site_url || '',
+          image_url: full.image_url || ''
+        };
+        this.editMode = true;
+        this.editStaffId = full.id;
+      }
+      this.$root.editingStaff = null;
+    }
   },
   methods: {
     getShopName(shopId) {
@@ -652,6 +676,13 @@ app.component('staff-form-page', {
         this.localError = 'スコアの設定に失敗しました';
       }
     },
+    cancelEdit() {
+      this.editMode = false;
+      this.editStaffId = null;
+      this.form = { name: '', shop_id: '', site_url: '', image_url: '' };
+      this.localError = '';
+      this.localSuccess = '';
+    },
     async createStaff() {
       if (!this.form.name || !this.form.shop_id) {
         this.localError = 'キャスト名と所属店舗は必須です';
@@ -667,6 +698,26 @@ app.component('staff-form-page', {
         await this.$root.loadStaffs();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '登録に失敗しました';
+      }
+      this.submitting = false;
+    },
+    async updateStaff() {
+      if (!this.form.name || !this.form.shop_id) {
+        this.localError = 'キャスト名と所属店舗は必須です';
+        return;
+      }
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        await API.updateStaff(this.editStaffId, this.form);
+        this.localSuccess = 'キャストを更新しました';
+        this.editMode = false;
+        this.editStaffId = null;
+        this.form = { name: '', shop_id: '', site_url: '', image_url: '' };
+        await this.$root.loadStaffs();
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }
       this.submitting = false;
     },

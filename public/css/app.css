@@ -14,7 +14,8 @@ body {
 
 /* ========== Header ========== */
 .header {
-  background: #1a1a2e;
+  background: #000 url('/images/header-bg.webp') no-repeat right center;
+  background-size: auto 100%;
   color: #fff;
   padding: 12px 20px;
   display: flex;

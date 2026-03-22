@@ -20,16 +20,14 @@
       <div class="menu-overlay" @click="menuOpen = false"></div>
       <div class="menu-panel">
         <button class="menu-close" @click="menuOpen = false">&times;</button>
-        <h3>メニュー</h3>
         <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
         <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
         <button class="menu-item" @click="navigate('shiftForm')">出勤登録</button>
-        <div class="menu-divider"></div>
         <template v-if="currentUser">
-          <button class="menu-item menu-item-auth" @click="handleLogout">ログアウト</button>
+          <button class="menu-item" @click="handleLogout">ログアウト</button>
         </template>
         <template v-else>
-          <button class="menu-item menu-item-auth" @click="navigate('login')">ログイン</button>
+          <button class="menu-item" @click="navigate('login')">ログイン</button>
         </template>
       </div>
     </template>

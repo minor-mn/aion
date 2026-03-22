@@ -44,27 +44,46 @@ namespace :fcm do
     end
 
     puts ""
-    puts "googleauth gem version: #{Gem.loaded_specs['googleauth']&.version || 'unknown'}"
-    puts ""
-    puts "アクセストークン取得テスト..."
+    puts "アクセストークン取得テスト（直接OAuth2）..."
     begin
-      credentials = Google::Auth::ServiceAccountCredentials.make_creds(
-        json_key_io: StringIO.new(json_content),
-        scope: "https://www.googleapis.com/auth/firebase.cloud-messaging"
+      private_key = OpenSSL::PKey::RSA.new(parsed["private_key"])
+      now = Time.now.to_i
+      jwt_header = { alg: "RS256", typ: "JWT" }
+      jwt_payload = {
+        iss: parsed["client_email"],
+        scope: "https://www.googleapis.com/auth/firebase.cloud-messaging",
+        aud: "https://oauth2.googleapis.com/token",
+        iat: now,
+        exp: now + 3600
+      }
+      segments = [
+        Base64.urlsafe_encode64(jwt_header.to_json, padding: false),
+        Base64.urlsafe_encode64(jwt_payload.to_json, padding: false)
+      ]
+      signing_input = segments.join(".")
+      signature = private_key.sign("SHA256", signing_input)
+      jwt = "#{signing_input}.#{Base64.urlsafe_encode64(signature, padding: false)}"
+
+      uri = URI("https://oauth2.googleapis.com/token")
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      request = Net::HTTP::Post.new(uri.path)
+      request["Content-Type"] = "application/x-www-form-urlencoded"
+      request.body = URI.encode_www_form(
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion: jwt
       )
-      puts "credentials class: #{credentials.class}"
-      result = credentials.fetch_access_token!
-      puts "fetch_access_token! 戻り値: #{result.inspect}"
-      token = credentials.access_token || result["access_token"]
-      if token.present?
-        puts "✅ アクセストークン取得成功: #{token[0..20]}..."
+      response = http.request(request)
+      result = JSON.parse(response.body)
+
+      if result["access_token"]
+        puts "✅ アクセストークン取得成功: #{result['access_token'][0..20]}..."
       else
-        puts "❌ アクセストークンが空です"
-        puts "   credentials methods: #{(credentials.methods - Object.methods).sort.join(', ')}"
+        puts "❌ アクセストークン取得失敗"
+        puts "   レスポンス: #{response.body}"
       end
     rescue => e
-      puts "❌ アクセストークン取得失敗: #{e.class} - #{e.message}"
-      puts "   #{e.backtrace&.first(3)&.join("\n   ")}"
+      puts "❌ エラー: #{e.class} - #{e.message}"
     end
 
     puts ""

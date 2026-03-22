@@ -1,8 +1,10 @@
-require "googleauth"
+require "openssl"
 require "net/http"
 require "json"
+require "base64"
 
 class FcmService
+  TOKEN_URI = "https://oauth2.googleapis.com/token".freeze
   FCM_SCOPE = "https://www.googleapis.com/auth/firebase.cloud-messaging".freeze
 
   def self.send_notification(fcm_token, title:, body:)
@@ -10,19 +12,22 @@ class FcmService
   end
 
   def send_notification(fcm_token, title:, body:)
-    credentials = build_credentials
-    return false unless credentials
-
-    token_result = credentials.fetch_access_token!
-    access_token = credentials.access_token || token_result["access_token"] || token_result["id_token"]
-
-    unless access_token
-      Rails.logger.warn("[FCM] アクセストークンを取得できませんでした。Google Cloud ConsoleでFirebase Cloud Messaging APIが有効か確認してください")
+    unless service_account_json.present?
+      Rails.logger.warn("[FCM] FIREBASE_SERVICE_ACCOUNT_JSON not set")
       return false
     end
 
-    project_id = resolve_project_id
-    return false unless project_id
+    access_token = fetch_access_token
+    unless access_token
+      Rails.logger.warn("[FCM] アクセストークンを取得できませんでした")
+      return false
+    end
+
+    project_id = parsed_service_account["project_id"]
+    unless project_id
+      Rails.logger.warn("[FCM] project_id が見つかりません")
+      return false
+    end
 
     uri = URI("https://fcm.googleapis.com/v1/projects/#{project_id}/messages:send")
 
@@ -57,7 +62,6 @@ class FcmService
       true
     else
       Rails.logger.warn("[FCM] Failed (#{response.code}): #{response.body}")
-      # Remove invalid token (404 = NOT_FOUND means token is stale)
       if response.code.to_i == 404
         FcmToken.where(token: fcm_token).destroy_all
       end
@@ -75,7 +79,6 @@ class FcmService
       value = ENV["FIREBASE_SERVICE_ACCOUNT_JSON"]
       return nil if value.blank?
 
-      # ファイルパスが指定された場合はファイルから読み込む
       if value.start_with?("/") || value.start_with?("./")
         File.read(value)
       else
@@ -88,21 +91,55 @@ class FcmService
     @parsed_service_account ||= JSON.parse(service_account_json)
   end
 
-  def build_credentials
-    unless service_account_json.present?
-      Rails.logger.warn("[FCM] FIREBASE_SERVICE_ACCOUNT_JSON not set")
-      return nil
-    end
+  # OAuth2 JWT assertion flow を直接実装（googleauth gemに依存しない）
+  def fetch_access_token
+    sa = parsed_service_account
+    private_key = OpenSSL::PKey::RSA.new(sa["private_key"])
 
-    Google::Auth::ServiceAccountCredentials.make_creds(
-      json_key_io: StringIO.new(service_account_json),
-      scope: FCM_SCOPE
+    now = Time.now.to_i
+    jwt_header = { alg: "RS256", typ: "JWT" }
+    jwt_payload = {
+      iss: sa["client_email"],
+      scope: FCM_SCOPE,
+      aud: TOKEN_URI,
+      iat: now,
+      exp: now + 3600
+    }
+
+    segments = [
+      base64url_encode(jwt_header.to_json),
+      base64url_encode(jwt_payload.to_json)
+    ]
+    signing_input = segments.join(".")
+    signature = private_key.sign("SHA256", signing_input)
+    jwt = "#{signing_input}.#{base64url_encode(signature)}"
+
+    uri = URI(TOKEN_URI)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Post.new(uri.path)
+    request["Content-Type"] = "application/x-www-form-urlencoded"
+    request.body = URI.encode_www_form(
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt
     )
+
+    response = http.request(request)
+    result = JSON.parse(response.body)
+
+    if result["access_token"]
+      result["access_token"]
+    else
+      Rails.logger.warn("[FCM] Token exchange failed: #{response.body}")
+      nil
+    end
+  rescue => e
+    Rails.logger.error("[FCM] Token fetch error: #{e.message}")
+    nil
   end
 
-  def resolve_project_id
-    return nil unless service_account_json.present?
-
-    parsed_service_account["project_id"]
+  def base64url_encode(data)
+    Base64.urlsafe_encode64(data, padding: false)
   end
 end

@@ -15,6 +15,10 @@ class V1::StaffShiftsController < ApplicationController
     shift = StaffShift.new(staff_shift_params)
     shift.shop_id = params[:shop_id]
     if shift.save
+      # Schedule notifications for same-day shifts
+      if shift.start_at.to_date == Date.current
+        ScheduleShiftNotificationsJob.perform_later(shift.id)
+      end
       render json: { staff_shift: shift }, status: :created
     else
       render json: { errors: shift.errors.full_messages }, status: :unprocessable_entity

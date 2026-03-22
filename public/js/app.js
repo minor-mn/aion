@@ -64,6 +64,7 @@ const app = createApp({
         currentView.value = 'home';
         success.value = 'ログインしました';
         await loadHomeData();
+        registerFcmToken();
       } catch (e) {
         error.value = e.data?.error || 'ログインに失敗しました';
       }
@@ -403,6 +404,29 @@ const app = createApp({
       if (view === 'shiftEdit') { loadShops(); }
     }
 
+    // ========== FCM Registration ==========
+    async function registerFcmToken() {
+      if (!currentUser.value) return;
+      if (!('Notification' in window)) return;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        // Register Firebase messaging service worker
+        const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        const messaging = firebase.messaging();
+        const token = await messaging.getToken({
+          vapidKey: 'BDiAra42PapQc1rk4-dbjVJmZ_2MS3oJd3md3kFJ5nj1mK7kcyQxTyue7mzP2x1oVi5KHIxULk8chAuQRVjh7u8',
+          serviceWorkerRegistration: swReg
+        });
+        if (token) {
+          await API.saveFcmToken(token);
+        }
+      } catch (e) {
+        console.warn('[FCM] トークン登録に失敗:', e);
+      }
+    }
+
     // ========== Init ==========
     onMounted(async () => {
       // Handle email confirmation redirect
@@ -419,6 +443,10 @@ const app = createApp({
 
       await checkAuth();
       await loadHomeData();
+      // Auto-register FCM token if already logged in
+      if (currentUser.value) {
+        registerFcmToken();
+      }
     });
 
     return {

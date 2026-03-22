@@ -8,8 +8,14 @@ class ShiftNotificationJob < ApplicationJob
     setting = user.notification_setting
     return unless setting&.notifications_enabled
 
-    # TODO: Implement actual push notification delivery (e.g. Web Push / FCM)
-    # For now, log the notification
-    Rails.logger.info("[ShiftNotification] user=#{user.id} body=#{body}")
+    tokens = user.fcm_tokens.pluck(:token)
+    if tokens.empty?
+      Rails.logger.info("[ShiftNotification] user=#{user.id} has no FCM tokens, skipping")
+      return
+    end
+
+    tokens.each do |token|
+      FcmService.send_notification(token, title: "シフト通知", body: body)
+    end
   end
 end

@@ -153,6 +153,15 @@ const API = {
     return this.request('PATCH', '/v1/user/notification_settings', data);
   },
 
+  // FCM Tokens
+  saveFcmToken(token) {
+    return this.request('POST', '/v1/user/fcm_tokens', { token });
+  },
+
+  deleteFcmToken(token) {
+    return this.request('DELETE', '/v1/user/fcm_tokens', { token });
+  },
+
   // Action Logs
   getActionLogs(filters = {}) {
     const params = new URLSearchParams();

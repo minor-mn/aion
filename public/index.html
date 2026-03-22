@@ -9,9 +9,8 @@
 <body>
   <div id="app">
     <!-- Header -->
-    <header class="header">
-      <span class="header-title" @click="navigate('home')">Aion</span>
-      <div class="header-right">
+    <header class="header" @click="navigate('home')">
+      <div class="header-right" @click.stop>
         <template v-if="currentUser">
           <span class="header-user">{{ currentUser.email }}</span>
           <button class="btn btn-secondary btn-sm" @click="handleLogout">ログアウト</button>

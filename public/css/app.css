@@ -18,7 +18,8 @@ body {
   background-size: auto 100%;
   color: #fff;
   padding: 12px 20px;
-  min-height: 400px;
+  min-height: 200px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;

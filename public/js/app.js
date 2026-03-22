@@ -320,7 +320,13 @@ const app = createApp({
       editingStaff.value = full || staffInfo;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
-      currentView.value = 'staffForm';
+      if (currentView.value === 'staffForm') {
+        // Force re-mount when already on staffForm
+        currentView.value = '';
+        nextTick(() => { currentView.value = 'staffForm'; });
+      } else {
+        currentView.value = 'staffForm';
+      }
     }
 
     async function confirmDeleteStaff(staffInfo) {

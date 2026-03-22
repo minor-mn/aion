@@ -9,11 +9,18 @@ class V1::User::FcmTokensController < ApplicationController
     # If the token already exists for another user, reassign it
     existing = FcmToken.find_by(token: token)
     if existing
-      existing.update!(user: current_user)
-      render json: { message: "FCMトークンを更新しました" }, status: :ok
+      if existing.update(user: current_user)
+        render json: { message: "FCMトークンを更新しました" }, status: :ok
+      else
+        render json: { error: existing.errors.full_messages.join(", ") }, status: :unprocessable_entity
+      end
     else
-      current_user.fcm_tokens.create!(token: token)
-      render json: { message: "FCMトークンを登録しました" }, status: :created
+      fcm_token = current_user.fcm_tokens.build(token: token)
+      if fcm_token.save
+        render json: { message: "FCMトークンを登録しました" }, status: :created
+      else
+        render json: { error: fcm_token.errors.full_messages.join(", ") }, status: :unprocessable_entity
+      end
     end
   end
 

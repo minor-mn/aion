@@ -65,26 +65,29 @@ class FcmService
 
   private
 
+  def service_account_json
+    @service_account_json ||= ENV["FIREBASE_SERVICE_ACCOUNT_JSON"]
+  end
+
+  def parsed_service_account
+    @parsed_service_account ||= JSON.parse(service_account_json)
+  end
+
   def build_credentials
-    json_key = ENV["FIREBASE_SERVICE_ACCOUNT_JSON"]
-    if json_key.present?
-      key_data = JSON.parse(json_key)
-      Google::Auth::ServiceAccountCredentials.make_creds(
-        json_key_io: StringIO.new(json_key),
-        scope: FCM_SCOPE
-      )
-    else
+    unless service_account_json.present?
       Rails.logger.warn("[FCM] FIREBASE_SERVICE_ACCOUNT_JSON not set")
-      nil
+      return nil
     end
+
+    Google::Auth::ServiceAccountCredentials.make_creds(
+      json_key_io: StringIO.new(service_account_json),
+      scope: FCM_SCOPE
+    )
   end
 
   def resolve_project_id
-    json_key = ENV["FIREBASE_SERVICE_ACCOUNT_JSON"]
-    if json_key.present?
-      JSON.parse(json_key)["project_id"]
-    else
-      nil
-    end
+    return nil unless service_account_json.present?
+
+    parsed_service_account["project_id"]
   end
 end

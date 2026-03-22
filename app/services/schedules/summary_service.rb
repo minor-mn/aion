@@ -41,7 +41,7 @@ module Schedules
         {
           date:         date.to_s,
           total_score:  staffs.sum { |s| s[:score] },
-          staffs:       staffs
+          staffs:       staffs.sort_by { |s| s[:name].to_s }
         }
       end
 

@@ -2,7 +2,7 @@ class V1::ShopsController < ApplicationController
   before_action :authenticate_user!, except: %i[index show]
 
   def index
-    render json: { shops: Shop.all }
+    render json: { shops: Shop.all.sort_by { |s| s.name.to_s } }
   end
 
   def show

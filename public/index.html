@@ -217,7 +217,7 @@
   <script src="/js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js?v=' + Date.now(), { updateViaCache: 'none' });
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
     }
   </script>
 </body>

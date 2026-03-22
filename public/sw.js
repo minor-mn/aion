@@ -1,4 +1,4 @@
-const CACHE_NAME = 'okyuyote-v1';
+const CACHE_NAME = 'okyuyote-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -35,19 +35,14 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets: cache first, then network
+  // Static assets: network first, fall back to cache (offline)
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) {
-        // Update cache in background
-        fetch(event.request).then(response => {
-          if (response.ok) {
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, response));
-          }
-        }).catch(() => {});
-        return cached;
+    fetch(event.request).then(response => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
       }
-      return fetch(event.request);
-    })
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });

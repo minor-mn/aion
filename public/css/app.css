@@ -3,6 +3,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  touch-action: manipulation;
 }
 
 html {
@@ -28,10 +29,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
   overflow: hidden;
+}
+
+.header-spacer {
+  min-height: 200px;
 }
 
 .header-title {
@@ -857,6 +864,11 @@ body {
   .modal-content {
     width: 95%;
     max-height: 85vh;
+  }
+
+  .header,
+  .header-spacer {
+    min-height: 150px;
   }
 
   .header-title {

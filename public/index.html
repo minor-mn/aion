@@ -29,10 +29,10 @@
       <div class="menu-overlay" @click="menuOpen = false"></div>
       <div class="menu-panel">
         <button class="menu-close" @click="menuOpen = false">&times;</button>
-        <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
-        <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
-        <button class="menu-item" @click="navigate('shiftForm')">出勤登録</button>
         <template v-if="currentUser">
+          <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
+          <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
+          <button class="menu-item" @click="navigate('shiftForm')">出勤登録</button>
           <button class="menu-item" @click="handleLogout">ログアウト</button>
         </template>
         <template v-else>

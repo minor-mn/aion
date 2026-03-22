@@ -380,7 +380,16 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit'];
+
     function navigate(view) {
+      // Redirect to login if auth required and not logged in
+      if (authRequiredViews.includes(view) && !currentUser.value) {
+        currentView.value = 'login';
+        menuOpen.value = false;
+        error.value = 'この機能を使うにはログインが必要です';
+        return;
+      }
       currentView.value = view;
       menuOpen.value = false;
       error.value = '';

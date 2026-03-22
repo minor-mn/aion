@@ -1,4 +1,4 @@
-const CACHE_NAME = 'okyuyote-v2';
+const CACHE_NAME = 'okyuyote-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

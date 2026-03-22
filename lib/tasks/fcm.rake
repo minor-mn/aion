@@ -1,3 +1,7 @@
+require "net/http"
+require "openssl"
+require "base64"
+
 namespace :fcm do
   desc "Check FCM configuration"
   task check: :environment do

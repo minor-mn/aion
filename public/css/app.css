@@ -22,7 +22,7 @@ body {
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   position: sticky;
   top: 0;
   z-index: 100;

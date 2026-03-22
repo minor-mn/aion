@@ -12,7 +12,6 @@ class V1::ShopsController < ApplicationController
   def create
     new_shop = Shop.new(shop_params)
     if new_shop.save
-      ActionLogger.log(user: current_user, action_type: "create", target: new_shop)
       render json: new_shop, status: :created
     else
       render json: { errors: new_shop.errors.full_messages }, status: :unprocessable_entity

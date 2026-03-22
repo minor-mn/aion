@@ -15,7 +15,6 @@ class V1::StaffShiftsController < ApplicationController
     shift = StaffShift.new(staff_shift_params)
     shift.shop_id = params[:shop_id]
     if shift.save
-      ActionLogger.log(user: current_user, action_type: "create", target: shift)
       render json: { staff_shift: shift }, status: :created
     else
       render json: { errors: shift.errors.full_messages }, status: :unprocessable_entity
@@ -23,9 +22,7 @@ class V1::StaffShiftsController < ApplicationController
   end
 
   def update
-    before_data = staff_shift.as_json
     if staff_shift.update(staff_shift_params)
-      ActionLogger.log(user: current_user, action_type: "update", target: staff_shift, detail: before_data)
       render json: { staff_shift: staff_shift }
     else
       render json: { errors: staff_shift.errors.full_messages }, status: :unprocessable_entity
@@ -34,7 +31,6 @@ class V1::StaffShiftsController < ApplicationController
 
   def destroy
     if staff_shift
-      ActionLogger.log(user: current_user, action_type: "destroy", target: staff_shift, detail: staff_shift.as_json)
       staff_shift.destroy
       head :no_content
     else

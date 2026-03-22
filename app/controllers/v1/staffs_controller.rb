@@ -15,7 +15,6 @@ class V1::StaffsController < ApplicationController
     pp staff_params
     new_staff = Staff.new(staff_params)
     if new_staff.save
-      ActionLogger.log(user: current_user, action_type: "create", target: new_staff)
       render json: new_staff, status: :created
     else
       render json: { errors: new_staff.errors.full_messages }, status: :unprocessable_entity

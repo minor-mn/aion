@@ -411,8 +411,9 @@ const app = createApp({
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') return;
 
-        // Register Firebase messaging service worker
-        const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        // Use the main sw.js which includes Firebase messaging
+        const swReg = await navigator.serviceWorker.getRegistration('/');
+        if (!swReg) return;
         const messaging = firebase.messaging();
         const token = await messaging.getToken({
           vapidKey: 'BDiAra42PapQc1rk4-dbjVJmZ_2MS3oJd3md3kFJ5nj1mK7kcyQxTyue7mzP2x1oVi5KHIxULk8chAuQRVjh7u8',

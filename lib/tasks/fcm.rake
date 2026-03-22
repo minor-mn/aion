@@ -1,4 +1,70 @@
 namespace :fcm do
+  desc "Check FCM configuration"
+  task check: :environment do
+    puts "=== FCM設定診断 ==="
+    puts ""
+
+    value = ENV["FIREBASE_SERVICE_ACCOUNT_JSON"]
+    if value.blank?
+      puts "❌ FIREBASE_SERVICE_ACCOUNT_JSON が設定されていません"
+      puts "   .envファイルに設定してください"
+      exit 1
+    end
+
+    is_file = value.start_with?("/") || value.start_with?("./")
+    if is_file
+      puts "📁 ファイルパスモード: #{value}"
+      unless File.exist?(value)
+        puts "❌ ファイルが見つかりません: #{value}"
+        exit 1
+      end
+      puts "✅ ファイルが存在します"
+      json_content = File.read(value)
+    else
+      puts "📝 JSON文字列モード (#{value.length}文字)"
+      json_content = value
+    end
+
+    begin
+      parsed = JSON.parse(json_content)
+      puts "✅ JSONパース成功"
+    rescue JSON::ParserError => e
+      puts "❌ JSONパースエラー: #{e.message}"
+      exit 1
+    end
+
+    required_fields = %w[type project_id private_key client_email]
+    required_fields.each do |field|
+      if parsed[field].present?
+        display = field == "private_key" ? "#{parsed[field][0..30]}..." : parsed[field]
+        puts "✅ #{field}: #{display}"
+      else
+        puts "❌ #{field} が見つかりません"
+      end
+    end
+
+    puts ""
+    puts "アクセストークン取得テスト..."
+    begin
+      credentials = Google::Auth::ServiceAccountCredentials.make_creds(
+        json_key_io: StringIO.new(json_content),
+        scope: "https://www.googleapis.com/auth/firebase.cloud-messaging"
+      )
+      credentials.fetch_access_token!
+      token = credentials.access_token
+      if token.present?
+        puts "✅ アクセストークン取得成功: #{token[0..20]}..."
+      else
+        puts "❌ アクセストークンが空です"
+      end
+    rescue => e
+      puts "❌ アクセストークン取得失敗: #{e.class} - #{e.message}"
+    end
+
+    puts ""
+    puts "=== 診断完了 ==="
+  end
+
   desc "Send a test push notification to a user. Usage: rails fcm:test[user_id,message]"
   task :test, [ :user_id, :message ] => :environment do |_t, args|
     user_id = args[:user_id]

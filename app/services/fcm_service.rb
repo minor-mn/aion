@@ -13,8 +13,13 @@ class FcmService
     credentials = build_credentials
     return false unless credentials
 
-    credentials.fetch_access_token!
-    access_token = credentials.access_token
+    token_result = credentials.fetch_access_token!
+    access_token = credentials.access_token || token_result["access_token"] || token_result["id_token"]
+
+    unless access_token
+      Rails.logger.warn("[FCM] アクセストークンを取得できませんでした。Google Cloud ConsoleでFirebase Cloud Messaging APIが有効か確認してください")
+      return false
+    end
 
     project_id = resolve_project_id
     return false unless project_id

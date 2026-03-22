@@ -217,7 +217,13 @@
   <script src="/js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js?v=' + Date.now(), { updateViaCache: 'none' });
+      // Clear all SW caches and unregister old SWs first
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+      }).then(() => {
+        navigator.serviceWorker.register('/sw.js?v=' + Date.now(), { updateViaCache: 'none' });
+      });
     }
   </script>
 </body>

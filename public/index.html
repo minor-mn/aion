@@ -67,8 +67,8 @@
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">
 
-        <!-- Calendar (logged in only) -->
-        <div v-if="currentUser" class="calendar-section">
+        <!-- Calendar -->
+        <div class="calendar-section">
           <div class="calendar-header">
             <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
             <h2>{{ calendarTitle }}</h2>
@@ -100,16 +100,16 @@
                 </div>
                 <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                      class="shop-block"
-                     :style="{ background: scoreToGradient(group.totalScore) }">
+                     :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(204,204,102,0.5) 100%)' }">
                   <div class="shop-block-name cast-name-link" @click.stop="editShop({ id: group.shop_id, name: group.shop_name })">{{ group.shop_name }}</div>
-                  <div class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
+                  <div v-if="currentUser" class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
                   <ul class="cast-list">
                     <li v-for="staff in group.staffs" :key="staff.staff_id" class="cast-item">
                       <span class="cast-name cast-name-link" @click.stop="openStaffSchedule(staff.staff_id, staff.name, staff.shop_id)">{{ staff.name }}</span>
                       <span class="cast-shift-time">
                         {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
                       </span>
-                      <span class="cast-score"
+                      <span v-if="currentUser" class="cast-score"
                             :class="{ positive: staff.score > 0, negative: staff.score < 0, neutral: staff.score === 0 }">
                         {{ staff.score > 0 ? '+' : '' }}{{ staff.score }}
                       </span>

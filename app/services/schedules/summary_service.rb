@@ -14,13 +14,20 @@ module Schedules
         raise ParameterError, "Invalid date format"
       end
 
-      preferences = @user.staff_preferences.index_by(&:staff_id)
-      staff_ids = preferences.keys
+      if @user
+        preferences = @user.staff_preferences.index_by(&:staff_id)
+        staff_ids = preferences.keys
 
-      shifts = StaffShift
-        .where(staff_id: staff_ids)
-        .where(start_at: datetime_begin..datetime_end)
-        .includes(staff: :shop)
+        shifts = StaffShift
+          .where(staff_id: staff_ids)
+          .where(start_at: datetime_begin..datetime_end)
+          .includes(staff: :shop)
+      else
+        preferences = {}
+        shifts = StaffShift
+          .where(start_at: datetime_begin..datetime_end)
+          .includes(staff: :shop)
+      end
 
       group_by_date = shifts.group_by { |sh| sh.start_at.to_date }
 

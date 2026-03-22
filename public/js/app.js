@@ -127,7 +127,6 @@ const app = createApp({
     }
 
     async function loadScheduleData() {
-      if (!currentUser.value) return;
       try {
         const year = calendarYear.value;
         const month = calendarMonth.value;
@@ -160,9 +159,7 @@ const app = createApp({
 
     async function loadHomeData() {
       await loadTodayData();
-      if (currentUser.value) {
-        await loadScheduleData();
-      }
+      await loadScheduleData();
     }
 
     // ========== Calendar Helpers ==========
@@ -209,6 +206,10 @@ const app = createApp({
         const totalScore = scheduleDay ? scheduleDay.total_score : null;
         const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
 
+        const gradient = scheduleDay
+          ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(204,204,102,0.5) 100%)')
+          : '#fff';
+
         cells.push({
           day: d,
           dateStr,
@@ -216,7 +217,7 @@ const app = createApp({
           isToday,
           totalScore,
           hasData: !!scheduleDay,
-          gradient: totalScore !== null ? scoreToGradient(totalScore) : '#fff'
+          gradient
         });
       }
       return cells;

@@ -261,9 +261,15 @@ const app = createApp({
 
     // ========== Staff Schedule Modal ==========
     async function openStaffSchedule(staffId, staffName, shopId) {
-      staffScheduleStaff.value = { id: staffId, name: staffName, shop_id: shopId };
+      const fullStaff = staffs.value.find(st => st.id === staffId || st.id == staffId);
+      staffScheduleStaff.value = {
+        id: staffId, name: staffName, shop_id: shopId,
+        image_url: fullStaff?.image_url || '',
+        site_url: fullStaff?.site_url || ''
+      };
       staffScheduleShifts.value = [];
       staffScheduleOpen.value = true;
+      loadModalPreferences();
       staffScheduleLoading.value = true;
       try {
         const allShifts = [];
@@ -315,7 +321,13 @@ const app = createApp({
       editingStaff.value = full || staffInfo;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
-      currentView.value = 'staffForm';
+      if (currentView.value === 'staffForm') {
+        // Force re-mount when already on staffForm
+        currentView.value = '';
+        nextTick(() => { currentView.value = 'staffForm'; });
+      } else {
+        currentView.value = 'staffForm';
+      }
     }
 
     async function confirmDeleteStaff(staffInfo) {
@@ -335,6 +347,30 @@ const app = createApp({
       editingShop.value = full || shopInfo;
       modalOpen.value = false;
       currentView.value = 'shopForm';
+    }
+
+    // ========== Modal Preference ==========
+    const modalPreferences = reactive({});
+
+    async function loadModalPreferences() {
+      if (!currentUser.value) return;
+      try {
+        const data = await API.getPreferences();
+        for (const p of (data.staff_preferences || [])) {
+          modalPreferences[p.staff_id] = p.score;
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    function getModalPreference(staffId) {
+      return modalPreferences[staffId] !== undefined ? modalPreferences[staffId] : 0;
+    }
+
+    async function setModalPreference(staffId, score) {
+      try {
+        await API.setPreference(staffId, parseInt(score));
+        modalPreferences[staffId] = parseInt(score);
+      } catch (e) { /* ignore */ }
     }
 
     // ========== Staff name helper ==========
@@ -387,7 +423,8 @@ const app = createApp({
       editStaff, confirmDeleteStaff, editShop,
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
-      scoreToGradient
+      scoreToGradient,
+      modalPreferences, getModalPreference, setModalPreference
     };
   }
 });
@@ -696,7 +733,7 @@ app.component('staff-form-page', {
       <div v-for="staff in filteredStaffs" :key="staff.id" class="shop-block" style="background:#f8f9fa">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div class="shop-block-name">{{ staff.name }}</div>
+            <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id)">{{ staff.name }}</div>
             <div style="font-size:0.8rem;color:#666">{{ getShopName(staff.shop_id) }}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">

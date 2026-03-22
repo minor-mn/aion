@@ -186,9 +186,9 @@
               </div>
               <hr class="staff-detail-divider">
               <!-- Shifts Section -->
-              <div class="staff-detail-label">スケジュール</div>
+              <div class="staff-detail-label">シフト</div>
               <div v-if="staffScheduleLoading" class="loading">読み込み中</div>
-              <div v-else-if="staffScheduleShifts.length === 0" class="no-data">今日以降のスケジュールはありません</div>
+              <div v-else-if="staffScheduleShifts.length === 0" class="no-data">今日以降のシフトはありません</div>
               <div v-else>
                 <div v-for="shift in staffScheduleShifts" :key="shift.id" class="staff-schedule-item">
                   <div class="staff-schedule-info">

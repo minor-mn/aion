@@ -261,7 +261,12 @@ const app = createApp({
 
     // ========== Staff Schedule Modal ==========
     async function openStaffSchedule(staffId, staffName, shopId) {
-      staffScheduleStaff.value = { id: staffId, name: staffName, shop_id: shopId };
+      const fullStaff = staffs.value.find(st => st.id === staffId || st.id == staffId);
+      staffScheduleStaff.value = {
+        id: staffId, name: staffName, shop_id: shopId,
+        image_url: fullStaff?.image_url || '',
+        site_url: fullStaff?.site_url || ''
+      };
       staffScheduleShifts.value = [];
       staffScheduleOpen.value = true;
       staffScheduleLoading.value = true;

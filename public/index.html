@@ -149,8 +149,16 @@
             </div>
             <div class="modal-body">
               <!-- Cast Info Section -->
+              <div class="staff-info-section">
+                <div v-if="staffScheduleStaff?.image_url" class="staff-info-image">
+                  <img :src="staffScheduleStaff.image_url" :alt="staffScheduleStaff.name" class="staff-photo">
+                </div>
+                <div v-else class="staff-info-image staff-no-image">no image</div>
+                <div v-if="staffScheduleStaff?.site_url" class="staff-info-link">
+                  <a :href="staffScheduleStaff.site_url" target="_blank" rel="noopener noreferrer">{{ staffScheduleStaff.site_url }}</a>
+                </div>
+              </div>
               <div v-if="currentUser" class="staff-detail-section">
-                <div class="staff-detail-label">キャスト情報</div>
                 <div class="staff-detail-actions">
                   <button class="btn btn-outline btn-sm" @click="editStaff(staffScheduleStaff)">キャスト編集</button>
                   <button class="btn btn-danger btn-sm" @click="confirmDeleteStaff(staffScheduleStaff)">キャスト削除</button>

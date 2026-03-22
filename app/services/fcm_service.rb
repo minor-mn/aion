@@ -66,7 +66,17 @@ class FcmService
   private
 
   def service_account_json
-    @service_account_json ||= ENV["FIREBASE_SERVICE_ACCOUNT_JSON"]
+    @service_account_json ||= begin
+      value = ENV["FIREBASE_SERVICE_ACCOUNT_JSON"]
+      return nil if value.blank?
+
+      # ファイルパスが指定された場合はファイルから読み込む
+      if value.start_with?("/") || value.start_with?("./")
+        File.read(value)
+      else
+        value
+      end
+    end
   end
 
   def parsed_service_account

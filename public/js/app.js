@@ -891,7 +891,7 @@ app.component('staff-form-page', {
 app.component('shift-form-page', {
   template: `
     <div class="register-container">
-      <h2>出勤登録</h2>
+      <h2>シフト登録</h2>
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 
@@ -912,7 +912,7 @@ app.component('shift-form-page', {
       </div>
 
       <template v-if="selectedShopId && selectedStaffId">
-        <h3 style="margin-top:16px;margin-bottom:12px">出勤日時</h3>
+        <h3 style="margin-top:16px;margin-bottom:12px">シフト日時</h3>
         <div v-for="(entry, index) in entries" :key="index" class="shift-entry">
           <div class="shift-entry-fields">
             <div class="form-group" style="margin-bottom:0">
@@ -940,7 +940,7 @@ app.component('shift-form-page', {
 
         <div class="form-actions" style="margin-bottom:32px">
           <button class="btn btn-primary" @click="submitShifts" :disabled="submitting">
-            {{ submitting ? '登録中...' : '出勤を登録' }}
+            {{ submitting ? '登録中...' : 'シフトを登録' }}
           </button>
         </div>
       </template>
@@ -1036,8 +1036,8 @@ app.component('shift-form-page', {
       if (successCount > 0) {
         const skipped = this.entries.length - successCount;
         this.localSuccess = skipped > 0
-          ? `${successCount}件の出勤を登録しました（${skipped}件は時間重複のためスキップ）`
-          : `${successCount}件の出勤を登録しました`;
+          ? `${successCount}件のシフトを登録しました（${skipped}件は時間重複のためスキップ）`
+          : `${successCount}件のシフトを登録しました`;
         this.entries = [this.newEntry()];
       } else if (errors.length > 0) {
         this.localError = '登録できるシフトがありませんでした（時間帯が重複しています）';

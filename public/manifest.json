@@ -1,7 +1,7 @@
 {
   "name": "Okyuyote!",
   "short_name": "Okyuyote!",
-  "description": "出勤管理アプリ",
+  "description": "シフト管理アプリ",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

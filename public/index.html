@@ -5,21 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aion</title>
   <link rel="stylesheet" href="/css/app.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="app">
     <!-- Header -->
-    <header class="header">
-      <span class="header-title" @click="navigate('home')">Aion</span>
-      <div class="header-right">
-        <template v-if="currentUser">
-          <span class="header-user">{{ currentUser.email }}</span>
-          <button class="btn btn-secondary btn-sm" @click="handleLogout">ログアウト</button>
-          <button class="hamburger-btn" @click="menuOpen = true">&#9776;</button>
-        </template>
-        <template v-else>
-          <button class="btn btn-primary btn-sm" @click="navigate('login')">ログイン</button>
-        </template>
+    <header class="header" @click="navigate('home')">
+      <span class="header-logo">Okyuyote!</span>
+      <div class="header-right" @click.stop>
+        <button class="hamburger-btn" @click="menuOpen = true">&#9776;</button>
       </div>
     </header>
 
@@ -28,10 +24,15 @@
       <div class="menu-overlay" @click="menuOpen = false"></div>
       <div class="menu-panel">
         <button class="menu-close" @click="menuOpen = false">&times;</button>
-        <h3>メニュー</h3>
         <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
         <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
         <button class="menu-item" @click="navigate('shiftForm')">出勤登録</button>
+        <template v-if="currentUser">
+          <button class="menu-item" @click="handleLogout">ログアウト</button>
+        </template>
+        <template v-else>
+          <button class="menu-item" @click="navigate('login')">ログイン</button>
+        </template>
       </div>
     </template>
 

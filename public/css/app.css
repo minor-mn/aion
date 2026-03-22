@@ -14,9 +14,12 @@ body {
 
 /* ========== Header ========== */
 .header {
-  background: #1a1a2e;
+  background: #000 url('/images/header-bg.webp') no-repeat right center;
+  background-size: auto 100%;
   color: #fff;
   padding: 12px 20px;
+  min-height: 200px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -30,6 +33,17 @@ body {
   font-weight: 700;
   letter-spacing: 2px;
   cursor: pointer;
+}
+
+.header-logo {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #e91e7b;
+  transform: rotate(-10deg);
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  pointer-events: none;
 }
 
 .header-right {
@@ -110,17 +124,12 @@ body {
   right: 0;
   width: 260px;
   height: 100%;
-  background: #fff;
-  box-shadow: -2px 0 8px rgba(0,0,0,0.15);
+  background: #111;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.5);
   z-index: 201;
-  padding: 20px;
+  padding: 50px 20px 20px;
   display: flex;
   flex-direction: column;
-}
-
-.menu-panel h3 {
-  margin-bottom: 20px;
-  color: #1a1a2e;
 }
 
 .menu-item {
@@ -128,17 +137,18 @@ body {
   width: 100%;
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: #333;
+  border: none;
   border-radius: 6px;
   text-align: left;
   font-size: 0.95rem;
+  color: #eee;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .menu-item:hover {
-  background: #e9ecef;
+  background: #444;
 }
 
 .menu-close {
@@ -149,7 +159,7 @@ body {
   border: none;
   font-size: 1.3rem;
   cursor: pointer;
-  color: #666;
+  color: #ccc;
 }
 
 /* ========== Container ========== */

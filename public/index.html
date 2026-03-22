@@ -100,7 +100,7 @@
                 </div>
                 <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                      class="shop-block"
-                     :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(255,0,255,0.5) 100%)' }">
+                     :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(204,204,102,0.5) 100%)' }">
                   <div class="shop-block-name cast-name-link" @click.stop="editShop({ id: group.shop_id, name: group.shop_name })">{{ group.shop_name }}</div>
                   <div v-if="currentUser" class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
                   <ul class="cast-list">

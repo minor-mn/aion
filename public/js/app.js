@@ -207,7 +207,7 @@ const app = createApp({
         const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
 
         const gradient = scheduleDay
-          ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(255,0,255,0.5) 100%)')
+          ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(204,204,102,0.5) 100%)')
           : '#fff';
 
         cells.push({

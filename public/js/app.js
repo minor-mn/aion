@@ -64,7 +64,6 @@ const app = createApp({
         currentView.value = 'home';
         success.value = 'ログインしました';
         await loadHomeData();
-        registerFcmToken();
       } catch (e) {
         error.value = e.data?.error || 'ログインに失敗しました';
       }
@@ -443,13 +442,10 @@ const app = createApp({
 
       await checkAuth();
       await loadHomeData();
-      // Auto-register FCM token if already logged in
-      if (currentUser.value) {
-        registerFcmToken();
-      }
     });
 
     return {
+      registerFcmToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
       todayShops, todayShifts, shops, staffs,
@@ -1422,6 +1418,10 @@ app.component('my-page', {
         });
         this.notifMsg = '通知設定を保存しました';
         this.notifMsgType = 'success';
+        // Register FCM token when notifications are enabled
+        if (this.notifEnabled) {
+          this.$root.registerFcmToken();
+        }
       } catch (e) {
         this.notifMsg = e.data?.error || '保存に失敗しました';
         this.notifMsgType = 'error';

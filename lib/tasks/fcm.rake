@@ -44,21 +44,27 @@ namespace :fcm do
     end
 
     puts ""
+    puts "googleauth gem version: #{Gem.loaded_specs['googleauth']&.version || 'unknown'}"
+    puts ""
     puts "アクセストークン取得テスト..."
     begin
       credentials = Google::Auth::ServiceAccountCredentials.make_creds(
         json_key_io: StringIO.new(json_content),
         scope: "https://www.googleapis.com/auth/firebase.cloud-messaging"
       )
-      credentials.fetch_access_token!
-      token = credentials.access_token
+      puts "credentials class: #{credentials.class}"
+      result = credentials.fetch_access_token!
+      puts "fetch_access_token! 戻り値: #{result.inspect}"
+      token = credentials.access_token || result["access_token"]
       if token.present?
         puts "✅ アクセストークン取得成功: #{token[0..20]}..."
       else
         puts "❌ アクセストークンが空です"
+        puts "   credentials methods: #{(credentials.methods - Object.methods).sort.join(', ')}"
       end
     rescue => e
       puts "❌ アクセストークン取得失敗: #{e.class} - #{e.message}"
+      puts "   #{e.backtrace&.first(3)&.join("\n   ")}"
     end
 
     puts ""

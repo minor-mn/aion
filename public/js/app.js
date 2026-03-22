@@ -269,6 +269,7 @@ const app = createApp({
       };
       staffScheduleShifts.value = [];
       staffScheduleOpen.value = true;
+      loadModalPreferences();
       staffScheduleLoading.value = true;
       try {
         const allShifts = [];
@@ -348,6 +349,30 @@ const app = createApp({
       currentView.value = 'shopForm';
     }
 
+    // ========== Modal Preference ==========
+    const modalPreferences = reactive({});
+
+    async function loadModalPreferences() {
+      if (!currentUser.value) return;
+      try {
+        const data = await API.getPreferences();
+        for (const p of (data.staff_preferences || [])) {
+          modalPreferences[p.staff_id] = p.score;
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    function getModalPreference(staffId) {
+      return modalPreferences[staffId] !== undefined ? modalPreferences[staffId] : 0;
+    }
+
+    async function setModalPreference(staffId, score) {
+      try {
+        await API.setPreference(staffId, parseInt(score));
+        modalPreferences[staffId] = parseInt(score);
+      } catch (e) { /* ignore */ }
+    }
+
     // ========== Staff name helper ==========
     function getStaffName(staffId) {
       const staff = staffs.value.find(s => s.id === staffId);
@@ -398,7 +423,8 @@ const app = createApp({
       editStaff, confirmDeleteStaff, editShop,
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
-      scoreToGradient
+      scoreToGradient,
+      modalPreferences, getModalPreference, setModalPreference
     };
   }
 });

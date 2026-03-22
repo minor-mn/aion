@@ -158,6 +158,16 @@
                   <a :href="staffScheduleStaff.site_url" target="_blank" rel="noopener noreferrer">{{ staffScheduleStaff.site_url }}</a>
                 </div>
               </div>
+              <div v-if="currentUser" class="staff-modal-pref">
+                <div class="pref-slider-container" style="justify-content:center">
+                  <span style="font-size:0.75rem;color:#00f">-10</span>
+                  <input type="range" class="pref-slider" min="-10" max="10" step="1"
+                    :value="getModalPreference(staffScheduleStaff?.id)"
+                    @change="setModalPreference(staffScheduleStaff?.id, $event.target.value)">
+                  <span style="font-size:0.75rem;color:#f00">+10</span>
+                  <span class="pref-value">{{ getModalPreference(staffScheduleStaff?.id) }}</span>
+                </div>
+              </div>
               <div v-if="currentUser" class="staff-detail-section">
                 <div class="staff-detail-actions">
                   <button class="btn btn-outline btn-sm" @click="editStaff(staffScheduleStaff)">キャスト編集</button>

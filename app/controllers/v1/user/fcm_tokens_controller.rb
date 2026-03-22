@@ -27,7 +27,11 @@ class V1::User::FcmTokensController < ApplicationController
   # DELETE /v1/user/fcm_tokens
   def destroy
     token = params[:token]
-    current_user.fcm_tokens.where(token: token).destroy_all
+    if token.present?
+      current_user.fcm_tokens.where(token: token).destroy_all
+    else
+      current_user.fcm_tokens.destroy_all
+    end
     render json: { message: "FCMトークンを削除しました" }, status: :ok
   end
 end

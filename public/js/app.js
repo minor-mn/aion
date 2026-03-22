@@ -411,21 +411,9 @@ const app = createApp({
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') return;
 
-        // Clean up old firebase-messaging-sw.js registration if it exists
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (const reg of regs) {
-          if (reg.active && reg.active.scriptURL.includes('firebase-messaging-sw.js')) {
-            await reg.unregister();
-          }
-        }
-
         // Wait for the main sw.js to be ready
         const swReg = await navigator.serviceWorker.ready;
         const messaging = firebase.messaging();
-
-        // Delete old token to force fresh registration with current SW
-        try { await messaging.deleteToken(); } catch (e) { /* ignore */ }
-
         const token = await messaging.getToken({
           vapidKey: 'BDiAra42PapQc1rk4-dbjVJmZ_2MS3oJd3md3kFJ5nj1mK7kcyQxTyue7mzP2x1oVi5KHIxULk8chAuQRVjh7u8',
           serviceWorkerRegistration: swReg
@@ -440,16 +428,7 @@ const app = createApp({
 
     async function unregisterFcmToken() {
       try {
-        const messaging = firebase.messaging();
-        const swReg = await navigator.serviceWorker.ready;
-        const token = await messaging.getToken({
-          vapidKey: 'BDiAra42PapQc1rk4-dbjVJmZ_2MS3oJd3md3kFJ5nj1mK7kcyQxTyue7mzP2x1oVi5KHIxULk8chAuQRVjh7u8',
-          serviceWorkerRegistration: swReg
-        });
-        if (token) {
-          await API.deleteFcmToken(token);
-          await messaging.deleteToken();
-        }
+        await API.deleteAllFcmTokens();
       } catch (e) {
         console.warn('[FCM] トークン削除に失敗:', e);
       }

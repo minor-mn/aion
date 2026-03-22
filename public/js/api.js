@@ -162,6 +162,10 @@ const API = {
     return this.request('DELETE', '/v1/user/fcm_tokens', { token });
   },
 
+  deleteAllFcmTokens() {
+    return this.request('DELETE', '/v1/user/fcm_tokens');
+  },
+
   // Action Logs
   getActionLogs(filters = {}) {
     const params = new URLSearchParams();

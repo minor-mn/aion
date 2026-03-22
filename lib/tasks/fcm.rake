@@ -48,15 +48,15 @@ namespace :fcm do
     end
 
     puts ""
-    puts "アクセストークン取得テスト（直接OAuth2）..."
+    puts "Self-signed JWT生成テスト..."
     begin
       private_key = OpenSSL::PKey::RSA.new(parsed["private_key"])
       now = Time.now.to_i
       jwt_header = { alg: "RS256", typ: "JWT" }
       jwt_payload = {
         iss: parsed["client_email"],
-        scope: "https://www.googleapis.com/auth/firebase.cloud-messaging",
-        aud: "https://oauth2.googleapis.com/token",
+        sub: parsed["client_email"],
+        aud: "https://fcm.googleapis.com/",
         iat: now,
         exp: now + 3600
       }
@@ -67,24 +67,26 @@ namespace :fcm do
       signing_input = segments.join(".")
       signature = private_key.sign("SHA256", signing_input)
       jwt = "#{signing_input}.#{Base64.urlsafe_encode64(signature, padding: false)}"
+      puts "✅ JWT生成成功: #{jwt[0..40]}..."
 
-      uri = URI("https://oauth2.googleapis.com/token")
+      puts ""
+      puts "FCM API送信テスト..."
+      project_id = parsed["project_id"]
+      uri = URI("https://fcm.googleapis.com/v1/projects/#{project_id}/messages:send")
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
       request = Net::HTTP::Post.new(uri.path)
-      request["Content-Type"] = "application/x-www-form-urlencoded"
-      request.body = URI.encode_www_form(
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion: jwt
-      )
+      request["Authorization"] = "Bearer #{jwt}"
+      request["Content-Type"] = "application/json"
+      test_body = { message: { topic: "__test_dry_run__" } }
+      request.body = test_body.to_json
       response = http.request(request)
-      result = JSON.parse(response.body)
-
-      if result["access_token"]
-        puts "✅ アクセストークン取得成功: #{result['access_token'][0..20]}..."
+      puts "  ステータス: #{response.code}"
+      puts "  レスポンス: #{response.body[0..200]}"
+      if response.code.to_i == 200 || response.code.to_i == 400
+        puts "✅ FCM API認証成功（トークンは有効です）"
       else
-        puts "❌ アクセストークン取得失敗"
-        puts "   レスポンス: #{response.body}"
+        puts "❌ FCM API認証失敗"
       end
     rescue => e
       puts "❌ エラー: #{e.class} - #{e.message}"

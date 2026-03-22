@@ -4,8 +4,7 @@ require "json"
 require "base64"
 
 class FcmService
-  TOKEN_URI = "https://oauth2.googleapis.com/token".freeze
-  FCM_SCOPE = "https://www.googleapis.com/auth/firebase.cloud-messaging".freeze
+  FCM_AUD = "https://fcm.googleapis.com/".freeze
 
   def self.send_notification(fcm_token, title:, body:)
     new.send_notification(fcm_token, title: title, body: body)
@@ -17,9 +16,9 @@ class FcmService
       return false
     end
 
-    access_token = fetch_access_token
-    unless access_token
-      Rails.logger.warn("[FCM] アクセストークンを取得できませんでした")
+    bearer_token = build_self_signed_jwt
+    unless bearer_token
+      Rails.logger.warn("[FCM] JWTを生成できませんでした")
       return false
     end
 
@@ -51,7 +50,7 @@ class FcmService
     http.use_ssl = true
 
     request = Net::HTTP::Post.new(uri.path)
-    request["Authorization"] = "Bearer #{access_token}"
+    request["Authorization"] = "Bearer #{bearer_token}"
     request["Content-Type"] = "application/json"
     request.body = message.to_json
 
@@ -91,8 +90,8 @@ class FcmService
     @parsed_service_account ||= JSON.parse(service_account_json)
   end
 
-  # OAuth2 JWT assertion flow を直接実装（googleauth gemに依存しない）
-  def fetch_access_token
+  # Self-signed JWT を直接生成してFCM APIのBearer tokenとして使用
+  def build_self_signed_jwt
     sa = parsed_service_account
     private_key = OpenSSL::PKey::RSA.new(sa["private_key"])
 
@@ -100,8 +99,8 @@ class FcmService
     jwt_header = { alg: "RS256", typ: "JWT" }
     jwt_payload = {
       iss: sa["client_email"],
-      scope: FCM_SCOPE,
-      aud: TOKEN_URI,
+      sub: sa["client_email"],
+      aud: FCM_AUD,
       iat: now,
       exp: now + 3600
     }
@@ -112,30 +111,9 @@ class FcmService
     ]
     signing_input = segments.join(".")
     signature = private_key.sign("SHA256", signing_input)
-    jwt = "#{signing_input}.#{base64url_encode(signature)}"
-
-    uri = URI(TOKEN_URI)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Post.new(uri.path)
-    request["Content-Type"] = "application/x-www-form-urlencoded"
-    request.body = URI.encode_www_form(
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: jwt
-    )
-
-    response = http.request(request)
-    result = JSON.parse(response.body)
-
-    if result["access_token"]
-      result["access_token"]
-    else
-      Rails.logger.warn("[FCM] Token exchange failed: #{response.body}")
-      nil
-    end
+    "#{signing_input}.#{base64url_encode(signature)}"
   rescue => e
-    Rails.logger.error("[FCM] Token fetch error: #{e.message}")
+    Rails.logger.error("[FCM] JWT build error: #{e.message}")
     nil
   end
 

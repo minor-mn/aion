@@ -22,7 +22,7 @@ body {
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -33,6 +33,17 @@ body {
   font-weight: 700;
   letter-spacing: 2px;
   cursor: pointer;
+}
+
+.header-logo {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #e91e7b;
+  transform: rotate(-10deg);
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  pointer-events: none;
 }
 
 .header-right {

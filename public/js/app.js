@@ -1231,11 +1231,11 @@ app.component('my-page', {
             <div class="mypage-sub-section">
               <div class="mypage-sub-title">通知の条件</div>
               <div class="form-group">
-                <label>合計スコアがn点以上の店舗がある場合</label>
+                <label>合計n点以上の店舗がある日</label>
                 <input v-model.number="scoreThresholdShop" type="number" min="-10" max="10" step="1">
               </div>
               <div class="form-group">
-                <label>n点以上のキャストのシフトがある場合</label>
+                <label>n点以上のキャストがいる日</label>
                 <input v-model.number="scoreThresholdStaff" type="number" min="-10" max="10" step="1">
               </div>
             </div>
@@ -1243,14 +1243,14 @@ app.component('my-page', {
             <div class="mypage-sub-section">
               <div class="mypage-sub-title">通知のタイミング</div>
               <div class="mypage-toggle-row">
-                <span>当日の朝に通知</span>
+                <span>当日の朝</span>
                 <label class="toggle-switch">
                   <input type="checkbox" v-model="notifyMorning">
                   <span class="toggle-slider"></span>
                 </label>
               </div>
               <div class="form-group">
-                <label>シフト開始の何分前に通知</label>
+                <label>シフト開始の何分前</label>
                 <div class="minutes-input">
                   <input v-model.number="notifyMinutesBefore" type="number" min="0" step="5">
                   <span class="minutes-suffix">分前</span>

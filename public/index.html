@@ -11,14 +11,7 @@
     <!-- Header -->
     <header class="header" @click="navigate('home')">
       <div class="header-right" @click.stop>
-        <template v-if="currentUser">
-          <span class="header-user">{{ currentUser.email }}</span>
-          <button class="btn btn-secondary btn-sm" @click="handleLogout">ログアウト</button>
-          <button class="hamburger-btn" @click="menuOpen = true">&#9776;</button>
-        </template>
-        <template v-else>
-          <button class="btn btn-primary btn-sm" @click="navigate('login')">ログイン</button>
-        </template>
+        <button class="hamburger-btn" @click="menuOpen = true">&#9776;</button>
       </div>
     </header>
 
@@ -31,6 +24,13 @@
         <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
         <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
         <button class="menu-item" @click="navigate('shiftForm')">出勤登録</button>
+        <div class="menu-divider"></div>
+        <template v-if="currentUser">
+          <button class="menu-item menu-item-auth" @click="handleLogout">ログアウト</button>
+        </template>
+        <template v-else>
+          <button class="menu-item menu-item-auth" @click="navigate('login')">ログイン</button>
+        </template>
       </div>
     </template>
 

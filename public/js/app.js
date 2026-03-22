@@ -91,6 +91,7 @@ const app = createApp({
       scheduleData.value = [];
       currentView.value = 'home';
       await loadTodayData();
+      await loadScheduleData();
     }
 
     // ========== Data Loading ==========

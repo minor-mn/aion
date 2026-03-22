@@ -1,6 +1,6 @@
 namespace :fcm do
   desc "Send a test push notification to a user. Usage: rails fcm:test[user_id,message]"
-  task :test, [:user_id, :message] => :environment do |_t, args|
+  task :test, [ :user_id, :message ] => :environment do |_t, args|
     user_id = args[:user_id]
     message = args[:message] || "テスト通知です"
 

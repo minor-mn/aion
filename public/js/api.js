@@ -139,6 +139,20 @@ const API = {
     return this.request('GET', `/v1/schedules?${params}`);
   },
 
+  // Profile
+  updateProfile(data) {
+    return this.request('PATCH', '/v1/user/profile', data);
+  },
+
+  // Notification Settings
+  getNotificationSettings() {
+    return this.request('GET', '/v1/user/notification_settings');
+  },
+
+  updateNotificationSettings(data) {
+    return this.request('PATCH', '/v1/user/notification_settings', data);
+  },
+
   // Action Logs
   getActionLogs(filters = {}) {
     const params = new URLSearchParams();

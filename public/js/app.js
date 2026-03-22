@@ -1242,15 +1242,8 @@ app.component('my-page', {
 
             <div class="mypage-sub-section">
               <div class="mypage-sub-title">通知のタイミング</div>
-              <div class="mypage-toggle-row">
-                <span>当日の朝</span>
-                <label class="toggle-switch">
-                  <input type="checkbox" v-model="notifyMorning">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
               <div class="form-group">
-                <label>シフト開始の何分前</label>
+                <label>シフト開始前</label>
                 <div class="minutes-input">
                   <input v-model.number="notifyMinutesBefore" type="number" min="0" step="5">
                   <span class="minutes-suffix">分前</span>
@@ -1292,7 +1285,6 @@ app.component('my-page', {
       notifEnabled: false,
       scoreThresholdShop: 0,
       scoreThresholdStaff: 0,
-      notifyMorning: false,
       notifyMinutesBefore: 0,
       savingNotif: false,
       notifMsg: '',
@@ -1313,7 +1305,6 @@ app.component('my-page', {
         this.notifEnabled = s.notifications_enabled || false;
         this.scoreThresholdShop = s.score_threshold_shop || 0;
         this.scoreThresholdStaff = s.score_threshold_staff || 0;
-        this.notifyMorning = s.notify_morning || false;
         this.notifyMinutesBefore = s.notify_minutes_before || 0;
       }
     } catch (e) {
@@ -1399,7 +1390,6 @@ app.component('my-page', {
           notifications_enabled: this.notifEnabled,
           score_threshold_shop: this.scoreThresholdShop,
           score_threshold_staff: this.scoreThresholdStaff,
-          notify_morning: this.notifyMorning,
           notify_minutes_before: this.notifyMinutesBefore
         });
         this.notifMsg = '通知設定を保存しました';

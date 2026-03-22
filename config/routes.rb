@@ -11,6 +11,8 @@ Rails.application.routes.draw do
     # user
     namespace :user do
       get "me", to: "me#show"
+      patch "profile", to: "profile#update"
+      resource :notification_settings, only: %i[show update]
     end
 
     # shops

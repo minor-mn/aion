@@ -382,7 +382,7 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage'];
 
     function navigate(view) {
       // Redirect to login if auth required and not logged in
@@ -1153,6 +1153,252 @@ app.component('shift-edit-page', {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }
       this.submitting = false;
+    }
+  }
+});
+
+// ========== My Page Component ==========
+app.component('my-page', {
+  template: `
+    <div class="container">
+      <div class="mypage-section">
+        <h2 class="section-title">マイページ</h2>
+
+        <!-- Nickname -->
+        <div class="mypage-card">
+          <h3 class="mypage-card-title">ニックネーム</h3>
+          <div v-if="nicknameMsg" class="alert" :class="nicknameMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ nicknameMsg }}</div>
+          <div class="form-group">
+            <input v-model="nickname" type="text" placeholder="ニックネームを入力">
+          </div>
+          <button class="btn btn-primary btn-block" @click="saveNickname" :disabled="savingNickname">
+            {{ savingNickname ? '保存中...' : 'ニックネームを保存' }}
+          </button>
+        </div>
+
+        <!-- Email Change -->
+        <div class="mypage-card">
+          <h3 class="mypage-card-title">ログインID (メールアドレス) 変更</h3>
+          <div v-if="emailMsg" class="alert" :class="emailMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ emailMsg }}</div>
+          <div class="form-group">
+            <label>新しいメールアドレス</label>
+            <input v-model="newEmail" type="email" placeholder="新しいメールアドレス">
+          </div>
+          <div class="form-group">
+            <label>現在のパスワード</label>
+            <input v-model="emailCurrentPassword" type="password" placeholder="現在のパスワード">
+          </div>
+          <button class="btn btn-primary btn-block" @click="saveEmail" :disabled="savingEmail">
+            {{ savingEmail ? '変更中...' : 'メールアドレスを変更' }}
+          </button>
+        </div>
+
+        <!-- Password Change -->
+        <div class="mypage-card">
+          <h3 class="mypage-card-title">パスワード変更</h3>
+          <div v-if="passwordMsg" class="alert" :class="passwordMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ passwordMsg }}</div>
+          <div class="form-group">
+            <label>現在のパスワード</label>
+            <input v-model="currentPassword" type="password" placeholder="現在のパスワード">
+          </div>
+          <div class="form-group">
+            <label>新しいパスワード</label>
+            <input v-model="newPassword" type="password" placeholder="6文字以上">
+          </div>
+          <div class="form-group">
+            <label>新しいパスワード（確認）</label>
+            <input v-model="newPasswordConfirmation" type="password" placeholder="パスワード再入力">
+          </div>
+          <button class="btn btn-primary btn-block" @click="savePassword" :disabled="savingPassword">
+            {{ savingPassword ? '変更中...' : 'パスワードを変更' }}
+          </button>
+        </div>
+
+        <!-- Notification Settings -->
+        <div class="mypage-card">
+          <h3 class="mypage-card-title">通知の設定</h3>
+          <div v-if="notifMsg" class="alert" :class="notifMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ notifMsg }}</div>
+
+          <div class="mypage-toggle-row">
+            <span>通知を許可する</span>
+            <label class="toggle-switch">
+              <input type="checkbox" v-model="notifEnabled">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <template v-if="notifEnabled">
+            <div class="mypage-sub-section">
+              <div class="mypage-sub-title">通知の条件</div>
+              <div class="form-group">
+                <label>合計n点以上の店舗がある日</label>
+                <input v-model.number="scoreThresholdShop" type="number" min="-10" max="10" step="1">
+              </div>
+              <div class="form-group">
+                <label>n点以上のキャストがいる日</label>
+                <input v-model.number="scoreThresholdStaff" type="number" min="-10" max="10" step="1">
+              </div>
+            </div>
+
+            <div class="mypage-sub-section">
+              <div class="mypage-sub-title">通知のタイミング</div>
+              <div class="form-group">
+                <label>シフト開始前</label>
+                <div class="minutes-input">
+                  <input v-model.number="notifyMinutesBefore" type="number" min="0" step="5">
+                  <span class="minutes-suffix">分前</span>
+                </div>
+                <div class="form-hint">0の場合は通知しません</div>
+              </div>
+            </div>
+          </template>
+
+          <button class="btn btn-primary btn-block" @click="saveNotification" :disabled="savingNotif">
+            {{ savingNotif ? '保存中...' : '通知設定を保存' }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  `,
+  data() {
+    return {
+      // Nickname
+      nickname: '',
+      savingNickname: false,
+      nicknameMsg: '',
+      nicknameMsgType: '',
+      // Email
+      newEmail: '',
+      emailCurrentPassword: '',
+      savingEmail: false,
+      emailMsg: '',
+      emailMsgType: '',
+      // Password
+      currentPassword: '',
+      newPassword: '',
+      newPasswordConfirmation: '',
+      savingPassword: false,
+      passwordMsg: '',
+      passwordMsgType: '',
+      // Notification
+      notifEnabled: false,
+      scoreThresholdShop: 0,
+      scoreThresholdStaff: 0,
+      notifyMinutesBefore: 0,
+      savingNotif: false,
+      notifMsg: '',
+      notifMsgType: ''
+    };
+  },
+  async mounted() {
+    // Load current user info
+    if (this.$root.currentUser) {
+      this.nickname = this.$root.currentUser.nickname || '';
+      this.newEmail = this.$root.currentUser.email || '';
+    }
+    // Load notification settings
+    try {
+      const data = await API.getNotificationSettings();
+      const s = data.notification_setting;
+      if (s) {
+        this.notifEnabled = s.notifications_enabled || false;
+        this.scoreThresholdShop = s.score_threshold_shop || 0;
+        this.scoreThresholdStaff = s.score_threshold_staff || 0;
+        this.notifyMinutesBefore = s.notify_minutes_before || 0;
+      }
+    } catch (e) {
+      // ignore - new user without settings
+    }
+  },
+  methods: {
+    async saveNickname() {
+      this.savingNickname = true;
+      this.nicknameMsg = '';
+      try {
+        const data = await API.updateProfile({ nickname: this.nickname });
+        this.nicknameMsg = 'ニックネームを保存しました';
+        this.nicknameMsgType = 'success';
+        if (data.user) this.$root.currentUser = data.user;
+      } catch (e) {
+        this.nicknameMsg = e.data?.error || '保存に失敗しました';
+        this.nicknameMsgType = 'error';
+      }
+      this.savingNickname = false;
+    },
+    async saveEmail() {
+      this.savingEmail = true;
+      this.emailMsg = '';
+      if (!this.emailCurrentPassword) {
+        this.emailMsg = '現在のパスワードを入力してください';
+        this.emailMsgType = 'error';
+        this.savingEmail = false;
+        return;
+      }
+      try {
+        const data = await API.updateProfile({
+          email: this.newEmail,
+          current_password: this.emailCurrentPassword
+        });
+        this.emailMsg = 'メールアドレスを変更しました';
+        this.emailMsgType = 'success';
+        this.emailCurrentPassword = '';
+        if (data.user) this.$root.currentUser = data.user;
+      } catch (e) {
+        this.emailMsg = e.data?.error || '変更に失敗しました';
+        this.emailMsgType = 'error';
+      }
+      this.savingEmail = false;
+    },
+    async savePassword() {
+      this.savingPassword = true;
+      this.passwordMsg = '';
+      if (!this.currentPassword) {
+        this.passwordMsg = '現在のパスワードを入力してください';
+        this.passwordMsgType = 'error';
+        this.savingPassword = false;
+        return;
+      }
+      if (this.newPassword !== this.newPasswordConfirmation) {
+        this.passwordMsg = '新しいパスワードが一致しません';
+        this.passwordMsgType = 'error';
+        this.savingPassword = false;
+        return;
+      }
+      try {
+        await API.updateProfile({
+          password: this.newPassword,
+          password_confirmation: this.newPasswordConfirmation,
+          current_password: this.currentPassword
+        });
+        this.passwordMsg = 'パスワードを変更しました';
+        this.passwordMsgType = 'success';
+        this.currentPassword = '';
+        this.newPassword = '';
+        this.newPasswordConfirmation = '';
+      } catch (e) {
+        this.passwordMsg = e.data?.error || '変更に失敗しました';
+        this.passwordMsgType = 'error';
+      }
+      this.savingPassword = false;
+    },
+    async saveNotification() {
+      this.savingNotif = true;
+      this.notifMsg = '';
+      try {
+        await API.updateNotificationSettings({
+          notifications_enabled: this.notifEnabled,
+          score_threshold_shop: this.scoreThresholdShop,
+          score_threshold_staff: this.scoreThresholdStaff,
+          notify_minutes_before: this.notifyMinutesBefore
+        });
+        this.notifMsg = '通知設定を保存しました';
+        this.notifMsgType = 'success';
+      } catch (e) {
+        this.notifMsg = e.data?.error || '保存に失敗しました';
+        this.notifMsgType = 'error';
+      }
+      this.savingNotif = false;
     }
   }
 });

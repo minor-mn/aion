@@ -30,6 +30,7 @@
       <div class="menu-panel">
         <button class="menu-close" @click="menuOpen = false">&times;</button>
         <template v-if="currentUser">
+          <button class="menu-item" @click="navigate('myPage')">マイページ</button>
           <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
           <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
           <button class="menu-item" @click="navigate('shiftForm')">出勤登録</button>
@@ -63,6 +64,9 @@
 
       <!-- Shift Edit -->
       <shift-edit-page v-if="currentView === 'shiftEdit'"></shift-edit-page>
+
+      <!-- My Page -->
+      <my-page v-if="currentView === 'myPage'"></my-page>
 
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">

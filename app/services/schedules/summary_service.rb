@@ -29,6 +29,9 @@ module Schedules
           .includes(staff: :shop)
       end
 
+      # Filter out orphaned shifts (staff or shop deleted)
+      shifts = shifts.select { |sh| sh.staff.present? && sh.staff.shop.present? }
+
       group_by_date = shifts.group_by { |sh| sh.start_at.to_date }
 
       result = group_by_date.map do |date, shifts_on_date|

@@ -15,7 +15,6 @@ class V1::StaffsController < ApplicationController
     pp staff_params
     new_staff = Staff.new(staff_params)
     if new_staff.save
-      ActionLogger.log(user: current_user, action_type: "create", target: new_staff)
       render json: new_staff, status: :created
     else
       render json: { errors: new_staff.errors.full_messages }, status: :unprocessable_entity
@@ -23,8 +22,9 @@ class V1::StaffsController < ApplicationController
   end
 
   def update
+    before_data = staff.as_json
     if staff.update(staff_params)
-      ActionLogger.log(user: current_user, action_type: "update", target: staff)
+      ActionLogger.log(user: current_user, action_type: "update", target: staff, detail: before_data)
       render json: staff
     else
       render json: { errors: staff.errors.full_messages }, status: :unprocessable_entity
@@ -33,7 +33,7 @@ class V1::StaffsController < ApplicationController
 
   def destroy
     if staff
-      ActionLogger.log(user: current_user, action_type: "destroy", target: staff)
+      ActionLogger.log(user: current_user, action_type: "destroy", target: staff, detail: staff.as_json)
       staff.destroy
       head :no_content
     else

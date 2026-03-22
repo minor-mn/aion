@@ -137,6 +137,16 @@ const API = {
       datetime_end: datetimeEnd
     });
     return this.request('GET', `/v1/schedules?${params}`);
+  },
+
+  // Action Logs
+  getActionLogs(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.shop_id) params.set('shop_id', filters.shop_id);
+    if (filters.staff_id) params.set('staff_id', filters.staff_id);
+    if (filters.target_type) params.set('target_type', filters.target_type);
+    const query = params.toString();
+    return this.request('GET', `/v1/action_logs${query ? '?' + query : ''}`);
   }
 };
 

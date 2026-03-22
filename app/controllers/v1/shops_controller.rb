@@ -12,7 +12,6 @@ class V1::ShopsController < ApplicationController
   def create
     new_shop = Shop.new(shop_params)
     if new_shop.save
-      ActionLogger.log(user: current_user, action_type: "create", target: new_shop)
       render json: new_shop, status: :created
     else
       render json: { errors: new_shop.errors.full_messages }, status: :unprocessable_entity
@@ -20,8 +19,9 @@ class V1::ShopsController < ApplicationController
   end
 
   def update
+    before_data = shop.as_json
     if shop.update(shop_params)
-      ActionLogger.log(user: current_user, action_type: "update", target: shop)
+      ActionLogger.log(user: current_user, action_type: "update", target: shop, detail: before_data)
       render json: shop
     else
       render json: { errors: shop.errors.full_messages }, status: :unprocessable_entity
@@ -30,7 +30,7 @@ class V1::ShopsController < ApplicationController
 
   def destroy
     if shop
-      ActionLogger.log(user: current_user, action_type: "destroy", target: shop)
+      ActionLogger.log(user: current_user, action_type: "destroy", target: shop, detail: shop.as_json)
       shop.destroy
       head :no_content
     else

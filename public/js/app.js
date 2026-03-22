@@ -520,7 +520,17 @@ app.component('shop-form-page', {
             <div class="shop-block-name">{{ shop.name }}</div>
             <div v-if="shop.site_url" style="font-size:0.8rem;color:#666">{{ shop.site_url }}</div>
           </div>
-          <button class="btn btn-danger btn-sm" @click="deleteShop(shop)">削除</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" @click="editExistingShop(shop)">編集</button>
+            <button class="btn btn-danger btn-sm" @click="deleteShop(shop)">削除</button>
+          </div>
+        </div>
+      </div>
+      <!-- 更新完了モーダル -->
+      <div v-if="showSuccessModal" class="modal-overlay" @click.self="closeSuccessModal">
+        <div class="modal-content" style="text-align:center;padding:32px">
+          <p style="font-size:1.1rem;margin-bottom:20px">更新しました</p>
+          <button class="btn btn-primary" @click="closeSuccessModal">OK</button>
         </div>
       </div>
     </div>
@@ -532,7 +542,8 @@ app.component('shop-form-page', {
       editShopId: null,
       submitting: false,
       localError: '',
-      localSuccess: ''
+      localSuccess: '',
+      showSuccessModal: false
     };
   },
   async mounted() {
@@ -550,6 +561,21 @@ app.component('shop-form-page', {
     }
   },
   methods: {
+    closeSuccessModal() {
+      this.showSuccessModal = false;
+    },
+    editExistingShop(shop) {
+      this.form = {
+        name: shop.name || '',
+        site_url: shop.site_url || '',
+        image_url: shop.image_url || ''
+      };
+      this.editMode = true;
+      this.editShopId = shop.id;
+      this.localError = '';
+      this.localSuccess = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
     cancelEdit() {
       this.editMode = false;
       this.editShopId = null;
@@ -585,9 +611,9 @@ app.component('shop-form-page', {
       this.localSuccess = '';
       try {
         await API.updateShop(this.editShopId, this.form);
-        this.localSuccess = '店舗を更新しました';
         this.cancelEdit();
         await this.$root.loadShops();
+        this.showSuccessModal = true;
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }

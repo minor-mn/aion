@@ -29,5 +29,8 @@ Rails.application.routes.draw do
 
     # shedules
     resources :schedules, only: %i[index]
+
+    # action_logs
+    resources :action_logs, only: %i[index]
   end
 end

@@ -701,7 +701,7 @@ app.component('staff-form-page', {
       <div v-for="staff in filteredStaffs" :key="staff.id" class="shop-block" style="background:#f8f9fa">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div class="shop-block-name">{{ staff.name }}</div>
+            <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id)">{{ staff.name }}</div>
             <div style="font-size:0.8rem;color:#666">{{ getShopName(staff.shop_id) }}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">

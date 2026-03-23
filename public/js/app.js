@@ -1799,14 +1799,18 @@ app.component('map-view-page', {
   template: `
     <div class="register-container">
       <h2>地図で見る</h2>
-      <div v-if="locating" style="text-align:center;padding:16px;color:#888">現在地を取得中...</div>
-      <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #ddd"></div>
+      <div style="text-align:center;margin-bottom:8px">
+        <button @click="getCurrentLocation" :disabled="locating" style="padding:8px 16px;background:#4285f4;color:#fff;border:none;border-radius:6px;font-size:0.9rem;cursor:pointer;opacity:1" :style="{ opacity: locating ? 0.6 : 1 }">
+          {{ locating ? '取得中...' : '📍 現在地を取得' }}
+        </button>
+      </div>
+      <div id="map-view" style="height:calc(100vh - 360px);min-height:300px;border-radius:8px;border:1px solid #ddd"></div>
     </div>
   `,
   data() {
     return {
       map: null,
-      locating: true,
+      locating: false,
       shopShifts: {},
       preferences: {}
     };
@@ -1855,7 +1859,6 @@ app.component('map-view-page', {
         maxZoom: 20
       }).addTo(this.map);
       this.addShopMarkers();
-      this.getCurrentLocation();
     },
     async loadPreferences() {
       if (!this.$root.currentUser) return;
@@ -1934,6 +1937,7 @@ app.component('map-view-page', {
       }
     },
     getCurrentLocation() {
+      this.locating = true;
       if (!navigator.geolocation) {
         this.locating = false;
         alert('位置情報を取得できませんでした');

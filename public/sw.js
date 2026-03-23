@@ -13,38 +13,43 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const notificationTitle = payload.notification?.title || 'シフト通知';
-  const notificationOptions = {
-    body: payload.notification?.body || '',
+  console.log('[SW] onBackgroundMessage received:', payload);
+  const title = payload.data?.title || payload.notification?.title || 'シフト通知';
+  const options = {
+    body: payload.data?.body || payload.notification?.body || '',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png'
   };
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(title, options);
 });
 
 // Fallback push handler in case Firebase SDK doesn't catch the event
 self.addEventListener('push', (event) => {
-  // Firebase SDK handles most push events via onBackgroundMessage.
-  // This is a safety net for any that slip through.
+  console.log('[SW] push event received:', event.data?.text());
   if (event.data) {
     try {
-      const data = event.data.json();
-      if (data.notification) {
-        const title = data.notification.title || 'シフト通知';
-        const options = {
-          body: data.notification.body || '',
-          icon: '/icons/icon-192x192.png',
-          badge: '/icons/icon-192x192.png'
-        };
-        event.waitUntil(self.registration.showNotification(title, options));
-      }
+      const payload = event.data.json();
+      const title = payload.data?.title || payload.notification?.title || 'シフト通知';
+      const body = payload.data?.body || payload.notification?.body || '';
+      const options = {
+        body: body,
+        icon: '/icons/icon-192x192.png',
+        badge: '/icons/icon-192x192.png'
+      };
+      event.waitUntil(self.registration.showNotification(title, options));
     } catch (e) {
-      // Not JSON or no notification data
+      console.error('[SW] push parse error:', e);
+      event.waitUntil(
+        self.registration.showNotification('シフト通知', {
+          body: event.data.text(),
+          icon: '/icons/icon-192x192.png'
+        })
+      );
     }
   }
 });
 
-const CACHE_NAME = 'okyuyote-v5';
+const CACHE_NAME = 'okyuyote-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

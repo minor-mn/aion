@@ -466,8 +466,9 @@ const app = createApp({
         try {
           const messaging = firebase.messaging();
           messaging.onMessage((payload) => {
-            const title = payload.notification?.title || 'シフト通知';
-            const body = payload.notification?.body || '';
+            console.log('[FCM] onMessage received:', payload);
+            const title = payload.data?.title || payload.notification?.title || 'シフト通知';
+            const body = payload.data?.body || payload.notification?.body || '';
             if (Notification.permission === 'granted') {
               new Notification(title, {
                 body: body,

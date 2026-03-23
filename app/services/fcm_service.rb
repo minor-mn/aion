@@ -33,14 +33,13 @@ class FcmService
     message = {
       message: {
         token: fcm_token,
-        notification: {
+        data: {
           title: title,
           body: body
         },
         webpush: {
-          notification: {
-            icon: "/icons/icon-192x192.png",
-            badge: "/icons/icon-192x192.png"
+          headers: {
+            "Urgency" => "high"
           }
         }
       }
@@ -57,7 +56,7 @@ class FcmService
     response = http.request(request)
 
     if response.code.to_i == 200
-      Rails.logger.info("[FCM] Sent to #{fcm_token[0..20]}...")
+      Rails.logger.info("[FCM] Sent to #{fcm_token[0..20]}... response=#{response.body}")
       true
     else
       Rails.logger.warn("[FCM] Failed (#{response.code}): #{response.body}")

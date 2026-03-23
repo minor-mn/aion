@@ -411,25 +411,37 @@ const app = createApp({
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') return;
 
-        // Wait for the main sw.js to be ready
         const swReg = await navigator.serviceWorker.ready;
+        const messaging = firebase.messaging();
 
-        // Force new push subscription tied to current sw.js
+        // Force delete old token from FCM servers and IDB cache
+        try {
+          await messaging.deleteToken();
+          console.log('[FCM] 旧トークン削除完了');
+        } catch (e) {
+          console.warn('[FCM] deleteToken skipped:', e.message);
+        }
+
+        // Unsubscribe old push subscription
         const existingSub = await swReg.pushManager.getSubscription();
         if (existingSub) {
           await existingSub.unsubscribe();
+          console.log('[FCM] 旧pushサブスクリプション解除完了');
         }
 
-        const messaging = firebase.messaging();
+        // Get completely fresh token with new push subscription
         const token = await messaging.getToken({
           vapidKey: 'BDiAra42PapQc1rk4-dbjVJmZ_2MS3oJd3md3kFJ5nj1mK7kcyQxTyue7mzP2x1oVi5KHIxULk8chAuQRVjh7u8',
           serviceWorkerRegistration: swReg
         });
         if (token) {
-          // Delete old tokens and save new one
           await API.deleteAllFcmTokens();
           await API.saveFcmToken(token);
           console.log('[FCM] トークン登録成功:', token.substring(0, 20) + '...');
+
+          // Debug: show push subscription endpoint
+          const sub = await swReg.pushManager.getSubscription();
+          console.log('[FCM] Push endpoint:', sub?.endpoint);
         }
       } catch (e) {
         console.warn('[FCM] トークン登録に失敗:', e);

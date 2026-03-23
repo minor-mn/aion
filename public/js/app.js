@@ -428,6 +428,7 @@ const app = createApp({
       if (view === 'staffForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftEdit') { loadShops(); }
+      if (view === 'mapView') { loadShops(); }
     }
 
     // ========== Push Notification Registration ==========
@@ -833,9 +834,10 @@ app.component('shop-form-page', {
       const lng = parseFloat(this.form.longitude) || 139.6503;
       const zoom = (this.form.latitude && this.form.longitude) ? 16 : 5;
       this.map = L.map('shop-map').setView([lat, lng], zoom);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
       }).addTo(this.map);
       if (this.form.latitude && this.form.longitude) {
         this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
@@ -1746,6 +1748,189 @@ app.component('my-page', {
         this.notifMsgType = 'error';
       }
       this.savingNotif = false;
+    }
+  }
+});
+
+// ========== Map View Component ==========
+app.component('map-view-page', {
+  template: `
+    <div class="register-container">
+      <h2>地図で見る</h2>
+      <div v-if="locating" style="text-align:center;padding:16px;color:#888">現在地を取得中...</div>
+      <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #ddd"></div>
+    </div>
+  `,
+  data() {
+    return {
+      map: null,
+      locating: true,
+      shopShifts: {},
+      preferences: {}
+    };
+  },
+  async mounted() {
+    await this.$root.loadShops();
+    await this.$root.loadStaffs();
+    await this.loadAllShifts();
+    await this.loadPreferences();
+    this.$nextTick(() => { this.initMap(); });
+  },
+  beforeUnmount() {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+  },
+  methods: {
+    async loadAllShifts() {
+      const shops = this.$root.shops || [];
+      const now = new Date();
+      for (const shop of shops) {
+        if (!shop.latitude || !shop.longitude) continue;
+        try {
+          const data = await API.getStaffShifts(shop.id);
+          const currentShifts = (data.staff_shifts || []).filter(s => {
+            const start = new Date(s.start_at);
+            const end = new Date(s.end_at);
+            return start <= now && now <= end;
+          });
+          if (currentShifts.length > 0) {
+            this.shopShifts[shop.id] = currentShifts;
+          }
+        } catch (e) {
+          // skip
+        }
+      }
+    },
+    initMap() {
+      const mapEl = document.getElementById('map-view');
+      if (!mapEl || !window.L) return;
+      this.map = L.map('map-view').setView([35.6762, 139.6503], 5);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(this.map);
+      this.addShopMarkers();
+      this.getCurrentLocation();
+    },
+    async loadPreferences() {
+      if (!this.$root.currentUser) return;
+      try {
+        const data = await API.getPreferences();
+        const prefs = {};
+        for (const p of (data.staff_preferences || [])) {
+          prefs[p.staff_id] = p.score;
+        }
+        this.preferences = prefs;
+      } catch (e) {
+        // ignore
+      }
+    },
+    shopScore(shopId) {
+      const shifts = this.shopShifts[shopId] || [];
+      if (shifts.length === 0) return null;
+      let total = 0;
+      let hasPreference = false;
+      for (const shift of shifts) {
+        const score = this.preferences[shift.staff_id];
+        if (score !== undefined) {
+          total += score;
+          hasPreference = true;
+        }
+      }
+      return hasPreference ? total : null;
+    },
+    createMarkerIcon(score) {
+      let color;
+      if (score === null) {
+        color = '#888';
+      } else {
+        const { r, g, b } = scoreToColor(score);
+        color = `rgb(${r},${g},${b})`;
+      }
+      return L.divIcon({
+        className: 'shop-marker',
+        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -10]
+      });
+    },
+    addShopMarkers() {
+      const shops = this.$root.shops || [];
+      const staffs = this.$root.staffs || [];
+      for (const shop of shops) {
+        if (shop.latitude && shop.longitude) {
+          const lat = parseFloat(shop.latitude);
+          const lng = parseFloat(shop.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            const score = this.$root.currentUser ? this.shopScore(shop.id) : null;
+            const icon = this.createMarkerIcon(score);
+            const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
+            let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
+            if (shop.address) {
+              popupHtml += '<br><span style="font-size:0.85rem;color:#666">' + this.escapeHtml(shop.address) + '</span>';
+            }
+            const shifts = this.shopShifts[shop.id] || [];
+            if (shifts.length > 0) {
+              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd">';
+              popupHtml += '<div style="font-size:0.8rem;color:#333;font-weight:bold">シフト中</div>';
+              for (const shift of shifts) {
+                const staff = staffs.find(s => s.id === shift.staff_id);
+                const name = staff ? staff.name : 'Staff #' + shift.staff_id;
+                const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(name) + ' <span style="color:#888">' + startTime + '-' + endTime + '</span></div>';
+              }
+            }
+            popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#1a73e8;text-decoration:none">Google Mapsでナビ</a></div>';
+            marker.bindPopup(popupHtml);
+          }
+        }
+      }
+    },
+    getCurrentLocation() {
+      if (!navigator.geolocation) {
+        this.locating = false;
+        alert('位置情報を取得できませんでした');
+        if (this.map) {
+          this.map.setView([35.6984, 139.7731], 15);
+        }
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          this.locating = false;
+          if (!this.map) return;
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          this.map.setView([lat, lng], 15);
+          const currentIcon = L.divIcon({
+            className: 'current-location-marker',
+            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+          });
+          L.marker([lat, lng], { icon: currentIcon, zIndexOffset: 1000 })
+            .addTo(this.map)
+            .bindPopup('現在地');
+        },
+        (err) => {
+          this.locating = false;
+          alert('位置情報を取得できませんでした');
+          if (this.map) {
+            this.map.setView([35.6984, 139.7731], 15);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    },
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
   }
 });

@@ -413,13 +413,23 @@ const app = createApp({
 
         // Wait for the main sw.js to be ready
         const swReg = await navigator.serviceWorker.ready;
+
+        // Force new push subscription tied to current sw.js
+        const existingSub = await swReg.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+        }
+
         const messaging = firebase.messaging();
         const token = await messaging.getToken({
           vapidKey: 'BDiAra42PapQc1rk4-dbjVJmZ_2MS3oJd3md3kFJ5nj1mK7kcyQxTyue7mzP2x1oVi5KHIxULk8chAuQRVjh7u8',
           serviceWorkerRegistration: swReg
         });
         if (token) {
+          // Delete old tokens and save new one
+          await API.deleteAllFcmTokens();
           await API.saveFcmToken(token);
+          console.log('[FCM] トークン登録成功:', token.substring(0, 20) + '...');
         }
       } catch (e) {
         console.warn('[FCM] トークン登録に失敗:', e);
@@ -450,6 +460,23 @@ const app = createApp({
 
       await checkAuth();
       await loadHomeData();
+
+      // Set up foreground notification handler
+      if (typeof firebase !== 'undefined' && firebase.messaging) {
+        try {
+          const messaging = firebase.messaging();
+          messaging.onMessage((payload) => {
+            const title = payload.notification?.title || 'シフト通知';
+            const body = payload.notification?.body || '';
+            if (Notification.permission === 'granted') {
+              new Notification(title, {
+                body: body,
+                icon: '/icons/icon-192x192.png'
+              });
+            }
+          });
+        } catch (e) { /* ignore */ }
+      }
     });
 
     return {

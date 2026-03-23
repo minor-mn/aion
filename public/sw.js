@@ -22,7 +22,29 @@ messaging.onBackgroundMessage((payload) => {
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-const CACHE_NAME = 'okyuyote-v4';
+// Fallback push handler in case Firebase SDK doesn't catch the event
+self.addEventListener('push', (event) => {
+  // Firebase SDK handles most push events via onBackgroundMessage.
+  // This is a safety net for any that slip through.
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      if (data.notification) {
+        const title = data.notification.title || 'シフト通知';
+        const options = {
+          body: data.notification.body || '',
+          icon: '/icons/icon-192x192.png',
+          badge: '/icons/icon-192x192.png'
+        };
+        event.waitUntil(self.registration.showNotification(title, options));
+      }
+    } catch (e) {
+      // Not JSON or no notification data
+    }
+  }
+});
+
+const CACHE_NAME = 'okyuyote-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

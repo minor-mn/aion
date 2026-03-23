@@ -42,15 +42,32 @@ const app = createApp({
     const editingShop = ref(null);
 
     // ========== Auth ==========
-    async function checkAuth() {
+    function decodeJwtPayload(token) {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        // Check expiration
+        if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+        return payload;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function checkAuth() {
       if (!API.isLoggedIn()) {
         loading.value = false;
         return;
       }
-      try {
-        const data = await API.me();
-        currentUser.value = data.user;
-      } catch (e) {
+      const payload = decodeJwtPayload(API.token);
+      if (payload) {
+        currentUser.value = {
+          id: payload.sub,
+          nickname: payload.nickname || '',
+          email: payload.email || ''
+        };
+      } else {
         API.setToken(null);
         currentUser.value = null;
       }
@@ -60,8 +77,16 @@ const app = createApp({
     async function handleLogin(email, password) {
       error.value = '';
       try {
-        const data = await API.login(email, password);
-        currentUser.value = data.user;
+        await API.login(email, password);
+        // Extract user info from JWT token (set by API.request via Authorization header)
+        const payload = decodeJwtPayload(API.token);
+        if (payload) {
+          currentUser.value = {
+            id: payload.sub,
+            nickname: payload.nickname || '',
+            email: payload.email || ''
+          };
+        }
         currentView.value = 'home';
         success.value = 'ログインしました';
         await loadHomeData();
@@ -1495,8 +1520,11 @@ app.component('my-page', {
         const data = await API.updateProfile({ nickname: this.nickname });
         this.nicknameMsg = 'ニックネームを保存しました';
         this.nicknameMsgType = 'success';
-        if (data.user) this.$root.currentUser = data.user;
-        if (data.token) API.setToken(data.token);
+        if (data.token) {
+          API.setToken(data.token);
+          const payload = JSON.parse(atob(data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '' };
+        }
       } catch (e) {
         this.nicknameMsg = e.data?.error || '保存に失敗しました';
         this.nicknameMsgType = 'error';
@@ -1520,8 +1548,11 @@ app.component('my-page', {
         this.emailMsg = 'メールアドレスを変更しました';
         this.emailMsgType = 'success';
         this.emailCurrentPassword = '';
-        if (data.user) this.$root.currentUser = data.user;
-        if (data.token) API.setToken(data.token);
+        if (data.token) {
+          API.setToken(data.token);
+          const payload = JSON.parse(atob(data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '' };
+        }
       } catch (e) {
         this.emailMsg = e.data?.error || '変更に失敗しました';
         this.emailMsgType = 'error';

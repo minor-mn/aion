@@ -46,7 +46,8 @@ const app = createApp({
       try {
         const parts = token.split('.');
         if (parts.length !== 3) return null;
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
         // Check expiration
         if (payload.exp && payload.exp * 1000 < Date.now()) return null;
         return payload;
@@ -1522,7 +1523,8 @@ app.component('my-page', {
         this.nicknameMsgType = 'success';
         if (data.token) {
           API.setToken(data.token);
-          const payload = JSON.parse(atob(data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
           this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '' };
         }
       } catch (e) {
@@ -1550,7 +1552,8 @@ app.component('my-page', {
         this.emailCurrentPassword = '';
         if (data.token) {
           API.setToken(data.token);
-          const payload = JSON.parse(atob(data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
           this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '' };
         }
       } catch (e) {

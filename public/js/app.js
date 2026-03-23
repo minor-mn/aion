@@ -1861,7 +1861,6 @@ app.component('map-view-page', {
     addShopMarkers() {
       const shops = this.$root.shops || [];
       const staffs = this.$root.staffs || [];
-      const clusterGroup = L.markerClusterGroup();
       for (const shop of shops) {
         if (shop.latitude && shop.longitude) {
           const lat = parseFloat(shop.latitude);
@@ -1869,7 +1868,7 @@ app.component('map-view-page', {
           if (!isNaN(lat) && !isNaN(lng)) {
             const score = this.$root.currentUser ? this.shopScore(shop.id) : null;
             const icon = this.createMarkerIcon(score);
-            const marker = L.marker([lat, lng], { icon: icon });
+            const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
             let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
             if (shop.address) {
               popupHtml += '<br><span style="font-size:0.85rem;color:#666">' + this.escapeHtml(shop.address) + '</span>';
@@ -1888,11 +1887,9 @@ app.component('map-view-page', {
             }
             popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#1a73e8;text-decoration:none">Google Mapsでナビ</a></div>';
             marker.bindPopup(popupHtml);
-            clusterGroup.addLayer(marker);
           }
         }
       }
-      this.map.addLayer(clusterGroup);
     },
     getCurrentLocation() {
       if (!navigator.geolocation) {

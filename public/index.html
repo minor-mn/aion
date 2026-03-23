@@ -33,6 +33,7 @@
         <button class="menu-close" @click="menuOpen = false">&times;</button>
         <template v-if="currentUser">
           <button class="menu-item" @click="navigate('myPage')">マイページ</button>
+          <button class="menu-item" @click="navigate('mapView')">地図で見る</button>
           <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
           <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
           <button class="menu-item" @click="navigate('shiftForm')">シフト登録</button>
@@ -75,6 +76,9 @@
 
       <!-- My Page -->
       <my-page v-if="currentView === 'myPage'"></my-page>
+
+      <!-- Map View -->
+      <map-view-page v-if="currentView === 'mapView'"></map-view-page>
 
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">

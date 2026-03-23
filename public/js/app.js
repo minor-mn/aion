@@ -409,7 +409,7 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage', 'mapView'];
 
     function navigate(view) {
       // Redirect to login if auth required and not logged in
@@ -428,6 +428,7 @@ const app = createApp({
       if (view === 'staffForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftEdit') { loadShops(); }
+      if (view === 'mapView') { loadShops(); }
     }
 
     // ========== Push Notification Registration ==========
@@ -1746,6 +1747,106 @@ app.component('my-page', {
         this.notifMsgType = 'error';
       }
       this.savingNotif = false;
+    }
+  }
+});
+
+// ========== Map View Component ==========
+app.component('map-view-page', {
+  template: `
+    <div class="register-container">
+      <h2>地図で見る</h2>
+      <div v-if="locationError" class="alert alert-error">{{ locationError }}</div>
+      <div v-if="locating" style="text-align:center;padding:16px;color:#888">現在地を取得中...</div>
+      <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #ddd"></div>
+    </div>
+  `,
+  data() {
+    return {
+      map: null,
+      locating: true,
+      locationError: ''
+    };
+  },
+  async mounted() {
+    await this.$root.loadShops();
+    this.$nextTick(() => { this.initMap(); });
+  },
+  beforeUnmount() {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
+  },
+  methods: {
+    initMap() {
+      const mapEl = document.getElementById('map-view');
+      if (!mapEl || !window.L) return;
+      // Default to Japan center
+      this.map = L.map('map-view').setView([35.6762, 139.6503], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(this.map);
+      // Add shop markers
+      this.addShopMarkers();
+      // Get GPS location
+      this.getCurrentLocation();
+    },
+    addShopMarkers() {
+      const shops = this.$root.shops || [];
+      for (const shop of shops) {
+        if (shop.latitude && shop.longitude) {
+          const lat = parseFloat(shop.latitude);
+          const lng = parseFloat(shop.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            const marker = L.marker([lat, lng]).addTo(this.map);
+            let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
+            if (shop.address) {
+              popupHtml += '<br><span style="font-size:0.85rem;color:#666">' + this.escapeHtml(shop.address) + '</span>';
+            }
+            marker.bindPopup(popupHtml);
+          }
+        }
+      }
+    },
+    getCurrentLocation() {
+      if (!navigator.geolocation) {
+        this.locating = false;
+        this.locationError = 'お使いのブラウザでは位置情報を取得できません';
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          this.locating = false;
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          this.map.setView([lat, lng], 15);
+          const currentIcon = L.divIcon({
+            className: 'current-location-marker',
+            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+          });
+          L.marker([lat, lng], { icon: currentIcon, zIndexOffset: 1000 })
+            .addTo(this.map)
+            .bindPopup('現在地');
+        },
+        (err) => {
+          this.locating = false;
+          if (err.code === 1) {
+            this.locationError = '位置情報の取得が許可されていません。設定から許可してください。';
+          } else {
+            this.locationError = '位置情報を取得できませんでした';
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    },
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
   }
 });

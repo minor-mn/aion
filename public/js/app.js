@@ -479,8 +479,11 @@ const app = createApp({
       await checkAuth();
       await loadHomeData();
 
-      // Note: Push notifications are handled by the Service Worker (sw.js)
-      // No foreground handler needed - SW handles all push events
+      // Auto-refresh push subscription on every page load for logged-in users
+      // This ensures old Firebase SDK subscriptions get replaced with VAPID ones
+      if (currentUser.value && 'Notification' in window && Notification.permission === 'granted' && 'PushManager' in window) {
+        registerPushSubscription();
+      }
     });
 
     return {

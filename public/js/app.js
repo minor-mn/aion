@@ -737,18 +737,13 @@ app.component('shop-form-page', {
         <input v-model="form.image_url" type="url" placeholder="https://...">
       </div>
       <div class="form-group">
-        <label>所在地（地図をタップしてピンを設置）</label>
-        <div id="shop-map" style="height:300px;border-radius:8px;border:1px solid #ddd;margin-bottom:8px"></div>
-        <div style="display:flex;gap:8px">
-          <div style="flex:1">
-            <label style="font-size:0.8rem;color:#666">緯度</label>
-            <input v-model="form.latitude" type="number" step="0.000001" placeholder="例: 35.6762" @change="onCoordsInput">
-          </div>
-          <div style="flex:1">
-            <label style="font-size:0.8rem;color:#666">経度</label>
-            <input v-model="form.longitude" type="number" step="0.000001" placeholder="例: 139.6503" @change="onCoordsInput">
-          </div>
-        </div>
+        <label>住所</label>
+        <input v-model="form.address" type="text" placeholder="例: 東京都新宿区歌舞伎町1-1" @blur="onAddressBlur">
+        <div v-if="geocoding" style="font-size:0.8rem;color:#888;margin-top:4px">住所を検索中...</div>
+      </div>
+      <div class="form-group">
+        <label>所在地（地図をタップまたはピンをドラッグ）</label>
+        <div id="shop-map" style="height:300px;border-radius:8px;border:1px solid #ddd"></div>
       </div>
       <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
         <template v-if="editMode">
@@ -794,7 +789,8 @@ app.component('shop-form-page', {
   `,
   data() {
     return {
-      form: { name: '', site_url: '', image_url: '', latitude: '', longitude: '' },
+      form: { name: '', site_url: '', image_url: '', address: '', latitude: '', longitude: '' },
+      geocoding: false,
       editMode: false,
       editShopId: null,
       submitting: false,
@@ -813,6 +809,7 @@ app.component('shop-form-page', {
         name: es.name || '',
         site_url: es.site_url || '',
         image_url: es.image_url || '',
+        address: es.address || '',
         latitude: es.latitude || '',
         longitude: es.longitude || ''
       };
@@ -841,7 +838,12 @@ app.component('shop-form-page', {
         maxZoom: 19
       }).addTo(this.map);
       if (this.form.latitude && this.form.longitude) {
-        this.marker = L.marker([lat, lng]).addTo(this.map);
+        this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+        this.marker.on('dragend', (e) => {
+          const pos = e.target.getLatLng();
+          this.form.latitude = pos.lat.toFixed(6);
+          this.form.longitude = pos.lng.toFixed(6);
+        });
       }
       this.map.on('click', (e) => {
         this.form.latitude = e.latlng.lat.toFixed(6);
@@ -849,21 +851,45 @@ app.component('shop-form-page', {
         if (this.marker) {
           this.marker.setLatLng(e.latlng);
         } else {
-          this.marker = L.marker(e.latlng).addTo(this.map);
+          this.marker = L.marker(e.latlng, { draggable: true }).addTo(this.map);
+          this.marker.on('dragend', (ev) => {
+            const pos = ev.target.getLatLng();
+            this.form.latitude = pos.lat.toFixed(6);
+            this.form.longitude = pos.lng.toFixed(6);
+          });
         }
       });
     },
-    onCoordsInput() {
-      const lat = parseFloat(this.form.latitude);
-      const lng = parseFloat(this.form.longitude);
-      if (!isNaN(lat) && !isNaN(lng) && this.map) {
-        this.map.setView([lat, lng], 16);
-        if (this.marker) {
-          this.marker.setLatLng([lat, lng]);
-        } else {
-          this.marker = L.marker([lat, lng]).addTo(this.map);
+    async onAddressBlur() {
+      const addr = (this.form.address || '').trim();
+      if (!addr) return;
+      this.geocoding = true;
+      try {
+        const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr));
+        const data = await res.json();
+        if (data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          this.form.latitude = lat.toFixed(6);
+          this.form.longitude = lng.toFixed(6);
+          if (this.map) {
+            this.map.setView([lat, lng], 16);
+            if (this.marker) {
+              this.marker.setLatLng([lat, lng]);
+            } else {
+              this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+              this.marker.on('dragend', (ev) => {
+                const pos = ev.target.getLatLng();
+                this.form.latitude = pos.lat.toFixed(6);
+                this.form.longitude = pos.lng.toFixed(6);
+              });
+            }
+          }
         }
+      } catch (e) {
+        // geocoding failed silently
       }
+      this.geocoding = false;
     },
     closeSuccessModal() {
       this.showSuccessModal = false;
@@ -873,6 +899,7 @@ app.component('shop-form-page', {
         name: shop.name || '',
         site_url: shop.site_url || '',
         image_url: shop.image_url || '',
+        address: shop.address || '',
         latitude: shop.latitude || '',
         longitude: shop.longitude || ''
       };
@@ -891,7 +918,12 @@ app.component('shop-form-page', {
             if (this.marker) {
               this.marker.setLatLng([lat, lng]);
             } else {
-              this.marker = L.marker([lat, lng]).addTo(this.map);
+              this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+              this.marker.on('dragend', (ev) => {
+                const pos = ev.target.getLatLng();
+                this.form.latitude = pos.lat.toFixed(6);
+                this.form.longitude = pos.lng.toFixed(6);
+              });
             }
           } else if (this.marker) {
             this.map.removeLayer(this.marker);
@@ -903,7 +935,7 @@ app.component('shop-form-page', {
     cancelEdit() {
       this.editMode = false;
       this.editShopId = null;
-      this.form = { name: '', site_url: '', image_url: '', latitude: '', longitude: '' };
+      this.form = { name: '', site_url: '', image_url: '', address: '', latitude: '', longitude: '' };
       if (this.marker) {
         this.map.removeLayer(this.marker);
         this.marker = null;
@@ -925,7 +957,7 @@ app.component('shop-form-page', {
       try {
         await API.createShop(this.form);
         this.localSuccess = '店舗を登録しました';
-        this.form = { name: '', site_url: '', image_url: '', latitude: '', longitude: '' };
+        this.form = { name: '', site_url: '', image_url: '', address: '', latitude: '', longitude: '' };
         if (this.marker) {
           this.map.removeLayer(this.marker);
           this.marker = null;

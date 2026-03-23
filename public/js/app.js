@@ -89,6 +89,7 @@ const app = createApp({
           };
         }
         currentView.value = 'home';
+        history.replaceState(null, '', window.location.pathname + window.location.search);
         success.value = 'ログインしました';
         await loadHomeData();
       } catch (e) {
@@ -117,6 +118,7 @@ const app = createApp({
       menuOpen.value = false;
       scheduleData.value = [];
       currentView.value = 'home';
+      history.replaceState(null, '', window.location.pathname + window.location.search);
       await loadTodayData();
       await loadScheduleData();
     }
@@ -411,18 +413,41 @@ const app = createApp({
     // ========== Navigation ==========
     const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage'];
 
-    function navigate(view) {
+    // Mapping between hash fragments and view names
+    const hashToView = {
+      '': 'home', 'home': 'home',
+      'map': 'mapView', 'login': 'login', 'register': 'register',
+      'forgot-password': 'forgotPassword', 'my-page': 'myPage',
+      'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm'
+    };
+    const viewToHash = {
+      'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
+      'forgotPassword': 'forgot-password', 'myPage': 'my-page',
+      'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts'
+    };
+
+    function navigate(view, updateHash = true) {
       // Redirect to login if auth required and not logged in
       if (authRequiredViews.includes(view) && !currentUser.value) {
         currentView.value = 'login';
         menuOpen.value = false;
         error.value = 'この機能を使うにはログインが必要です';
+        if (updateHash) window.location.hash = 'login';
         return;
       }
       currentView.value = view;
       menuOpen.value = false;
       error.value = '';
       success.value = '';
+      if (updateHash && viewToHash[view] !== undefined) {
+        const newHash = viewToHash[view];
+        if (newHash) {
+          window.location.hash = newHash;
+        } else {
+          // Remove hash for home
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
       if (view === 'home') loadHomeData();
       if (view === 'shopForm') loadShops();
       if (view === 'staffForm') { loadShops(); loadStaffs(); }
@@ -430,6 +455,16 @@ const app = createApp({
       if (view === 'shiftEdit') { loadShops(); }
       if (view === 'mapView') { loadShops(); }
     }
+
+    function handleHashChange() {
+      const hash = window.location.hash.replace('#', '');
+      const view = hashToView[hash];
+      if (view && view !== currentView.value) {
+        navigate(view, false);
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashChange);
 
     // ========== Push Notification Registration ==========
     const VAPID_PUBLIC_KEY = 'BEaEKm3DUk5UNG6F8NeOcg2CooLz_rKvNv6AqKXBu0p7i2NtWB9dd_vu7S0iG2PIGddYCIW5LAsJgPXTPH7HzGA=';
@@ -509,7 +544,14 @@ const app = createApp({
       }
 
       await checkAuth();
-      await loadHomeData();
+
+      // Handle initial hash route (e.g. #map)
+      const initialHash = window.location.hash.replace('#', '');
+      if (initialHash && hashToView[initialHash]) {
+        navigate(hashToView[initialHash], false);
+      } else {
+        await loadHomeData();
+      }
 
       // Auto-refresh push subscription on every page load for logged-in users
       // This ensures old Firebase SDK subscriptions get replaced with VAPID ones

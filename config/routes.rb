@@ -1,4 +1,7 @@
 Rails.application.routes.draw do
+  # Clear browser cache/SW — visit once to force fresh reload
+  get "clear_cache", to: "cache_clear#show"
+
   devise_for :users,
     defaults: { format: :json },
     controllers: {

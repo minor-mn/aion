@@ -77,6 +77,20 @@ namespace :push do
     puts "完了"
   end
 
+  desc "Reset push subscriptions for a user. Usage: rails push:reset[user_id]"
+  task :reset, [ :user_id ] => :environment do |_t, args|
+    user_id = args[:user_id]
+    unless user_id
+      puts "Usage: rails push:reset[user_id]"
+      exit 1
+    end
+
+    count = PushSubscription.where(user_id: user_id).delete_all
+    puts "User ID=#{user_id} のpush subscriptionを#{count}件削除しました"
+    puts "ブラウザで https://umr.biz/clear_cache にアクセスしてキャッシュをクリアしてください"
+    puts "その後サイトを開くと自動的に新しいsubscriptionが登録されます"
+  end
+
   desc "Generate new VAPID keys"
   task generate_vapid_keys: :environment do
     require "web-push"

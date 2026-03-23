@@ -63,6 +63,19 @@ const API = {
     return this.request('GET', '/v1/user/me');
   },
 
+  // Password Reset
+  requestPasswordReset(email) {
+    return this.request('POST', '/users/password', { email });
+  },
+
+  resetPassword(token, password, passwordConfirmation) {
+    return this.request('PUT', '/users/password', {
+      reset_password_token: token,
+      password,
+      password_confirmation: passwordConfirmation
+    });
+  },
+
   // Shops
   getShops() {
     return this.request('GET', '/v1/shops');

@@ -4,7 +4,8 @@ const app = createApp({
   setup() {
     // ========== State ==========
     const currentUser = ref(null);
-    const currentView = ref('home'); // home, login, register, shopForm, staffForm, shiftForm, shiftEdit
+    const currentView = ref('home'); // home, login, register, forgotPassword, resetPassword, shopForm, staffForm, shiftForm, shiftEdit
+    const resetPasswordToken = ref(null);
     const menuOpen = ref(false);
     const loading = ref(true);
     const error = ref('');
@@ -474,6 +475,10 @@ const app = createApp({
         error.value = params.get('confirmation_error');
         currentView.value = 'login';
         window.history.replaceState({}, '', '/');
+      } else if (params.get('reset_password_token')) {
+        resetPasswordToken.value = params.get('reset_password_token');
+        currentView.value = 'resetPassword';
+        window.history.replaceState({}, '', '/');
       }
 
       await checkAuth();
@@ -488,6 +493,7 @@ const app = createApp({
 
     return {
       registerPushSubscription, unregisterPushSubscription,
+      resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
       todayShops, todayShifts, shops, staffs,
@@ -529,6 +535,9 @@ app.component('login-page', {
       <div class="auth-link">
         アカウントをお持ちでない方は <a @click="$root.navigate('register')">新規登録</a>
       </div>
+      <div class="auth-link">
+        <a @click="$root.navigate('forgotPassword')">パスワードを忘れた方はこちら</a>
+      </div>
     </div>
   `,
   data() {
@@ -539,6 +548,100 @@ app.component('login-page', {
       if (!this.email || !this.password) return;
       this.submitting = true;
       await this.$root.handleLogin(this.email, this.password);
+      this.submitting = false;
+    }
+  }
+});
+
+// ========== Forgot Password Component ==========
+app.component('forgot-password-page', {
+  template: `
+    <div class="auth-container">
+      <h2>パスワード再設定</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+      <p style="margin-bottom:16px;color:#666;font-size:0.9rem">登録済みのメールアドレスを入力してください。パスワード再設定用のリンクをメールで送信します。</p>
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input v-model="email" type="email" placeholder="email@example.com" @keyup.enter="submit">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" @click="submit" :disabled="submitting">
+          {{ submitting ? '送信中...' : '再設定メールを送信' }}
+        </button>
+      </div>
+      <div class="auth-link">
+        <a @click="$root.navigate('login')">ログインに戻る</a>
+      </div>
+    </div>
+  `,
+  data() {
+    return { email: '', submitting: false, localError: '', localSuccess: '' };
+  },
+  methods: {
+    async submit() {
+      if (!this.email) return;
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        const data = await API.requestPasswordReset(this.email);
+        this.localSuccess = data.message || 'パスワード再設定メールを送信しました。';
+        this.email = '';
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || 'メールの送信に失敗しました。';
+      }
+      this.submitting = false;
+    }
+  }
+});
+
+// ========== Reset Password Component ==========
+app.component('reset-password-page', {
+  template: `
+    <div class="auth-container">
+      <h2>新しいパスワードの設定</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+      <div class="form-group">
+        <label>新しいパスワード</label>
+        <input v-model="password" type="password" placeholder="6文字以上">
+      </div>
+      <div class="form-group">
+        <label>新しいパスワード（確認）</label>
+        <input v-model="passwordConfirmation" type="password" placeholder="パスワード再入力" @keyup.enter="submit">
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" @click="submit" :disabled="submitting">
+          {{ submitting ? '設定中...' : 'パスワードを再設定' }}
+        </button>
+      </div>
+      <div class="auth-link">
+        <a @click="$root.navigate('login')">ログインに戻る</a>
+      </div>
+    </div>
+  `,
+  data() {
+    return { password: '', passwordConfirmation: '', submitting: false, localError: '', localSuccess: '' };
+  },
+  methods: {
+    async submit() {
+      if (!this.password || !this.passwordConfirmation) return;
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        const data = await API.resetPassword(
+          this.$root.resetPasswordToken,
+          this.password,
+          this.passwordConfirmation
+        );
+        this.localSuccess = data.message || 'パスワードを再設定しました。';
+        this.$root.resetPasswordToken = null;
+        setTimeout(() => { this.$root.navigate('login'); }, 2000);
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || 'パスワードの再設定に失敗しました。';
+      }
       this.submitting = false;
     }
   }

@@ -1804,7 +1804,7 @@ app.component('map-view-page', {
       const mapEl = document.getElementById('map-view');
       if (!mapEl || !window.L) return;
       this.map = L.map('map-view').setView([35.6762, 139.6503], 5);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20

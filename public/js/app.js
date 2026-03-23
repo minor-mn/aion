@@ -403,56 +403,62 @@ const app = createApp({
       if (view === 'shiftEdit') { loadShops(); }
     }
 
-    // ========== FCM Registration ==========
-    async function registerFcmToken() {
+    // ========== Push Notification Registration ==========
+    const VAPID_PUBLIC_KEY = 'BEaEKm3DUk5UNG6F8NeOcg2CooLz_rKvNv6AqKXBu0p7i2NtWB9dd_vu7S0iG2PIGddYCIW5LAsJgPXTPH7HzGA=';
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    async function registerPushSubscription() {
       if (!currentUser.value) return;
-      if (!('Notification' in window)) return;
+      if (!('Notification' in window) || !('PushManager' in window)) return;
       try {
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') return;
 
         const swReg = await navigator.serviceWorker.ready;
-        const messaging = firebase.messaging();
 
-        // Force delete old token from FCM servers and IDB cache
-        try {
-          await messaging.deleteToken();
-          console.log('[FCM] 旧トークン削除完了');
-        } catch (e) {
-          console.warn('[FCM] deleteToken skipped:', e.message);
-        }
-
-        // Unsubscribe old push subscription
+        // Unsubscribe old subscription if exists
         const existingSub = await swReg.pushManager.getSubscription();
         if (existingSub) {
           await existingSub.unsubscribe();
-          console.log('[FCM] 旧pushサブスクリプション解除完了');
         }
 
-        // Get completely fresh token with new push subscription
-        const token = await messaging.getToken({
-          vapidKey: 'BDiAra42PapQc1rk4-dbjVJmZ_2MS3oJd3md3kFJ5nj1mK7kcyQxTyue7mzP2x1oVi5KHIxULk8chAuQRVjh7u8',
-          serviceWorkerRegistration: swReg
+        // Create new push subscription with VAPID key
+        const subscription = await swReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
-        if (token) {
-          await API.deleteAllFcmTokens();
-          await API.saveFcmToken(token);
-          console.log('[FCM] トークン登録成功:', token.substring(0, 20) + '...');
 
-          // Debug: show push subscription endpoint
-          const sub = await swReg.pushManager.getSubscription();
-          console.log('[FCM] Push endpoint:', sub?.endpoint);
-        }
+        const subJson = subscription.toJSON();
+        await API.deleteAllPushSubscriptions();
+        await API.savePushSubscription({
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys.p256dh,
+          auth: subJson.keys.auth
+        });
+        console.log('[Push] サブスクリプション登録成功:', subJson.endpoint.substring(0, 50) + '...');
       } catch (e) {
-        console.warn('[FCM] トークン登録に失敗:', e);
+        console.warn('[Push] サブスクリプション登録に失敗:', e);
       }
     }
 
-    async function unregisterFcmToken() {
+    async function unregisterPushSubscription() {
       try {
-        await API.deleteAllFcmTokens();
+        const swReg = await navigator.serviceWorker.ready;
+        const sub = await swReg.pushManager.getSubscription();
+        if (sub) await sub.unsubscribe();
+        await API.deleteAllPushSubscriptions();
       } catch (e) {
-        console.warn('[FCM] トークン削除に失敗:', e);
+        console.warn('[Push] サブスクリプション削除に失敗:', e);
       }
     }
 
@@ -473,27 +479,12 @@ const app = createApp({
       await checkAuth();
       await loadHomeData();
 
-      // Set up foreground notification handler
-      if (typeof firebase !== 'undefined' && firebase.messaging) {
-        try {
-          const messaging = firebase.messaging();
-          messaging.onMessage((payload) => {
-            console.log('[FCM] onMessage received:', payload);
-            const title = payload.data?.title || payload.notification?.title || 'シフト通知';
-            const body = payload.data?.body || payload.notification?.body || '';
-            if (Notification.permission === 'granted') {
-              new Notification(title, {
-                body: body,
-                icon: '/icons/icon-192x192.png'
-              });
-            }
-          });
-        } catch (e) { /* ignore */ }
-      }
+      // Note: Push notifications are handled by the Service Worker (sw.js)
+      // No foreground handler needed - SW handles all push events
     });
 
     return {
-      registerFcmToken, unregisterFcmToken,
+      registerPushSubscription, unregisterPushSubscription,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
       todayShops, todayShifts, shops, staffs,
@@ -1466,11 +1457,11 @@ app.component('my-page', {
         });
         this.notifMsg = '通知設定を保存しました';
         this.notifMsgType = 'success';
-        // Register or unregister FCM token based on notification setting
+        // Register or unregister push subscription based on notification setting
         if (this.notifEnabled) {
-          await this.$root.registerFcmToken();
+          await this.$root.registerPushSubscription();
         } else {
-          await this.$root.unregisterFcmToken();
+          await this.$root.unregisterPushSubscription();
         }
       } catch (e) {
         this.notifMsg = e.data?.error || '保存に失敗しました';

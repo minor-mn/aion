@@ -55,3 +55,5 @@ group :development, :test do
 
   gem "rspec-rails"
 end
+
+gem "web-push", "~> 3.1"

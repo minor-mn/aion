@@ -1,55 +1,25 @@
-// Firebase Messaging for push notifications
-importScripts('https://www.gstatic.com/firebasejs/11.7.1/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/11.7.1/firebase-messaging-compat.js');
-
-firebase.initializeApp({
-  apiKey: 'AIzaSyDPXOk42G1_Xm8-4yKj4cdwTdeU8q1PBCY',
-  authDomain: 'aion-9cadd.firebaseapp.com',
-  projectId: 'aion-9cadd',
-  messagingSenderId: '613861935685',
-  appId: '1:613861935685:web:e3cd2cbbfb689da3feb12c'
-});
-
-const messaging = firebase.messaging();
-
-messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] onBackgroundMessage received:', payload);
-  const title = payload.data?.title || payload.notification?.title || 'シフト通知';
-  const options = {
-    body: payload.data?.body || payload.notification?.body || '',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-192x192.png'
-  };
-  self.registration.showNotification(title, options);
-});
-
-// Fallback push handler in case Firebase SDK doesn't catch the event
+// Push notification handler (Web Push API)
 self.addEventListener('push', (event) => {
-  console.log('[SW] push event received:', event.data?.text());
-  if (event.data) {
-    try {
-      const payload = event.data.json();
-      const title = payload.data?.title || payload.notification?.title || 'シフト通知';
-      const body = payload.data?.body || payload.notification?.body || '';
-      const options = {
-        body: body,
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/icon-192x192.png'
-      };
-      event.waitUntil(self.registration.showNotification(title, options));
-    } catch (e) {
-      console.error('[SW] push parse error:', e);
-      event.waitUntil(
-        self.registration.showNotification('シフト通知', {
-          body: event.data.text(),
-          icon: '/icons/icon-192x192.png'
-        })
-      );
-    }
+  if (!event.data) return;
+  let title = 'シフト通知';
+  let body = '';
+  try {
+    const payload = event.data.json();
+    title = payload.title || title;
+    body = payload.body || body;
+  } catch (e) {
+    body = event.data.text();
   }
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-192x192.png'
+    })
+  );
 });
 
-const CACHE_NAME = 'okyuyote-v6';
+const CACHE_NAME = 'okyuyote-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

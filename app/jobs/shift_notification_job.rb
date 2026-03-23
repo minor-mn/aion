@@ -8,14 +8,14 @@ class ShiftNotificationJob < ApplicationJob
     setting = user.notification_setting
     return unless setting&.notifications_enabled
 
-    tokens = user.fcm_tokens.pluck(:token)
-    if tokens.empty?
-      Rails.logger.info("[ShiftNotification] user=#{user.id} has no FCM tokens, skipping")
+    subscriptions = user.push_subscriptions
+    if subscriptions.empty?
+      Rails.logger.info("[ShiftNotification] user=#{user.id} has no push subscriptions, skipping")
       return
     end
 
-    tokens.each do |token|
-      FcmService.send_notification(token, title: "シフト通知", body: body)
+    subscriptions.each do |sub|
+      WebPushService.send_notification(sub, title: "シフト通知", body: body)
     end
   end
 end

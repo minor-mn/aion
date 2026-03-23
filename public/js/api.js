@@ -153,17 +153,13 @@ const API = {
     return this.request('PATCH', '/v1/user/notification_settings', data);
   },
 
-  // FCM Tokens
-  saveFcmToken(token) {
-    return this.request('POST', '/v1/user/fcm_tokens', { token });
+  // Push Subscriptions
+  savePushSubscription(subscription) {
+    return this.request('POST', '/v1/user/push_subscriptions', subscription);
   },
 
-  deleteFcmToken(token) {
-    return this.request('DELETE', '/v1/user/fcm_tokens', { token });
-  },
-
-  deleteAllFcmTokens() {
-    return this.request('DELETE', '/v1/user/fcm_tokens');
+  deleteAllPushSubscriptions() {
+    return this.request('DELETE', '/v1/user/push_subscriptions');
   },
 
   // Action Logs

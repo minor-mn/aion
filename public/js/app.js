@@ -834,9 +834,10 @@ app.component('shop-form-page', {
       const lng = parseFloat(this.form.longitude) || 139.6503;
       const zoom = (this.form.latitude && this.form.longitude) ? 16 : 5;
       this.map = L.map('shop-map').setView([lat, lng], zoom);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
       }).addTo(this.map);
       if (this.form.latitude && this.form.longitude) {
         this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);

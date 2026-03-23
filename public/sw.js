@@ -1,14 +1,5 @@
 // SW Version — bump this on every deploy to trigger update + client reload
-const SW_VERSION = 'v10-webpush';
-
-// Log push events to server for diagnostics
-function logPushEvent(status, title, body) {
-  fetch('/push_log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, title, body, sw_version: SW_VERSION })
-  }).catch(() => {});
-}
+const SW_VERSION = 'v11-webpush';
 
 // Push notification handler (Web Push API)
 self.addEventListener('push', (event) => {
@@ -16,7 +7,6 @@ self.addEventListener('push', (event) => {
   let body = '';
 
   if (!event.data) {
-    logPushEvent('received_no_data', title, '');
     event.waitUntil(
       self.registration.showNotification(title, { body: '新しい通知があります' })
     );
@@ -31,17 +21,11 @@ self.addEventListener('push', (event) => {
     body = event.data.text();
   }
 
-  logPushEvent('received', title, body);
-
   event.waitUntil(
     self.registration.showNotification(title, {
       body: body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png'
-    }).then(() => {
-      logPushEvent('notification_shown', title, body);
-    }).catch((err) => {
-      logPushEvent('notification_error', title, err.message);
     })
   );
 });
@@ -53,7 +37,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-const CACHE_NAME = 'okyuyote-v10';
+const CACHE_NAME = 'okyuyote-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

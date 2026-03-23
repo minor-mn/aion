@@ -227,32 +227,22 @@
         registrations.forEach(reg => {
           const swUrl = reg.active ? reg.active.scriptURL : (reg.installing ? reg.installing.scriptURL : '');
           if (swUrl && !swUrl.endsWith('/sw.js')) {
-            console.log('[SW] Unregistering old SW:', swUrl);
             reg.unregister();
           }
         });
       });
+      // Auto-reload when SW updates (ensures latest JS/CSS are loaded)
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'SW_UPDATED') {
+          if (!sessionStorage.getItem('sw_reloaded')) {
+            sessionStorage.setItem('sw_reloaded', '1');
+            window.location.reload();
+          }
+        }
+      });
       // Register our main SW
       navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-        .then(reg => {
-          console.log('[SW] registered:', reg.scope);
-          // Force update check
-          reg.update();
-          // Query SW version
-          if (reg.active) {
-            const mc = new MessageChannel();
-            mc.port1.onmessage = (e) => console.log('[SW] Active version:', e.data.version);
-            reg.active.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
-          }
-          // Log state changes
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            console.log('[SW] New worker installing...');
-            newWorker.addEventListener('statechange', () => {
-              console.log('[SW] Worker state:', newWorker.state);
-            });
-          });
-        })
+        .then(reg => { reg.update(); })
         .catch(err => console.error('[SW] registration failed:', err));
     }
   </script>

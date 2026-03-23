@@ -67,37 +67,10 @@ namespace :push do
     puts ""
 
     subscriptions.each_with_index do |sub, i|
-      puts "  Subscription#{i + 1}:"
-      puts "    endpoint: #{sub.endpoint}"
-      puts "    p256dh: #{sub.p256dh[0..20]}..."
-      puts "    auth: #{sub.auth}"
-
-      begin
-        vapid_public = ENV["VAPID_PUBLIC_KEY"]
-        vapid_private = ENV["VAPID_PRIVATE_KEY"]
-        payload = { title: "シフト通知", body: message }.to_json
-
-        response = WebPush.payload_send(
-          message: payload,
-          endpoint: sub.endpoint,
-          p256dh: sub.p256dh,
-          auth: sub.auth,
-          vapid: {
-            subject: "mailto:#{ENV.fetch('MAILER_SENDER', 'noreply@example.com')}",
-            public_key: vapid_public,
-            private_key: vapid_private
-          },
-          urgency: "high"
-        )
-
-        puts "    HTTP #{response.code} #{response.message}"
-        puts "    Response body: #{response.body}" if response.body.present?
-        puts "    Response headers:"
-        response.each_header { |k, v| puts "      #{k}: #{v}" }
-        puts "    結果: 成功"
-      rescue => e
-        puts "    結果: 失敗 - #{e.class}: #{e.message}"
-      end
+      result = WebPushService.send_notification(sub, title: "シフト通知", body: message)
+      status = result ? "成功" : "失敗"
+      puts "  Subscription#{i + 1}: #{status}"
+      puts "    endpoint: #{sub.endpoint[0..60]}..."
     end
 
     puts ""

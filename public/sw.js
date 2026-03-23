@@ -1,29 +1,24 @@
-// SW Version for debugging
-const SW_VERSION = 'v8-webpush';
+// SW Version — bump this on every deploy to trigger update + client reload
+const SW_VERSION = 'v9-webpush';
 
 // Push notification handler (Web Push API)
 self.addEventListener('push', (event) => {
-  console.log('[SW:' + SW_VERSION + '] push event received', event);
+  let title = 'シフト通知';
+  let body = '';
 
   if (!event.data) {
-    console.warn('[SW] push event has no data');
-    // Show a default notification even without data
     event.waitUntil(
-      self.registration.showNotification('シフト通知', { body: '新しい通知があります' })
+      self.registration.showNotification(title, { body: '新しい通知があります' })
     );
     return;
   }
 
-  let title = 'シフト通知';
-  let body = '';
   try {
     const payload = event.data.json();
-    console.log('[SW] push payload:', JSON.stringify(payload));
     title = payload.title || title;
     body = payload.body || body;
   } catch (e) {
     body = event.data.text();
-    console.log('[SW] push text data:', body);
   }
 
   event.waitUntil(
@@ -31,10 +26,6 @@ self.addEventListener('push', (event) => {
       body: body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png'
-    }).then(() => {
-      console.log('[SW] showNotification succeeded');
-    }).catch((err) => {
-      console.error('[SW] showNotification failed:', err);
     })
   );
 });
@@ -46,7 +37,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-const CACHE_NAME = 'okyuyote-v8';
+const CACHE_NAME = 'okyuyote-v9';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -69,9 +60,11 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
-    )
+    ).then(() => self.clients.claim())
+     .then(() => self.clients.matchAll().then(clients => {
+       clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: SW_VERSION }));
+     }))
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {

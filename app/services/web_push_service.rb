@@ -29,9 +29,7 @@ class WebPushService
       urgency: "high"
     )
 
-    Rails.logger.info("[WebPush] Sent to #{subscription.endpoint[0..50]}...")
-    Rails.logger.info("[WebPush] Response: #{response.code} #{response.message}")
-    Rails.logger.info("[WebPush] Response body: #{response.body[0..200]}")
+    Rails.logger.info("[WebPush] Sent OK (#{response.code}) to #{subscription.endpoint[0..50]}...")
     true
   rescue WebPush::ExpiredSubscription
     Rails.logger.info("[WebPush] Subscription expired, removing: #{subscription.endpoint[0..50]}...")

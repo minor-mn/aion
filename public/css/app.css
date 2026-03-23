@@ -886,11 +886,15 @@ body {
   }
 
   .shift-entry-fields {
-    flex-direction: column;
     gap: 4px;
   }
 
-  .shift-remove-btn {
-    align-self: flex-start;
+  .shift-entry-fields .form-group label {
+    display: none;
+  }
+
+  .shift-entry-fields .form-group input {
+    padding: 8px 4px;
+    font-size: 0.85rem;
   }
 }

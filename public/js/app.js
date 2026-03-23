@@ -1121,7 +1121,7 @@ app.component('shift-form-page', {
     return {
       selectedShopId: '',
       selectedStaffId: '',
-      entries: [{ date: dateStr, startTime: '21:00', endTime: '05:00' }],
+      entries: [{ date: dateStr, startTime: '17:00', endTime: '23:00' }],
       submitting: false,
       localError: '',
       localSuccess: ''
@@ -1147,7 +1147,10 @@ app.component('shift-form-page', {
       const last = this.entries[this.entries.length - 1];
       const entry = this.newEntry();
       if (last) {
-        entry.date = last.date;
+        // 日付は直前の翌日を設定
+        const d = new Date(last.date);
+        d.setDate(d.getDate() + 1);
+        entry.date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         entry.startTime = last.startTime;
         entry.endTime = last.endTime;
       }

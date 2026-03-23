@@ -4,7 +4,8 @@ Rails.application.routes.draw do
     controllers: {
       sessions: "users/sessions",
       registrations: "users/registrations",
-      confirmations: "users/confirmations"
+      confirmations: "users/confirmations",
+      passwords: "users/passwords"
     }
 
   namespace :v1, defaults: { format: :json } do

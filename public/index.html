@@ -51,6 +51,12 @@
       <!-- Login Page -->
       <login-page v-if="currentView === 'login'"></login-page>
 
+      <!-- Forgot Password Page -->
+      <forgot-password-page v-if="currentView === 'forgotPassword'"></forgot-password-page>
+
+      <!-- Reset Password Page -->
+      <reset-password-page v-if="currentView === 'resetPassword'"></reset-password-page>
+
       <!-- Register Page -->
       <register-page v-if="currentView === 'register'"></register-page>
 

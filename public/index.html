@@ -236,7 +236,9 @@
   <script src="/js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then(reg => console.log('[SW] registered:', reg.scope))
+        .catch(err => console.error('[SW] registration failed:', err));
     }
   </script>
 </body>

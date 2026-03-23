@@ -736,6 +736,15 @@ app.component('shop-form-page', {
         <label>画像URL</label>
         <input v-model="form.image_url" type="url" placeholder="https://...">
       </div>
+      <div class="form-group">
+        <label>住所</label>
+        <input v-model="form.address" type="text" placeholder="例: 東京都新宿区歌舞伎町1-1" @blur="onAddressBlur">
+        <div v-if="geocoding" style="font-size:0.8rem;color:#888;margin-top:4px">住所を検索中...</div>
+      </div>
+      <div class="form-group">
+        <label>所在地（地図をタップまたはピンをドラッグ）</label>
+        <div id="shop-map" style="height:300px;border-radius:8px;border:1px solid #ddd"></div>
+      </div>
       <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
         <template v-if="editMode">
           <button class="btn btn-primary" @click="updateShop" :disabled="submitting" style="flex:1">
@@ -780,13 +789,16 @@ app.component('shop-form-page', {
   `,
   data() {
     return {
-      form: { name: '', site_url: '', image_url: '' },
+      form: { name: '', site_url: '', image_url: '', address: '', latitude: '', longitude: '' },
+      geocoding: false,
       editMode: false,
       editShopId: null,
       submitting: false,
       localError: '',
       localSuccess: '',
-      showSuccessModal: false
+      showSuccessModal: false,
+      map: null,
+      marker: null
     };
   },
   async mounted() {
@@ -796,14 +808,90 @@ app.component('shop-form-page', {
       this.form = {
         name: es.name || '',
         site_url: es.site_url || '',
-        image_url: es.image_url || ''
+        image_url: es.image_url || '',
+        address: es.address || '',
+        latitude: es.latitude || '',
+        longitude: es.longitude || ''
       };
       this.editMode = true;
       this.editShopId = es.id;
       this.$root.editingShop = null;
     }
+    this.$nextTick(() => { this.initMap(); });
+  },
+  beforeUnmount() {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
   },
   methods: {
+    initMap() {
+      const mapEl = document.getElementById('shop-map');
+      if (!mapEl || !window.L) return;
+      const lat = parseFloat(this.form.latitude) || 35.6762;
+      const lng = parseFloat(this.form.longitude) || 139.6503;
+      const zoom = (this.form.latitude && this.form.longitude) ? 16 : 5;
+      this.map = L.map('shop-map').setView([lat, lng], zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(this.map);
+      if (this.form.latitude && this.form.longitude) {
+        this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+        this.marker.on('dragend', (e) => {
+          const pos = e.target.getLatLng();
+          this.form.latitude = pos.lat.toFixed(6);
+          this.form.longitude = pos.lng.toFixed(6);
+        });
+      }
+      this.map.on('click', (e) => {
+        this.form.latitude = e.latlng.lat.toFixed(6);
+        this.form.longitude = e.latlng.lng.toFixed(6);
+        if (this.marker) {
+          this.marker.setLatLng(e.latlng);
+        } else {
+          this.marker = L.marker(e.latlng, { draggable: true }).addTo(this.map);
+          this.marker.on('dragend', (ev) => {
+            const pos = ev.target.getLatLng();
+            this.form.latitude = pos.lat.toFixed(6);
+            this.form.longitude = pos.lng.toFixed(6);
+          });
+        }
+      });
+    },
+    async onAddressBlur() {
+      const addr = (this.form.address || '').trim();
+      if (!addr) return;
+      this.geocoding = true;
+      try {
+        const res = await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q=' + encodeURIComponent(addr));
+        const data = await res.json();
+        if (data.length > 0) {
+          const coords = data[0].geometry.coordinates;
+          const lat = coords[1];
+          const lng = coords[0];
+          this.form.latitude = lat.toFixed(6);
+          this.form.longitude = lng.toFixed(6);
+          if (this.map) {
+            this.map.setView([lat, lng], 16);
+            if (this.marker) {
+              this.marker.setLatLng([lat, lng]);
+            } else {
+              this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+              this.marker.on('dragend', (ev) => {
+                const pos = ev.target.getLatLng();
+                this.form.latitude = pos.lat.toFixed(6);
+                this.form.longitude = pos.lng.toFixed(6);
+              });
+            }
+          }
+        }
+      } catch (e) {
+        // geocoding failed silently
+      }
+      this.geocoding = false;
+    },
     closeSuccessModal() {
       this.showSuccessModal = false;
     },
@@ -811,18 +899,51 @@ app.component('shop-form-page', {
       this.form = {
         name: shop.name || '',
         site_url: shop.site_url || '',
-        image_url: shop.image_url || ''
+        image_url: shop.image_url || '',
+        address: shop.address || '',
+        latitude: shop.latitude || '',
+        longitude: shop.longitude || ''
       };
       this.editMode = true;
       this.editShopId = shop.id;
       this.localError = '';
       this.localSuccess = '';
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      this.$nextTick(() => {
+        if (this.map) {
+          const lat = parseFloat(shop.latitude) || 35.6762;
+          const lng = parseFloat(shop.longitude) || 139.6503;
+          const zoom = (shop.latitude && shop.longitude) ? 16 : 5;
+          this.map.setView([lat, lng], zoom);
+          if (shop.latitude && shop.longitude) {
+            if (this.marker) {
+              this.marker.setLatLng([lat, lng]);
+            } else {
+              this.marker = L.marker([lat, lng], { draggable: true }).addTo(this.map);
+              this.marker.on('dragend', (ev) => {
+                const pos = ev.target.getLatLng();
+                this.form.latitude = pos.lat.toFixed(6);
+                this.form.longitude = pos.lng.toFixed(6);
+              });
+            }
+          } else if (this.marker) {
+            this.map.removeLayer(this.marker);
+            this.marker = null;
+          }
+        }
+      });
     },
     cancelEdit() {
       this.editMode = false;
       this.editShopId = null;
-      this.form = { name: '', site_url: '', image_url: '' };
+      this.form = { name: '', site_url: '', image_url: '', address: '', latitude: '', longitude: '' };
+      if (this.marker) {
+        this.map.removeLayer(this.marker);
+        this.marker = null;
+      }
+      if (this.map) {
+        this.map.setView([35.6762, 139.6503], 5);
+      }
       this.localError = '';
       this.localSuccess = '';
     },
@@ -837,7 +958,14 @@ app.component('shop-form-page', {
       try {
         await API.createShop(this.form);
         this.localSuccess = '店舗を登録しました';
-        this.form = { name: '', site_url: '', image_url: '' };
+        this.form = { name: '', site_url: '', image_url: '', address: '', latitude: '', longitude: '' };
+        if (this.marker) {
+          this.map.removeLayer(this.marker);
+          this.marker = null;
+        }
+        if (this.map) {
+          this.map.setView([35.6762, 139.6503], 5);
+        }
         await this.$root.loadShops();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '登録に失敗しました';

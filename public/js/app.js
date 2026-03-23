@@ -1765,11 +1765,14 @@ app.component('map-view-page', {
     return {
       map: null,
       locating: true,
-      locationError: ''
+      locationError: '',
+      shopShifts: {}
     };
   },
   async mounted() {
     await this.$root.loadShops();
+    await this.$root.loadStaffs();
+    await this.loadAllShifts();
     this.$nextTick(() => { this.initMap(); });
   },
   beforeUnmount() {
@@ -1779,22 +1782,40 @@ app.component('map-view-page', {
     }
   },
   methods: {
+    async loadAllShifts() {
+      const shops = this.$root.shops || [];
+      const now = new Date();
+      for (const shop of shops) {
+        if (!shop.latitude || !shop.longitude) continue;
+        try {
+          const data = await API.getStaffShifts(shop.id);
+          const currentShifts = (data.staff_shifts || []).filter(s => {
+            const start = new Date(s.start_at);
+            const end = new Date(s.end_at);
+            return start <= now && now <= end;
+          });
+          if (currentShifts.length > 0) {
+            this.shopShifts[shop.id] = currentShifts;
+          }
+        } catch (e) {
+          // skip
+        }
+      }
+    },
     initMap() {
       const mapEl = document.getElementById('map-view');
       if (!mapEl || !window.L) return;
-      // Default to Japan center
       this.map = L.map('map-view').setView([35.6762, 139.6503], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
+      L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://maps.gsi.go.jp/development/ichiran.html">国土地理院</a>',
+        maxZoom: 18
       }).addTo(this.map);
-      // Add shop markers
       this.addShopMarkers();
-      // Get GPS location
       this.getCurrentLocation();
     },
     addShopMarkers() {
       const shops = this.$root.shops || [];
+      const staffs = this.$root.staffs || [];
       for (const shop of shops) {
         if (shop.latitude && shop.longitude) {
           const lat = parseFloat(shop.latitude);
@@ -1804,6 +1825,18 @@ app.component('map-view-page', {
             let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
             if (shop.address) {
               popupHtml += '<br><span style="font-size:0.85rem;color:#666">' + this.escapeHtml(shop.address) + '</span>';
+            }
+            const shifts = this.shopShifts[shop.id] || [];
+            if (shifts.length > 0) {
+              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd">';
+              popupHtml += '<div style="font-size:0.8rem;color:#333;font-weight:bold">シフト中</div>';
+              for (const shift of shifts) {
+                const staff = staffs.find(s => s.id === shift.staff_id);
+                const name = staff ? staff.name : 'Staff #' + shift.staff_id;
+                const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(name) + ' <span style="color:#888">' + startTime + '-' + endTime + '</span></div>';
+              }
             }
             marker.bindPopup(popupHtml);
           }
@@ -1819,6 +1852,7 @@ app.component('map-view-page', {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           this.locating = false;
+          if (!this.map) return;
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           this.map.setView([lat, lng], 15);

@@ -1765,13 +1765,15 @@ app.component('map-view-page', {
     return {
       map: null,
       locating: true,
-      shopShifts: {}
+      shopShifts: {},
+      preferences: {}
     };
   },
   async mounted() {
     await this.$root.loadShops();
     await this.$root.loadStaffs();
     await this.loadAllShifts();
+    await this.loadPreferences();
     this.$nextTick(() => { this.initMap(); });
   },
   beforeUnmount() {
@@ -1813,6 +1815,49 @@ app.component('map-view-page', {
       this.addShopMarkers();
       this.getCurrentLocation();
     },
+    async loadPreferences() {
+      if (!this.$root.currentUser) return;
+      try {
+        const data = await API.getPreferences();
+        const prefs = {};
+        for (const p of (data.staff_preferences || [])) {
+          prefs[p.staff_id] = p.score;
+        }
+        this.preferences = prefs;
+      } catch (e) {
+        // ignore
+      }
+    },
+    shopScore(shopId) {
+      const shifts = this.shopShifts[shopId] || [];
+      if (shifts.length === 0) return null;
+      let total = 0;
+      let hasPreference = false;
+      for (const shift of shifts) {
+        const score = this.preferences[shift.staff_id];
+        if (score !== undefined) {
+          total += score;
+          hasPreference = true;
+        }
+      }
+      return hasPreference ? total : null;
+    },
+    createMarkerIcon(score) {
+      let color;
+      if (score === null) {
+        color = '#888';
+      } else {
+        const { r, g, b } = scoreToColor(score);
+        color = `rgb(${r},${g},${b})`;
+      }
+      return L.divIcon({
+        className: 'shop-marker',
+        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -10]
+      });
+    },
     addShopMarkers() {
       const shops = this.$root.shops || [];
       const staffs = this.$root.staffs || [];
@@ -1821,7 +1866,9 @@ app.component('map-view-page', {
           const lat = parseFloat(shop.latitude);
           const lng = parseFloat(shop.longitude);
           if (!isNaN(lat) && !isNaN(lng)) {
-            const marker = L.marker([lat, lng]).addTo(this.map);
+            const score = this.$root.currentUser ? this.shopScore(shop.id) : null;
+            const icon = this.createMarkerIcon(score);
+            const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
             let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
             if (shop.address) {
               popupHtml += '<br><span style="font-size:0.85rem;color:#666">' + this.escapeHtml(shop.address) + '</span>';

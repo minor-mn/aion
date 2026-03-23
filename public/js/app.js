@@ -860,27 +860,17 @@ app.component('shop-form-page', {
         }
       });
     },
-    async geocodeAddress(query) {
-      const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q=' + encodeURIComponent(query));
-      return await res.json();
-    },
     async onAddressBlur() {
       const addr = (this.form.address || '').trim();
       if (!addr) return;
       this.geocoding = true;
       try {
-        let data = await this.geocodeAddress(addr);
-        if (data.length === 0) {
-          const stripped = addr.replace(/[\d０-９]+[-ー−][\d０-９]+([-ー−][\d０-９]+)?$/, '').trim();
-          if (stripped && stripped !== addr) data = await this.geocodeAddress(stripped);
-        }
-        if (data.length === 0) {
-          const stripped2 = addr.replace(/\d+[-ー−].+$/, '').replace(/[\d０-９]+.*$/, '').trim();
-          if (stripped2 && stripped2 !== addr) data = await this.geocodeAddress(stripped2);
-        }
+        const res = await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q=' + encodeURIComponent(addr));
+        const data = await res.json();
         if (data.length > 0) {
-          const lat = parseFloat(data[0].lat);
-          const lng = parseFloat(data[0].lon);
+          const coords = data[0].geometry.coordinates;
+          const lat = coords[1];
+          const lng = coords[0];
           this.form.latitude = lat.toFixed(6);
           this.form.longitude = lng.toFixed(6);
           if (this.map) {

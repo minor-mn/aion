@@ -1285,6 +1285,10 @@ app.component('my-page', {
           <h3 class="mypage-card-title">通知の設定</h3>
           <div v-if="notifMsg" class="alert" :class="notifMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ notifMsg }}</div>
 
+          <div class="notif-instruction-box">
+            iPhoneのホーム画面に追加すると、指定の条件でアプリに通知が届きます。追加するにはSafariでこのページを開き、メニュー (おそらく画面下のアドレスバーの横の&hellip;) から 共有 &rarr; もっと見る &rarr; ホーム画面に追加 を選択してください。その後、ホーム画面に追加されたアイコンをタップして開き直してください。
+          </div>
+
           <div class="mypage-toggle-row">
             <span>通知を許可する</span>
             <label class="toggle-switch">

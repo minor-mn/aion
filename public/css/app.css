@@ -759,6 +759,16 @@ body {
   margin-top: 12px;
 }
 
+.notif-instruction-box {
+  background: #fffbe6;
+  color: #e67e22;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  padding: 12px 14px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
 .mypage-toggle-row {
   display: flex;
   justify-content: space-between;

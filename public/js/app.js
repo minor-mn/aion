@@ -1965,7 +1965,12 @@ app.component('map-view-page', {
         },
         (err) => {
           this.locating = false;
-          alert('位置情報を取得できませんでした');
+          const reasons = {
+            1: '位置情報の権限がありません。iPhoneの場合: 設定→プライバシーとセキュリティ→位置情報サービス→Safari Webサイト を「確認」または「使用中のみ」に設定してください。',
+            2: '位置情報を取得できませんでした（位置情報が利用できません）',
+            3: '位置情報の取得がタイムアウトしました'
+          };
+          alert(reasons[err.code] || '位置情報を取得できませんでした（エラーコード: ' + err.code + '）');
           if (this.map) {
             this.map.setView([35.6984, 139.7731], 15);
           }

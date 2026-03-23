@@ -1121,7 +1121,7 @@ app.component('shift-form-page', {
     return {
       selectedShopId: '',
       selectedStaffId: '',
-      entries: [{ date: dateStr, startTime: '21:00', endTime: '05:00' }],
+      entries: [{ date: dateStr, startTime: '17:00', endTime: '23:00' }],
       submitting: false,
       localError: '',
       localSuccess: ''

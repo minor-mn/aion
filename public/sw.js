@@ -1,5 +1,5 @@
 // SW Version — bump this on every deploy to trigger update + client reload
-const SW_VERSION = 'v9-webpush';
+const SW_VERSION = 'v10-webpush';
 
 // Push notification handler (Web Push API)
 self.addEventListener('push', (event) => {
@@ -37,7 +37,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-const CACHE_NAME = 'okyuyote-v9';
+const CACHE_NAME = 'okyuyote-v10';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -51,7 +51,13 @@ const STATIC_ASSETS = [
 
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.all(
+        STATIC_ASSETS.map(url =>
+          fetch(url, { cache: 'no-store' }).then(res => cache.put(url, res))
+        )
+      )
+    )
   );
   self.skipWaiting();
 });
@@ -80,8 +86,10 @@ self.addEventListener('fetch', event => {
   }
 
   // Static assets: network first, fall back to cache (offline)
+  // Use cache:'no-store' to bypass nginx's Cache-Control: max-age=86400
+  const freshRequest = new Request(event.request, { cache: 'no-store' });
   event.respondWith(
-    fetch(event.request).then(response => {
+    fetch(freshRequest).then(response => {
       if (response.ok) {
         const clone = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));

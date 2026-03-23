@@ -5,4 +5,5 @@ class User < ApplicationRecord
          :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
   has_many :staff_preferences, dependent: :destroy
   has_one :notification_setting, dependent: :destroy
+  has_many :push_subscriptions, dependent: :destroy
 end

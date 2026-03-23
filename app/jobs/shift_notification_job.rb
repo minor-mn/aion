@@ -8,8 +8,14 @@ class ShiftNotificationJob < ApplicationJob
     setting = user.notification_setting
     return unless setting&.notifications_enabled
 
-    # TODO: Implement actual push notification delivery (e.g. Web Push / FCM)
-    # For now, log the notification
-    Rails.logger.info("[ShiftNotification] user=#{user.id} body=#{body}")
+    subscriptions = user.push_subscriptions
+    if subscriptions.empty?
+      Rails.logger.info("[ShiftNotification] user=#{user.id} has no push subscriptions, skipping")
+      return
+    end
+
+    subscriptions.each do |sub|
+      WebPushService.send_notification(sub, title: "シフト通知", body: body)
+    end
   end
 end

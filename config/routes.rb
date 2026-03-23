@@ -13,6 +13,8 @@ Rails.application.routes.draw do
       get "me", to: "me#show"
       patch "profile", to: "profile#update"
       resource :notification_settings, only: %i[show update]
+      resources :push_subscriptions, only: %i[create]
+      delete "push_subscriptions", to: "push_subscriptions#destroy"
     end
 
     # shops

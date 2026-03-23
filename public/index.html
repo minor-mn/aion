@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Aion</title>
+  <title>Okyuyote!</title>
   <link rel="stylesheet" href="/css/app.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -222,7 +222,28 @@
   <script src="/js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+      // Unregister any old firebase-messaging-sw.js or other stale SWs
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(reg => {
+          const swUrl = reg.active ? reg.active.scriptURL : (reg.installing ? reg.installing.scriptURL : '');
+          if (swUrl && !swUrl.endsWith('/sw.js')) {
+            reg.unregister();
+          }
+        });
+      });
+      // Auto-reload when SW updates (ensures latest JS/CSS are loaded)
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'SW_UPDATED') {
+          if (!sessionStorage.getItem('sw_reloaded')) {
+            sessionStorage.setItem('sw_reloaded', '1');
+            window.location.reload();
+          }
+        }
+      });
+      // Register our main SW
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then(reg => { reg.update(); })
+        .catch(err => console.error('[SW] registration failed:', err));
     }
   </script>
 </body>

@@ -403,6 +403,65 @@ const app = createApp({
       if (view === 'shiftEdit') { loadShops(); }
     }
 
+    // ========== Push Notification Registration ==========
+    const VAPID_PUBLIC_KEY = 'BEaEKm3DUk5UNG6F8NeOcg2CooLz_rKvNv6AqKXBu0p7i2NtWB9dd_vu7S0iG2PIGddYCIW5LAsJgPXTPH7HzGA=';
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    async function registerPushSubscription() {
+      if (!currentUser.value) return;
+      if (!('Notification' in window) || !('PushManager' in window)) return;
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        const swReg = await navigator.serviceWorker.ready;
+
+        // Unsubscribe old subscription if exists
+        const existingSub = await swReg.pushManager.getSubscription();
+        if (existingSub) {
+          await existingSub.unsubscribe();
+        }
+
+        // Create new push subscription with VAPID key
+        const subscription = await swReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        const subJson = subscription.toJSON();
+        await API.deleteAllPushSubscriptions();
+        await API.savePushSubscription({
+          endpoint: subJson.endpoint,
+          p256dh: subJson.keys.p256dh,
+          auth: subJson.keys.auth
+        });
+        console.log('[Push] サブスクリプション登録成功');
+      } catch (e) {
+        console.warn('[Push] サブスクリプション登録に失敗:', e);
+      }
+    }
+
+    async function unregisterPushSubscription() {
+      try {
+        const swReg = await navigator.serviceWorker.ready;
+        const sub = await swReg.pushManager.getSubscription();
+        if (sub) await sub.unsubscribe();
+        await API.deleteAllPushSubscriptions();
+      } catch (e) {
+        console.warn('[Push] サブスクリプション削除に失敗:', e);
+      }
+    }
+
     // ========== Init ==========
     onMounted(async () => {
       // Handle email confirmation redirect
@@ -419,9 +478,16 @@ const app = createApp({
 
       await checkAuth();
       await loadHomeData();
+
+      // Auto-refresh push subscription on every page load for logged-in users
+      // This ensures old Firebase SDK subscriptions get replaced with VAPID ones
+      if (currentUser.value && 'Notification' in window && Notification.permission === 'granted' && 'PushManager' in window) {
+        registerPushSubscription();
+      }
     });
 
     return {
+      registerPushSubscription, unregisterPushSubscription,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
       todayShops, todayShifts, shops, staffs,
@@ -1219,6 +1285,10 @@ app.component('my-page', {
           <h3 class="mypage-card-title">通知の設定</h3>
           <div v-if="notifMsg" class="alert" :class="notifMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ notifMsg }}</div>
 
+          <div class="notif-instruction-box">
+            iPhoneのホーム画面に追加すると、指定の条件でアプリに通知が届きます。追加するにはSafariでこのページを開き、メニュー (おそらく画面下のアドレスバーの横の&hellip;) から 共有 &rarr; もっと見る &rarr; ホーム画面に追加 を選択してください。その後、ホーム画面に追加されたアイコンをタップして開き直してください。
+          </div>
+
           <div class="mypage-toggle-row">
             <span>通知を許可する</span>
             <label class="toggle-switch">
@@ -1394,6 +1464,12 @@ app.component('my-page', {
         });
         this.notifMsg = '通知設定を保存しました';
         this.notifMsgType = 'success';
+        // Register or unregister push subscription based on notification setting
+        if (this.notifEnabled) {
+          await this.$root.registerPushSubscription();
+        } else {
+          await this.$root.unregisterPushSubscription();
+        }
       } catch (e) {
         this.notifMsg = e.data?.error || '保存に失敗しました';
         this.notifMsgType = 'error';

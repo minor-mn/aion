@@ -2,6 +2,9 @@ Rails.application.routes.draw do
   # Clear browser cache/SW — visit once to force fresh reload
   get "clear_cache", to: "cache_clear#show"
 
+  # Push event log from SW (unauthenticated)
+  post "push_log", to: "push_log#create"
+
   devise_for :users,
     defaults: { format: :json },
     controllers: {

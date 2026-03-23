@@ -1837,6 +1837,7 @@ app.component('map-view-page', {
                 popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(name) + ' <span style="color:#888">' + startTime + '-' + endTime + '</span></div>';
               }
             }
+            popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#1a73e8;text-decoration:none">Google Mapsでナビ</a></div>';
             marker.bindPopup(popupHtml);
           }
         }

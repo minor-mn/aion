@@ -16,12 +16,13 @@ class WebPushService
 
     payload = { title: title, body: body }.to_json
 
-    WebPush.payload_send(
+    response = WebPush.payload_send(
       message: payload,
       endpoint: subscription.endpoint,
       p256dh: subscription.p256dh,
       auth: subscription.auth,
       vapid: {
+        subject: "mailto:#{ENV.fetch('MAILER_SENDER', 'noreply@example.com')}",
         public_key: vapid_public,
         private_key: vapid_private
       },
@@ -29,6 +30,8 @@ class WebPushService
     )
 
     Rails.logger.info("[WebPush] Sent to #{subscription.endpoint[0..50]}...")
+    Rails.logger.info("[WebPush] Response: #{response.code} #{response.message}")
+    Rails.logger.info("[WebPush] Response body: #{response.body[0..200]}")
     true
   rescue WebPush::ExpiredSubscription
     Rails.logger.info("[WebPush] Subscription expired, removing: #{subscription.endpoint[0..50]}...")

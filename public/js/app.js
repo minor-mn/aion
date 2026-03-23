@@ -445,7 +445,11 @@ const app = createApp({
           p256dh: subJson.keys.p256dh,
           auth: subJson.keys.auth
         });
-        console.log('[Push] サブスクリプション登録成功:', subJson.endpoint.substring(0, 50) + '...');
+        console.log('[Push] サブスクリプション登録成功');
+        console.log('[Push] endpoint:', subJson.endpoint);
+        console.log('[Push] endpoint format:', subJson.endpoint.includes('/wp/') ? 'VAPID (/wp/)' : 'Legacy (/fcm/send/)');
+        console.log('[Push] p256dh:', subJson.keys.p256dh);
+        console.log('[Push] auth:', subJson.keys.auth);
       } catch (e) {
         console.warn('[Push] サブスクリプション登録に失敗:', e);
       }

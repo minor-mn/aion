@@ -1,25 +1,52 @@
+// SW Version for debugging
+const SW_VERSION = 'v8-webpush';
+
 // Push notification handler (Web Push API)
 self.addEventListener('push', (event) => {
-  if (!event.data) return;
+  console.log('[SW:' + SW_VERSION + '] push event received', event);
+
+  if (!event.data) {
+    console.warn('[SW] push event has no data');
+    // Show a default notification even without data
+    event.waitUntil(
+      self.registration.showNotification('シフト通知', { body: '新しい通知があります' })
+    );
+    return;
+  }
+
   let title = 'シフト通知';
   let body = '';
   try {
     const payload = event.data.json();
+    console.log('[SW] push payload:', JSON.stringify(payload));
     title = payload.title || title;
     body = payload.body || body;
   } catch (e) {
     body = event.data.text();
+    console.log('[SW] push text data:', body);
   }
+
   event.waitUntil(
     self.registration.showNotification(title, {
       body: body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png'
+    }).then(() => {
+      console.log('[SW] showNotification succeeded');
+    }).catch((err) => {
+      console.error('[SW] showNotification failed:', err);
     })
   );
 });
 
-const CACHE_NAME = 'okyuyote-v7';
+// Respond with SW version when asked
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: SW_VERSION });
+  }
+});
+
+const CACHE_NAME = 'okyuyote-v8';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

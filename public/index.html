@@ -222,8 +222,37 @@
   <script src="/js/app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
+      // Unregister any old firebase-messaging-sw.js or other stale SWs
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(reg => {
+          const swUrl = reg.active ? reg.active.scriptURL : (reg.installing ? reg.installing.scriptURL : '');
+          if (swUrl && !swUrl.endsWith('/sw.js')) {
+            console.log('[SW] Unregistering old SW:', swUrl);
+            reg.unregister();
+          }
+        });
+      });
+      // Register our main SW
       navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
-        .then(reg => console.log('[SW] registered:', reg.scope))
+        .then(reg => {
+          console.log('[SW] registered:', reg.scope);
+          // Force update check
+          reg.update();
+          // Query SW version
+          if (reg.active) {
+            const mc = new MessageChannel();
+            mc.port1.onmessage = (e) => console.log('[SW] Active version:', e.data.version);
+            reg.active.postMessage({ type: 'GET_VERSION' }, [mc.port2]);
+          }
+          // Log state changes
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            console.log('[SW] New worker installing...');
+            newWorker.addEventListener('statechange', () => {
+              console.log('[SW] Worker state:', newWorker.state);
+            });
+          });
+        })
         .catch(err => console.error('[SW] registration failed:', err));
     }
   </script>

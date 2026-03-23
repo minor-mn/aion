@@ -1756,7 +1756,6 @@ app.component('map-view-page', {
   template: `
     <div class="register-container">
       <h2>地図で見る</h2>
-      <div v-if="locationError" class="alert alert-error">{{ locationError }}</div>
       <div v-if="locating" style="text-align:center;padding:16px;color:#888">現在地を取得中...</div>
       <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #ddd"></div>
     </div>
@@ -1765,7 +1764,6 @@ app.component('map-view-page', {
     return {
       map: null,
       locating: true,
-      locationError: '',
       shopShifts: {}
     };
   },
@@ -1847,7 +1845,10 @@ app.component('map-view-page', {
     getCurrentLocation() {
       if (!navigator.geolocation) {
         this.locating = false;
-        this.locationError = 'お使いのブラウザでは位置情報を取得できません';
+        alert('位置情報を取得できませんでした');
+        if (this.map) {
+          this.map.setView([35.6984, 139.7731], 15);
+        }
         return;
       }
       navigator.geolocation.getCurrentPosition(
@@ -1869,10 +1870,9 @@ app.component('map-view-page', {
         },
         (err) => {
           this.locating = false;
-          if (err.code === 1) {
-            this.locationError = '位置情報の取得が許可されていません。設定から許可してください。';
-          } else {
-            this.locationError = '位置情報を取得できませんでした';
+          alert('位置情報を取得できませんでした');
+          if (this.map) {
+            this.map.setView([35.6984, 139.7731], 15);
           }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }

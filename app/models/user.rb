@@ -6,4 +6,11 @@ class User < ApplicationRecord
   has_many :staff_preferences, dependent: :destroy
   has_one :notification_setting, dependent: :destroy
   has_many :push_subscriptions, dependent: :destroy
+
+  def jwt_payload
+    {
+      nickname: nickname,
+      email: email
+    }
+  end
 end

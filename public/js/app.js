@@ -1496,6 +1496,7 @@ app.component('my-page', {
         this.nicknameMsg = 'ニックネームを保存しました';
         this.nicknameMsgType = 'success';
         if (data.user) this.$root.currentUser = data.user;
+        if (data.token) API.setToken(data.token);
       } catch (e) {
         this.nicknameMsg = e.data?.error || '保存に失敗しました';
         this.nicknameMsgType = 'error';
@@ -1520,6 +1521,7 @@ app.component('my-page', {
         this.emailMsgType = 'success';
         this.emailCurrentPassword = '';
         if (data.user) this.$root.currentUser = data.user;
+        if (data.token) API.setToken(data.token);
       } catch (e) {
         this.emailMsg = e.data?.error || '変更に失敗しました';
         this.emailMsgType = 'error';
@@ -1542,12 +1544,13 @@ app.component('my-page', {
         return;
       }
       try {
-        await API.updateProfile({
+        const data = await API.updateProfile({
           password: this.newPassword,
           password_confirmation: this.newPasswordConfirmation,
           current_password: this.currentPassword
         });
         this.passwordMsg = 'パスワードを変更しました';
+        if (data && data.token) API.setToken(data.token);
         this.passwordMsgType = 'success';
         this.currentPassword = '';
         this.newPassword = '';

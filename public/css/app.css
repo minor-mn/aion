@@ -890,6 +890,11 @@ body {
     gap: 4px;
   }
 
+  .shift-entry-fields .form-group {
+    width: 100%;
+    flex: none;
+  }
+
   .shift-remove-btn {
     align-self: flex-start;
   }

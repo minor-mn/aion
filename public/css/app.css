@@ -131,7 +131,7 @@ body {
   right: 0;
   bottom: 0;
   background: rgba(0,0,0,0.3);
-  z-index: 200;
+  z-index: 6000;
 }
 
 .menu-panel {
@@ -142,7 +142,7 @@ body {
   height: 100%;
   background: #111;
   box-shadow: -2px 0 8px rgba(0,0,0,0.5);
-  z-index: 201;
+  z-index: 6001;
   padding: 50px 20px 20px;
   display: flex;
   flex-direction: column;

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap" rel="stylesheet">
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#1a1a2e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
@@ -117,7 +117,7 @@
                 </div>
                 <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                      class="shop-block"
-                     :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(204,204,102,0.5) 100%)' }">
+                     :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)' }">
                   <div class="shop-block-name" :class="{ 'cast-name-link': currentUser }" @click.stop="currentUser && editShop({ id: group.shop_id, name: group.shop_name })">{{ group.shop_name }}</div>
                   <div v-if="currentUser" class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
                   <ul class="cast-list">
@@ -143,12 +143,12 @@
           <div class="section-title">本日のシフト</div>
           <div v-if="todayShops.length === 0" class="no-data">店舗が登録されていません</div>
           <template v-for="shop in todayShops" :key="shop.id">
-            <div v-if="todayShifts[shop.id] && todayShifts[shop.id].length > 0" class="shop-block" style="background:#f8f9fa">
+            <div v-if="todayShifts[shop.id] && todayShifts[shop.id].length > 0" class="shop-block" style="background:#1e1e38">
               <div class="shop-block-name" :class="{ 'cast-name-link': currentUser }" @click="currentUser && editShop(shop)">{{ shop.name }}</div>
               <ul class="cast-list">
                 <li v-for="shift in todayShifts[shop.id]" :key="shift.id" class="cast-item">
                   <span class="cast-name cast-name-link" @click="openStaffSchedule(shift.staff_id, getStaffName(shift.staff_id), shift.shop_id || shop.id)">{{ getStaffName(shift.staff_id) }}</span>
-                  <span style="font-size:0.8rem;color:#888">
+                  <span style="font-size:0.8rem;color:#a0a0b8">
                     {{ new Date(shift.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
                     〜
                     {{ new Date(shift.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
@@ -183,11 +183,11 @@
               </div>
               <div v-if="currentUser" class="staff-modal-pref">
                 <div class="pref-slider-container" style="justify-content:center">
-                  <span style="font-size:0.75rem;color:#00f">-10</span>
+                  <span style="font-size:0.75rem;color:#74b9ff">-10</span>
                   <input type="range" class="pref-slider" min="-10" max="10" step="1"
                     :value="getModalPreference(staffScheduleStaff?.id)"
                     @change="setModalPreference(staffScheduleStaff?.id, $event.target.value)">
-                  <span style="font-size:0.75rem;color:#f00">+10</span>
+                  <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
                   <span class="pref-value">{{ getModalPreference(staffScheduleStaff?.id) }}</span>
                 </div>
               </div>

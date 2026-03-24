@@ -196,7 +196,7 @@ function scoreToColor(score) {
 
 function scoreToGradient(score) {
   const { r, g, b } = scoreToColor(score);
-  return `linear-gradient(135deg, #fff 0%, rgba(${r},${g},${b},0.5) 100%)`;
+  return `linear-gradient(135deg, #252547 0%, rgba(${r},${g},${b},0.35) 100%)`;
 }
 
 function scoreToRgb(score) {

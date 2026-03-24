@@ -237,8 +237,8 @@ const app = createApp({
         const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
 
         const gradient = scheduleDay
-          ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(204,204,102,0.5) 100%)')
-          : '#fff';
+                    ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)')
+                    : '#252547';
 
         cells.push({
           day: d,
@@ -629,7 +629,7 @@ app.component('forgot-password-page', {
       <h2>パスワード再設定</h2>
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
-      <p style="margin-bottom:16px;color:#666;font-size:0.9rem">登録済みのメールアドレスを入力してください。パスワード再設定用のリンクをメールで送信します。</p>
+      <p style="margin-bottom:16px;color:#a0a0b8;font-size:0.9rem">登録済みのメールアドレスを入力してください。パスワード再設定用のリンクをメールで送信します。</p>
       <div class="form-group">
         <label>メールアドレス</label>
         <input v-model="email" type="email" placeholder="email@example.com" @keyup.enter="submit">
@@ -782,11 +782,11 @@ app.component('shop-form-page', {
       <div class="form-group">
         <label>住所</label>
         <input v-model="form.address" type="text" placeholder="例: 東京都新宿区歌舞伎町1-1" @blur="onAddressBlur">
-        <div v-if="geocoding" style="font-size:0.8rem;color:#888;margin-top:4px">住所を検索中...</div>
+        <div v-if="geocoding" style="font-size:0.8rem;color:#a0a0b8;margin-top:4px">住所を検索中...</div>
       </div>
       <div class="form-group">
         <label>所在地（地図をタップまたはピンをドラッグ）</label>
-        <div id="shop-map" style="height:300px;border-radius:8px;border:1px solid #ddd"></div>
+        <div id="shop-map" style="height:300px;border-radius:8px;border:1px solid #3a3a5c"></div>
       </div>
       <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
         <template v-if="editMode">
@@ -809,11 +809,11 @@ app.component('shop-form-page', {
 
       <h3 style="margin-bottom:12px">登録済み店舗</h3>
       <div v-if="$root.shops.length === 0" class="no-data">店舗がありません</div>
-      <div v-for="shop in $root.shops" :key="shop.id" class="shop-block" style="background:#f8f9fa">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div class="shop-block-name">{{ shop.name }}</div>
-            <div v-if="shop.site_url" style="font-size:0.8rem;color:#666">{{ shop.site_url }}</div>
+      <div v-for="shop in $root.shops" :key="shop.id"       class="shop-block" style="background:#1e1e38">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div class="shop-block-name">{{ shop.name }}</div>
+                  <div v-if="shop.site_url" style="font-size:0.8rem;color:#a0a0b8">{{ shop.site_url }}</div>
           </div>
           <div style="display:flex;gap:6px">
             <button class="btn btn-secondary btn-sm" @click="editExistingShop(shop)">編集</button>
@@ -1108,19 +1108,19 @@ app.component('staff-form-page', {
         </select>
       </div>
       <div v-if="filteredStaffs.length === 0" class="no-data">キャストがいません</div>
-      <div v-for="staff in filteredStaffs" :key="staff.id" class="shop-block" style="background:#f8f9fa">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id)">{{ staff.name }}</div>
-            <div style="font-size:0.8rem;color:#666">{{ getShopName(staff.shop_id) }}</div>
+      <div v-for="staff in filteredStaffs" :key="staff.id"       class="shop-block" style="background:#1e1e38">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id)">{{ staff.name }}</div>
+                  <div style="font-size:0.8rem;color:#a0a0b8">{{ getShopName(staff.shop_id) }}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <div v-if="$root.currentUser" class="pref-slider-container">
-              <span style="font-size:0.75rem;color:#00f">-10</span>
+              <span style="font-size:0.75rem;color:#74b9ff">-10</span>
               <input type="range" class="pref-slider" min="-10" max="10" step="1"
                 :value="getPreference(staff.id)"
                 @change="setPreference(staff.id, $event.target.value)">
-              <span style="font-size:0.75rem;color:#f00">+10</span>
+              <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
               <span class="pref-value">{{ getPreference(staff.id) }}</span>
             </div>
             <button class="btn btn-danger btn-sm" @click="deleteStaff(staff)">削除</button>
@@ -1799,8 +1799,8 @@ app.component('map-view-page', {
   template: `
     <div class="register-container">
       <h2>地図で見る</h2>
-      <div v-if="locating" style="text-align:center;padding:16px;color:#888">現在地を取得中...</div>
-      <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #ddd"></div>
+      <div v-if="locating" style="text-align:center;padding:16px;color:#a0a0b8">現在地を取得中...</div>
+      <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #3a3a5c"></div>
     </div>
   `,
   data() {
@@ -1894,7 +1894,7 @@ app.component('map-view-page', {
       }
       return L.divIcon({
         className: 'shop-marker',
-        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid #3a3a5c;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10],
         popupAnchor: [0, -10]
@@ -1913,21 +1913,21 @@ app.component('map-view-page', {
             const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
             let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
             if (shop.address) {
-              popupHtml += '<br><span style="font-size:0.85rem;color:#666">' + this.escapeHtml(shop.address) + '</span>';
+              popupHtml += '<br><span style="font-size:0.85rem;color:#a0a0b8">' + this.escapeHtml(shop.address) + '</span>';
             }
             const shifts = this.shopShifts[shop.id] || [];
             if (shifts.length > 0) {
-              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd">';
-              popupHtml += '<div style="font-size:0.8rem;color:#333;font-weight:bold">シフト中</div>';
+              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #3a3a5c">';
+              popupHtml += '<div style="font-size:0.8rem;color:#e0e0e0;font-weight:bold">シフト中</div>';
               for (const shift of shifts) {
                 const staff = staffs.find(s => s.id === shift.staff_id);
                 const name = staff ? staff.name : 'Staff #' + shift.staff_id;
                 const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                 const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(name) + ' <span style="color:#888">' + startTime + '-' + endTime + '</span></div>';
+                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
               }
             }
-            popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#1a73e8;text-decoration:none">Google Mapsでナビ</a></div>';
+            popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';
             marker.bindPopup(popupHtml);
           }
         }
@@ -1951,7 +1951,7 @@ app.component('map-view-page', {
           this.map.setView([lat, lng], 15);
           const currentIcon = L.divIcon({
             className: 'current-location-marker',
-            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
+            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #3a3a5c;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
             iconSize: [22, 22],
             iconAnchor: [11, 11]
           });

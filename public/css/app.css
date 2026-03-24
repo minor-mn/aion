@@ -8,6 +8,7 @@
 
 html {
   overflow-x: hidden;
+  color-scheme: dark;
 }
 
 body {
@@ -251,8 +252,9 @@ body {
   border: 1px solid #3a3a5c;
   border-radius: 6px;
   font-size: 0.95rem;
-  background: #1a1a2e;
-  color: #e0e0e0;
+  background: #1a1a2e !important;
+  color: #e0e0e0 !important;
+  -webkit-appearance: none;
   transition: border-color 0.2s;
 }
 

@@ -111,6 +111,10 @@ const API = {
     return this.request('DELETE', `/v1/staffs/${id}`);
   },
 
+  getStaffUpcomingShifts(staffId) {
+    return this.request('GET', `/v1/staffs/${staffId}/upcoming_shifts`);
+  },
+
   // Staff Shifts
   getStaffShifts(shopId) {
     return this.request('GET', `/v1/shops/${shopId}/staff_shifts`);
@@ -144,6 +148,14 @@ const API = {
   },
 
   // Schedules
+  getTodaySchedule() {
+    return this.request('GET', '/v1/schedules/today');
+  },
+
+  getNowSchedule() {
+    return this.request('GET', '/v1/schedules/now');
+  },
+
   getSchedules(datetimeBegin, datetimeEnd) {
     const params = new URLSearchParams({
       datetime_begin: datetimeBegin,
@@ -196,7 +208,7 @@ function scoreToColor(score) {
 
 function scoreToGradient(score) {
   const { r, g, b } = scoreToColor(score);
-  return `linear-gradient(135deg, #fff 0%, rgba(${r},${g},${b},0.5) 100%)`;
+  return `linear-gradient(135deg, #252547 0%, rgba(${r},${g},${b},0.35) 100%)`;
 }
 
 function scoreToRgb(score) {

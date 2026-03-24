@@ -40,6 +40,8 @@ module Schedules
           {
             staff_id:       shift.staff_id,
             name:           shift.staff.name,
+            image_url:      shift.staff.image_url,
+            site_url:       shift.staff.site_url,
             shop_id:        shift.staff.shop.id,
             shop_name:      shift.staff.shop.name,
             datetime_begin: shift.start_at.iso8601,

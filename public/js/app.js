@@ -90,10 +90,10 @@ const app = createApp({
         }
         currentView.value = 'home';
         history.replaceState(null, '', window.location.pathname + window.location.search);
-        success.value = 'ログインしました';
+        success.value = 'サインインしました';
         await loadHomeData();
       } catch (e) {
-        error.value = e.data?.error || 'ログインに失敗しました';
+        error.value = e.data?.error || 'サインインに失敗しました';
       }
     }
 
@@ -126,31 +126,16 @@ const app = createApp({
     // ========== Data Loading ==========
     async function loadTodayData() {
       try {
-        const shopData = await API.getShops();
-        todayShops.value = shopData.shops || [];
-
-        // Load shifts for each shop for today
-        const today = new Date();
+        const data = await API.getTodaySchedule();
+        const shops = data.shops || [];
+        todayShops.value = shops.map(s => ({ id: s.shop_id, name: s.shop_name }));
         const shifts = {};
-        for (const shop of todayShops.value) {
-          try {
-            const shiftData = await API.getStaffShifts(shop.id);
-            const todayShifts = (shiftData.staff_shifts || []).filter(s => {
-              const shiftDate = new Date(s.start_at);
-              return shiftDate.toDateString() === today.toDateString();
-            });
-            if (todayShifts.length > 0) {
-              shifts[shop.id] = todayShifts;
-            }
-          } catch (e) {
-            // skip
+        for (const shop of shops) {
+          if (shop.staffs && shop.staffs.length > 0) {
+            shifts[shop.shop_id] = shop.staffs;
           }
         }
         todayShifts.value = shifts;
-
-        // Load all staffs for name resolution
-        const staffData = await API.getStaffs();
-        staffs.value = staffData.staffs || [];
       } catch (e) {
         // ignore
       }
@@ -237,8 +222,8 @@ const app = createApp({
         const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
 
         const gradient = scheduleDay
-          ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #fff 0%, rgba(204,204,102,0.5) 100%)')
-          : '#fff';
+                    ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)')
+                    : '#252547';
 
         cells.push({
           day: d,
@@ -257,6 +242,7 @@ const app = createApp({
       if (cell.empty) return;
       selectedDate.value = cell.dateStr;
       modalOpen.value = true;
+      document.body.classList.add('modal-open');
     }
 
     const selectedDayData = computed(() => {
@@ -282,45 +268,49 @@ const app = createApp({
         groups[key].staffs.push(staff);
         groups[key].totalScore += staff.score;
       }
-      return Object.values(groups);
+      // Sort staffs in each group by start time, then name
+      const sortFn = (a, b) => {
+        const ta = new Date(a.datetime_begin).getTime();
+        const tb = new Date(b.datetime_begin).getTime();
+        if (ta !== tb) return ta - tb;
+        return (a.name || '').localeCompare(b.name || '', 'ja');
+      };
+      for (const g of Object.values(groups)) {
+        g.staffs.sort(sortFn);
+      }
+      // Sort shop groups by earliest start time, then shop name
+      const result = Object.values(groups);
+      result.sort((a, b) => {
+        const ta = new Date(a.staffs[0].datetime_begin).getTime();
+        const tb = new Date(b.staffs[0].datetime_begin).getTime();
+        if (ta !== tb) return ta - tb;
+        return (a.shop_name || '').localeCompare(b.shop_name || '', 'ja');
+      });
+      return result;
     });
 
     function closeModal() {
       modalOpen.value = false;
       selectedDate.value = null;
+      if (!staffScheduleOpen.value) document.body.classList.remove('modal-open');
     }
 
     // ========== Staff Schedule Modal ==========
-    async function openStaffSchedule(staffId, staffName, shopId) {
+    async function openStaffSchedule(staffId, staffName, shopId, imageUrl, siteUrl) {
       const fullStaff = staffs.value.find(st => st.id === staffId || st.id == staffId);
       staffScheduleStaff.value = {
         id: staffId, name: staffName, shop_id: shopId,
-        image_url: fullStaff?.image_url || '',
-        site_url: fullStaff?.site_url || ''
+        image_url: imageUrl || fullStaff?.image_url || '',
+        site_url: siteUrl || fullStaff?.site_url || ''
       };
       staffScheduleShifts.value = [];
       staffScheduleOpen.value = true;
+      document.body.classList.add('modal-open');
       loadModalPreferences();
       staffScheduleLoading.value = true;
       try {
-        const allShifts = [];
-        for (const shop of (shops.value.length > 0 ? shops.value : todayShops.value)) {
-          try {
-            const data = await API.getStaffShifts(shop.id);
-            const shifts = (data.staff_shifts || []).filter(s => s.staff_id === staffId);
-            for (const s of shifts) {
-              s._shop_id = shop.id;
-              s._shop_name = shop.name;
-            }
-            allShifts.push(...shifts);
-          } catch (e) { /* skip */ }
-        }
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        staffScheduleShifts.value = allShifts
-          .filter(s => new Date(s.start_at) >= now)
-          .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
-          .slice(0, 30);
+        const data = await API.getStaffUpcomingShifts(staffId);
+        staffScheduleShifts.value = (data.staff_shifts || []);
       } catch (e) { /* ignore */ }
       staffScheduleLoading.value = false;
     }
@@ -329,6 +319,7 @@ const app = createApp({
       staffScheduleOpen.value = false;
       staffScheduleStaff.value = null;
       staffScheduleShifts.value = [];
+      if (!modalOpen.value) document.body.classList.remove('modal-open');
     }
 
     async function confirmDeleteShift(shift) {
@@ -343,6 +334,7 @@ const app = createApp({
       editingShift.value = shift;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
+      document.body.classList.remove('modal-open');
       currentView.value = 'shiftEdit';
     }
 
@@ -352,6 +344,7 @@ const app = createApp({
       editingStaff.value = full || staffInfo;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
+      document.body.classList.remove('modal-open');
       if (currentView.value === 'staffForm') {
         // Force re-mount when already on staffForm
         currentView.value = '';
@@ -367,6 +360,7 @@ const app = createApp({
         await API.deleteStaff(staffInfo.id);
         staffScheduleOpen.value = false;
         modalOpen.value = false;
+        document.body.classList.remove('modal-open');
         await loadStaffs();
         await loadHomeData();
       } catch (e) { /* ignore */ }
@@ -377,11 +371,16 @@ const app = createApp({
         || todayShops.value.find(s => s.id === shopInfo.id || s.id == shopInfo.id);
       editingShop.value = full || shopInfo;
       modalOpen.value = false;
+      document.body.classList.remove('modal-open');
       currentView.value = 'shopForm';
     }
 
     // ========== Modal Preference ==========
     const modalPreferences = reactive({});
+    const modalPrefDragging = ref(false);
+    const modalPrefDraggingValue = ref(0);
+    const modalPrefTooltipStyle = ref({});
+    let modalPrefDebounceTimer = null;
 
     async function loadModalPreferences() {
       if (!currentUser.value) return;
@@ -397,11 +396,37 @@ const app = createApp({
       return modalPreferences[staffId] !== undefined ? modalPreferences[staffId] : 0;
     }
 
-    async function setModalPreference(staffId, score) {
+    async function saveModalPreference(staffId, score) {
       try {
         await API.setPreference(staffId, parseInt(score));
         modalPreferences[staffId] = parseInt(score);
       } catch (e) { /* ignore */ }
+    }
+
+    function onModalSliderInput(staffId, event) {
+      const val = parseInt(event.target.value);
+      modalPrefDragging.value = true;
+      modalPrefDraggingValue.value = val;
+      modalPreferences[staffId] = val;
+      const slider = event.target;
+      const rect = slider.getBoundingClientRect();
+      const ratio = (val - (-10)) / 20;
+      const thumbX = rect.left + ratio * rect.width;
+      const containerRect = slider.closest('.pref-slider-container').getBoundingClientRect();
+      modalPrefTooltipStyle.value = { left: (thumbX - containerRect.left) + 'px' };
+      if (modalPrefDebounceTimer) clearTimeout(modalPrefDebounceTimer);
+      modalPrefDebounceTimer = setTimeout(() => {
+        saveModalPreference(staffId, val);
+        modalPrefDragging.value = false;
+      }, 2000);
+    }
+
+    function onModalSliderCommit(staffId, value) {
+      const val = parseInt(value);
+      modalPreferences[staffId] = val;
+      if (modalPrefDebounceTimer) clearTimeout(modalPrefDebounceTimer);
+      modalPrefDragging.value = false;
+      saveModalPreference(staffId, val);
     }
 
     // ========== Staff name helper ==========
@@ -431,7 +456,7 @@ const app = createApp({
       if (authRequiredViews.includes(view) && !currentUser.value) {
         currentView.value = 'login';
         menuOpen.value = false;
-        error.value = 'この機能を使うにはログインが必要です';
+        error.value = 'この機能を使うにはサインインが必要です';
         if (updateHash) window.location.hash = 'login';
         return;
       }
@@ -530,7 +555,7 @@ const app = createApp({
       // Handle email confirmation redirect
       const params = new URLSearchParams(window.location.search);
       if (params.get('confirmed') === 'true') {
-        success.value = 'メールアドレスが確認されました。ログインしてください。';
+        success.value = 'メールアドレスが確認されました。サインインしてください。';
         currentView.value = 'login';
         window.history.replaceState({}, '', '/');
       } else if (params.get('confirmation_error')) {
@@ -576,7 +601,8 @@ const app = createApp({
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient,
-      modalPreferences, getModalPreference, setModalPreference
+      modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
+      modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle
     };
   }
 });
@@ -585,7 +611,7 @@ const app = createApp({
 app.component('login-page', {
   template: `
     <div class="auth-container">
-      <h2>ログイン</h2>
+      <h2>サインイン</h2>
       <div v-if="$root.error" class="alert alert-error">{{ $root.error }}</div>
       <div v-if="$root.success" class="alert alert-success">{{ $root.success }}</div>
       <div class="form-group">
@@ -598,7 +624,7 @@ app.component('login-page', {
       </div>
       <div class="form-actions">
         <button class="btn btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? 'ログイン中...' : 'ログイン' }}
+          {{ submitting ? 'サインイン中...' : 'サインイン' }}
         </button>
       </div>
       <div class="auth-link">
@@ -629,7 +655,7 @@ app.component('forgot-password-page', {
       <h2>パスワード再設定</h2>
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
-      <p style="margin-bottom:16px;color:#666;font-size:0.9rem">登録済みのメールアドレスを入力してください。パスワード再設定用のリンクをメールで送信します。</p>
+      <p style="margin-bottom:16px;color:#a0a0b8;font-size:0.9rem">登録済みのメールアドレスを入力してください。パスワード再設定用のリンクをメールで送信します。</p>
       <div class="form-group">
         <label>メールアドレス</label>
         <input v-model="email" type="email" placeholder="email@example.com" @keyup.enter="submit">
@@ -640,7 +666,7 @@ app.component('forgot-password-page', {
         </button>
       </div>
       <div class="auth-link">
-        <a @click="$root.navigate('login')">ログインに戻る</a>
+        <a @click="$root.navigate('login')">サインインに戻る</a>
       </div>
     </div>
   `,
@@ -686,7 +712,7 @@ app.component('reset-password-page', {
         </button>
       </div>
       <div class="auth-link">
-        <a @click="$root.navigate('login')">ログインに戻る</a>
+        <a @click="$root.navigate('login')">サインインに戻る</a>
       </div>
     </div>
   `,
@@ -741,7 +767,7 @@ app.component('register-page', {
         </button>
       </div>
       <div class="auth-link">
-        すでにアカウントをお持ちの方は <a @click="$root.navigate('login')">ログイン</a>
+        すでにアカウントをお持ちの方は <a @click="$root.navigate('login')">サインイン</a>
       </div>
     </div>
   `,
@@ -782,11 +808,11 @@ app.component('shop-form-page', {
       <div class="form-group">
         <label>住所</label>
         <input v-model="form.address" type="text" placeholder="例: 東京都新宿区歌舞伎町1-1" @blur="onAddressBlur">
-        <div v-if="geocoding" style="font-size:0.8rem;color:#888;margin-top:4px">住所を検索中...</div>
+        <div v-if="geocoding" style="font-size:0.8rem;color:#a0a0b8;margin-top:4px">住所を検索中...</div>
       </div>
       <div class="form-group">
         <label>所在地（地図をタップまたはピンをドラッグ）</label>
-        <div id="shop-map" style="height:300px;border-radius:8px;border:1px solid #ddd"></div>
+        <div id="shop-map" style="height:300px;border-radius:8px;border:1px solid #3a3a5c"></div>
       </div>
       <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
         <template v-if="editMode">
@@ -809,11 +835,11 @@ app.component('shop-form-page', {
 
       <h3 style="margin-bottom:12px">登録済み店舗</h3>
       <div v-if="$root.shops.length === 0" class="no-data">店舗がありません</div>
-      <div v-for="shop in $root.shops" :key="shop.id" class="shop-block" style="background:#f8f9fa">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div class="shop-block-name">{{ shop.name }}</div>
-            <div v-if="shop.site_url" style="font-size:0.8rem;color:#666">{{ shop.site_url }}</div>
+      <div v-for="shop in $root.shops" :key="shop.id"       class="shop-block" style="background:#1e1e38">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div class="shop-block-name">{{ shop.name }}</div>
+                  <div v-if="shop.site_url" style="font-size:0.8rem;color:#a0a0b8">{{ shop.site_url }}</div>
           </div>
           <div style="display:flex;gap:6px">
             <button class="btn btn-secondary btn-sm" @click="editExistingShop(shop)">編集</button>
@@ -1108,19 +1134,23 @@ app.component('staff-form-page', {
         </select>
       </div>
       <div v-if="filteredStaffs.length === 0" class="no-data">キャストがいません</div>
-      <div v-for="staff in filteredStaffs" :key="staff.id" class="shop-block" style="background:#f8f9fa">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id)">{{ staff.name }}</div>
-            <div style="font-size:0.8rem;color:#666">{{ getShopName(staff.shop_id) }}</div>
+      <div v-for="staff in filteredStaffs" :key="staff.id"       class="shop-block" style="background:#1e1e38">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div>
+                  <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id)">{{ staff.name }}</div>
+                  <div style="font-size:0.8rem;color:#a0a0b8">{{ getShopName(staff.shop_id) }}</div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
             <div v-if="$root.currentUser" class="pref-slider-container">
-              <span style="font-size:0.75rem;color:#00f">-10</span>
+              <span style="font-size:0.75rem;color:#74b9ff">-10</span>
+              <span class="pref-tooltip" :class="{ visible: draggingStaffId === staff.id }" :style="tooltipStyle">{{ draggingValue }}</span>
               <input type="range" class="pref-slider" min="-10" max="10" step="1"
                 :value="getPreference(staff.id)"
-                @change="setPreference(staff.id, $event.target.value)">
-              <span style="font-size:0.75rem;color:#f00">+10</span>
+                @input="onSliderInput(staff.id, $event)"
+                @change="onSliderCommit(staff.id, $event.target.value)"
+                @mousedown="draggingStaffId = staff.id"
+                @touchstart="draggingStaffId = staff.id">
+              <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
               <span class="pref-value">{{ getPreference(staff.id) }}</span>
             </div>
             <button class="btn btn-danger btn-sm" @click="deleteStaff(staff)">削除</button>
@@ -1138,7 +1168,11 @@ app.component('staff-form-page', {
       localError: '',
       localSuccess: '',
       filterShopId: '',
-      preferences: {}
+      preferences: {},
+      draggingStaffId: null,
+      draggingValue: 0,
+      tooltipStyle: {},
+      _debounceTimers: {}
     };
   },
   computed: {
@@ -1185,10 +1219,33 @@ app.component('staff-form-page', {
         // ignore
       }
     },
-    async setPreference(staffId, score) {
+    onSliderInput(staffId, event) {
+      const val = parseInt(event.target.value);
+      this.draggingStaffId = staffId;
+      this.draggingValue = val;
+      this.preferences[staffId] = val;
+      const slider = event.target;
+      const rect = slider.getBoundingClientRect();
+      const ratio = (val - (-10)) / 20;
+      const thumbX = rect.left + ratio * rect.width;
+      const containerRect = slider.closest('.pref-slider-container').getBoundingClientRect();
+      this.tooltipStyle = { left: (thumbX - containerRect.left) + 'px' };
+      if (this._debounceTimers[staffId]) clearTimeout(this._debounceTimers[staffId]);
+      this._debounceTimers[staffId] = setTimeout(() => {
+        this.savePreference(staffId, val);
+        this.draggingStaffId = null;
+      }, 2000);
+    },
+    onSliderCommit(staffId, value) {
+      const val = parseInt(value);
+      this.preferences[staffId] = val;
+      if (this._debounceTimers[staffId]) clearTimeout(this._debounceTimers[staffId]);
+      this.draggingStaffId = null;
+      this.savePreference(staffId, val);
+    },
+    async savePreference(staffId, score) {
       try {
         await API.setPreference(staffId, parseInt(score));
-        this.preferences[staffId] = parseInt(score);
       } catch (e) {
         this.localError = 'スコアの設定に失敗しました';
       }
@@ -1548,7 +1605,7 @@ app.component('my-page', {
 
         <!-- Email Change -->
         <div class="mypage-card">
-          <h3 class="mypage-card-title">ログインID (メールアドレス) 変更</h3>
+          <h3 class="mypage-card-title">サインインID (メールアドレス) 変更</h3>
           <div v-if="emailMsg" class="alert" :class="emailMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ emailMsg }}</div>
           <div class="form-group">
             <label>新しいメールアドレス</label>
@@ -1590,7 +1647,7 @@ app.component('my-page', {
           <div v-if="notifMsg" class="alert" :class="notifMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ notifMsg }}</div>
 
           <div class="notif-instruction-box">
-            iPhoneのホーム画面に追加すると、指定の条件でアプリに通知が届きます。追加するにはSafariでこのページを開き、メニュー (おそらく画面下のアドレスバーの横の&hellip;) から 共有 &rarr; もっと見る &rarr; ホーム画面に追加 を選択してください。その後、ホーム画面に追加されたアイコンをタップして開き直してください。
+            iPhoneのホーム画面に追加すると、指定の条件でアプリに通知が届きます。ホーム画面に追加するには、Safariでこのページを開き、メニュー (おそらく画面下のアドレスバーの横の&hellip;) から 共有 &rarr; もっと見る &rarr; ホーム画面に追加 を選択します。その後、ホーム画面に追加されたアイコンをタップして、この画面で「通知を許可する」をOFF&rarr;ONすると、そのiPhoneに通知が届きます。
           </div>
 
           <div class="mypage-toggle-row">
@@ -1799,8 +1856,8 @@ app.component('map-view-page', {
   template: `
     <div class="register-container">
       <h2>地図で見る</h2>
-      <div v-if="locating" style="text-align:center;padding:16px;color:#888">現在地を取得中...</div>
-      <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #ddd"></div>
+      <div v-if="locating" style="text-align:center;padding:16px;color:#a0a0b8">現在地を取得中...</div>
+      <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #3a3a5c"></div>
     </div>
   `,
   data() {
@@ -1808,14 +1865,11 @@ app.component('map-view-page', {
       map: null,
       locating: true,
       shopShifts: {},
-      preferences: {}
+      nowShops: []
     };
   },
   async mounted() {
-    await this.$root.loadShops();
-    await this.$root.loadStaffs();
-    await this.loadAllShifts();
-    await this.loadPreferences();
+    await this.loadNowData();
     this.$nextTick(() => { this.initMap(); });
   },
   beforeUnmount() {
@@ -1825,24 +1879,20 @@ app.component('map-view-page', {
     }
   },
   methods: {
-    async loadAllShifts() {
-      const shops = this.$root.shops || [];
-      const now = new Date();
-      for (const shop of shops) {
-        if (!shop.latitude || !shop.longitude) continue;
-        try {
-          const data = await API.getStaffShifts(shop.id);
-          const currentShifts = (data.staff_shifts || []).filter(s => {
-            const start = new Date(s.start_at);
-            const end = new Date(s.end_at);
-            return start <= now && now <= end;
-          });
-          if (currentShifts.length > 0) {
-            this.shopShifts[shop.id] = currentShifts;
+    async loadNowData() {
+      try {
+        const data = await API.getNowSchedule();
+        const shops = data.shops || [];
+        this.nowShops = shops;
+        const shifts = {};
+        for (const shop of shops) {
+          if (shop.staffs && shop.staffs.length > 0) {
+            shifts[shop.shop_id] = shop.staffs;
           }
-        } catch (e) {
-          // skip
         }
+        this.shopShifts = shifts;
+      } catch (e) {
+        // ignore
       }
     },
     initMap() {
@@ -1857,77 +1907,58 @@ app.component('map-view-page', {
       this.addShopMarkers();
       this.getCurrentLocation();
     },
-    async loadPreferences() {
-      if (!this.$root.currentUser) return;
-      try {
-        const data = await API.getPreferences();
-        const prefs = {};
-        for (const p of (data.staff_preferences || [])) {
-          prefs[p.staff_id] = p.score;
-        }
-        this.preferences = prefs;
-      } catch (e) {
-        // ignore
-      }
-    },
     shopScore(shopId) {
       const shifts = this.shopShifts[shopId] || [];
       if (shifts.length === 0) return null;
       let total = 0;
-      let hasPreference = false;
       for (const shift of shifts) {
-        const score = this.preferences[shift.staff_id];
-        if (score !== undefined) {
-          total += score;
-          hasPreference = true;
-        }
+        total += shift.score || 0;
       }
-      return hasPreference ? total : null;
+      return total;
     },
     createMarkerIcon(score) {
-      let color;
+      let color, borderColor;
       if (score === null) {
-        color = '#888';
+        color = '#c8a800';
+        borderColor = '#e8d040';
       } else {
         const { r, g, b } = scoreToColor(score);
         color = `rgb(${r},${g},${b})`;
+        borderColor = `rgb(${Math.min(255, r + 60)},${Math.min(255, g + 60)},${Math.min(255, b + 60)})`;
       }
       return L.divIcon({
         className: 'shop-marker',
-        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid ' + borderColor + ';border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10],
         popupAnchor: [0, -10]
       });
     },
     addShopMarkers() {
-      const shops = this.$root.shops || [];
-      const staffs = this.$root.staffs || [];
+      const shops = this.nowShops || [];
       for (const shop of shops) {
         if (shop.latitude && shop.longitude) {
           const lat = parseFloat(shop.latitude);
           const lng = parseFloat(shop.longitude);
           if (!isNaN(lat) && !isNaN(lng)) {
-            const score = this.$root.currentUser ? this.shopScore(shop.id) : null;
+            const score = this.$root.currentUser ? this.shopScore(shop.shop_id) : null;
             const icon = this.createMarkerIcon(score);
             const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
-            let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
+            let popupHtml = '<strong>' + this.escapeHtml(shop.shop_name) + '</strong>';
             if (shop.address) {
-              popupHtml += '<br><span style="font-size:0.85rem;color:#666">' + this.escapeHtml(shop.address) + '</span>';
+              popupHtml += '<br><span style="font-size:0.85rem;color:#a0a0b8">' + this.escapeHtml(shop.address) + '</span>';
             }
-            const shifts = this.shopShifts[shop.id] || [];
+            const shifts = shop.staffs || [];
             if (shifts.length > 0) {
-              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #ddd">';
-              popupHtml += '<div style="font-size:0.8rem;color:#333;font-weight:bold">シフト中</div>';
+              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #3a3a5c">';
+              popupHtml += '<div style="font-size:0.8rem;color:#e0e0e0;font-weight:bold">シフト中</div>';
               for (const shift of shifts) {
-                const staff = staffs.find(s => s.id === shift.staff_id);
-                const name = staff ? staff.name : 'Staff #' + shift.staff_id;
                 const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                 const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(name) + ' <span style="color:#888">' + startTime + '-' + endTime + '</span></div>';
+                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
               }
             }
-            popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#1a73e8;text-decoration:none">Google Mapsでナビ</a></div>';
+            popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';
             marker.bindPopup(popupHtml);
           }
         }
@@ -1951,7 +1982,7 @@ app.component('map-view-page', {
           this.map.setView([lat, lng], 15);
           const currentIcon = L.divIcon({
             className: 'current-location-marker',
-            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
+            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #7ab8ff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
             iconSize: [22, 22],
             iconAnchor: [11, 11]
           });

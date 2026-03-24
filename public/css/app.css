@@ -574,6 +574,7 @@ body {
   align-items: center;
   gap: 8px;
   margin-top: 4px;
+  position: relative;
 }
 
 .pref-slider {
@@ -582,7 +583,7 @@ body {
   appearance: none;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(to right, #74b9ff, #ff6b6b);
+  background: linear-gradient(to right, #74b9ff, #ff6b6b) !important;
   outline: none;
 }
 
@@ -595,6 +596,40 @@ body {
   background: #fff;
   border: 2px solid #6c5ce7;
   cursor: pointer;
+}
+
+.pref-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #6c5ce7;
+  cursor: pointer;
+}
+
+.pref-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #74b9ff, #ff6b6b);
+}
+
+.pref-tooltip {
+  position: absolute;
+  top: -32px;
+  background: #6c5ce7;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.pref-tooltip.visible {
+  opacity: 1;
 }
 
 .pref-value {

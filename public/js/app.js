@@ -382,6 +382,10 @@ const app = createApp({
 
     // ========== Modal Preference ==========
     const modalPreferences = reactive({});
+    const modalPrefDragging = ref(false);
+    const modalPrefDraggingValue = ref(0);
+    const modalPrefTooltipStyle = ref({});
+    let modalPrefDebounceTimer = null;
 
     async function loadModalPreferences() {
       if (!currentUser.value) return;
@@ -397,11 +401,37 @@ const app = createApp({
       return modalPreferences[staffId] !== undefined ? modalPreferences[staffId] : 0;
     }
 
-    async function setModalPreference(staffId, score) {
+    async function saveModalPreference(staffId, score) {
       try {
         await API.setPreference(staffId, parseInt(score));
         modalPreferences[staffId] = parseInt(score);
       } catch (e) { /* ignore */ }
+    }
+
+    function onModalSliderInput(staffId, event) {
+      const val = parseInt(event.target.value);
+      modalPrefDragging.value = true;
+      modalPrefDraggingValue.value = val;
+      modalPreferences[staffId] = val;
+      const slider = event.target;
+      const rect = slider.getBoundingClientRect();
+      const ratio = (val - (-10)) / 20;
+      const thumbX = rect.left + ratio * rect.width;
+      const containerRect = slider.closest('.pref-slider-container').getBoundingClientRect();
+      modalPrefTooltipStyle.value = { left: (thumbX - containerRect.left) + 'px' };
+      if (modalPrefDebounceTimer) clearTimeout(modalPrefDebounceTimer);
+      modalPrefDebounceTimer = setTimeout(() => {
+        saveModalPreference(staffId, val);
+        modalPrefDragging.value = false;
+      }, 2000);
+    }
+
+    function onModalSliderCommit(staffId, value) {
+      const val = parseInt(value);
+      modalPreferences[staffId] = val;
+      if (modalPrefDebounceTimer) clearTimeout(modalPrefDebounceTimer);
+      modalPrefDragging.value = false;
+      saveModalPreference(staffId, val);
     }
 
     // ========== Staff name helper ==========
@@ -576,7 +606,8 @@ const app = createApp({
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient,
-      modalPreferences, getModalPreference, setModalPreference
+      modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
+      modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle
     };
   }
 });
@@ -1117,9 +1148,13 @@ app.component('staff-form-page', {
           <div style="display:flex;gap:8px;align-items:center">
             <div v-if="$root.currentUser" class="pref-slider-container">
               <span style="font-size:0.75rem;color:#74b9ff">-10</span>
+              <span class="pref-tooltip" :class="{ visible: draggingStaffId === staff.id }" :style="tooltipStyle">{{ draggingValue }}</span>
               <input type="range" class="pref-slider" min="-10" max="10" step="1"
                 :value="getPreference(staff.id)"
-                @change="setPreference(staff.id, $event.target.value)">
+                @input="onSliderInput(staff.id, $event)"
+                @change="onSliderCommit(staff.id, $event.target.value)"
+                @mousedown="draggingStaffId = staff.id"
+                @touchstart="draggingStaffId = staff.id">
               <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
               <span class="pref-value">{{ getPreference(staff.id) }}</span>
             </div>
@@ -1138,7 +1173,11 @@ app.component('staff-form-page', {
       localError: '',
       localSuccess: '',
       filterShopId: '',
-      preferences: {}
+      preferences: {},
+      draggingStaffId: null,
+      draggingValue: 0,
+      tooltipStyle: {},
+      _debounceTimers: {}
     };
   },
   computed: {
@@ -1185,10 +1224,33 @@ app.component('staff-form-page', {
         // ignore
       }
     },
-    async setPreference(staffId, score) {
+    onSliderInput(staffId, event) {
+      const val = parseInt(event.target.value);
+      this.draggingStaffId = staffId;
+      this.draggingValue = val;
+      this.preferences[staffId] = val;
+      const slider = event.target;
+      const rect = slider.getBoundingClientRect();
+      const ratio = (val - (-10)) / 20;
+      const thumbX = rect.left + ratio * rect.width;
+      const containerRect = slider.closest('.pref-slider-container').getBoundingClientRect();
+      this.tooltipStyle = { left: (thumbX - containerRect.left) + 'px' };
+      if (this._debounceTimers[staffId]) clearTimeout(this._debounceTimers[staffId]);
+      this._debounceTimers[staffId] = setTimeout(() => {
+        this.savePreference(staffId, val);
+        this.draggingStaffId = null;
+      }, 2000);
+    },
+    onSliderCommit(staffId, value) {
+      const val = parseInt(value);
+      this.preferences[staffId] = val;
+      if (this._debounceTimers[staffId]) clearTimeout(this._debounceTimers[staffId]);
+      this.draggingStaffId = null;
+      this.savePreference(staffId, val);
+    },
+    async savePreference(staffId, score) {
       try {
         await API.setPreference(staffId, parseInt(score));
-        this.preferences[staffId] = parseInt(score);
       } catch (e) {
         this.localError = 'スコアの設定に失敗しました';
       }

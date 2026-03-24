@@ -182,9 +182,13 @@
               <div v-if="currentUser" class="staff-modal-pref">
                 <div class="pref-slider-container" style="justify-content:center">
                   <span style="font-size:0.75rem;color:#74b9ff">-10</span>
+                  <span class="pref-tooltip" :class="{ visible: modalPrefDragging }" :style="modalPrefTooltipStyle">{{ modalPrefDraggingValue }}</span>
                   <input type="range" class="pref-slider" min="-10" max="10" step="1"
                     :value="getModalPreference(staffScheduleStaff?.id)"
-                    @change="setModalPreference(staffScheduleStaff?.id, $event.target.value)">
+                    @input="onModalSliderInput(staffScheduleStaff?.id, $event)"
+                    @change="onModalSliderCommit(staffScheduleStaff?.id, $event.target.value)"
+                    @mousedown="modalPrefDragging = true"
+                    @touchstart="modalPrefDragging = true">
                   <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
                   <span class="pref-value">{{ getModalPreference(staffScheduleStaff?.id) }}</span>
                 </div>

@@ -36,14 +36,14 @@ module Schedules
           }
         end
 
-        staffs.sort_by! { |s| [s[:start_at], s[:name].to_s] }
+        staffs.sort_by! { |s| [ s[:start_at], s[:name].to_s ] }
 
         {
           shop_id: shop.id,
           shop_name: shop.name,
           staffs: staffs
         }
-      end.sort_by { |g| [g[:staffs].first[:start_at], g[:shop_name].to_s] }
+      end.sort_by { |g| [ g[:staffs].first[:start_at], g[:shop_name].to_s ] }
     end
   end
 end

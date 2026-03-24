@@ -29,9 +29,8 @@
     <div class="header-spacer"></div>
 
     <!-- Hamburger Menu -->
-    <template v-if="menuOpen">
-      <div class="menu-overlay" @click="menuOpen = false"></div>
-      <div class="menu-panel">
+      <div class="menu-overlay" :class="{ open: menuOpen }" @click="menuOpen = false"></div>
+      <div class="menu-panel" :class="{ open: menuOpen }">
         <button class="menu-close" @click="menuOpen = false">&times;</button>
         <template v-if="currentUser">
           <button class="menu-item" @click="navigate('myPage')">マイページ</button>
@@ -44,7 +43,6 @@
           <button class="menu-item" @click="navigate('mapView')">地図で見る</button>
         </template>
       </div>
-    </template>
 
     <!-- Loading -->
     <div v-if="loading" class="loading">読み込み中</div>

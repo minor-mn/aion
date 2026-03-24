@@ -2195,28 +2195,28 @@ app.component('map-view-page', {
             if (shop.address) {
               popupHtml += '<br><span style="font-size:0.85rem;color:#a0a0b8">' + this.escapeHtml(shop.address) + '</span>';
             }
-            const shifts = shop.staffs || [];
-            if (shifts.length > 0) {
-              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #3a3a5c">';
-              popupHtml += '<div style="font-size:0.8rem;color:#e0e0e0;font-weight:bold">シフト中</div>';
-              for (const shift of shifts) {
-                const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
-              }
-            }
             const events = shop.events || [];
             if (events.length > 0) {
               popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #3a3a5c">';
-              popupHtml += '<div style="font-size:0.8rem;color:#e0e0e0;font-weight:bold">イベント</div>';
+              popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">イベント開催中</div>';
               for (const ev of events) {
                 popupHtml += '<div style="font-size:0.8rem">';
                 if (ev.url) {
-                  popupHtml += '<a href="' + this.escapeHtml(ev.url) + '" target="_blank" rel="noopener" style="color:#a29bfe;text-decoration:none">' + this.escapeHtml(ev.title) + '</a>';
+                  popupHtml += '<a href="' + this.escapeHtml(ev.url) + '" target="_blank" rel="noopener" style="color:#000;text-decoration:none">' + this.escapeHtml(ev.title) + '</a>';
                 } else {
                   popupHtml += this.escapeHtml(ev.title);
                 }
                 popupHtml += '</div>';
+              }
+            }
+            const shifts = shop.staffs || [];
+            if (shifts.length > 0) {
+              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #3a3a5c">';
+              popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">シフト中</div>';
+              for (const shift of shifts) {
+                const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
               }
             }
             popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';

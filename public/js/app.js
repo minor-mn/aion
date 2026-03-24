@@ -1917,16 +1917,18 @@ app.component('map-view-page', {
       return total;
     },
     createMarkerIcon(score) {
-      let color;
+      let color, borderColor;
       if (score === null) {
         color = '#888';
+        borderColor = '#000';
       } else {
         const { r, g, b } = scoreToColor(score);
         color = `rgb(${r},${g},${b})`;
+        borderColor = `rgb(${Math.max(0, r - 40)},${Math.max(0, g - 40)},${Math.max(0, b - 40)})`;
       }
       return L.divIcon({
         className: 'shop-marker',
-        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid #3a3a5c;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>',
+        html: '<div style="width:14px;height:14px;background:' + color + ';border:3px solid ' + borderColor + ';border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.6)"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10],
         popupAnchor: [0, -10]

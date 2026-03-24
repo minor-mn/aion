@@ -126,36 +126,13 @@ const app = createApp({
     // ========== Data Loading ==========
     async function loadTodayData() {
       try {
-        const shopData = await API.getShops();
-        todayShops.value = shopData.shops || [];
-
-        // Load all staffs first for name resolution
-        const staffData = await API.getStaffs();
-        staffs.value = staffData.staffs || [];
-
-        // Load shifts for each shop for today
-        const today = new Date();
+        const data = await API.getTodaySchedule();
+        const shops = data.shops || [];
+        todayShops.value = shops.map(s => ({ id: s.shop_id, name: s.shop_name }));
         const shifts = {};
-        for (const shop of todayShops.value) {
-          try {
-            const shiftData = await API.getStaffShifts(shop.id);
-            const todayShifts = (shiftData.staff_shifts || []).filter(s => {
-              const shiftDate = new Date(s.start_at);
-              return shiftDate.toDateString() === today.toDateString();
-            });
-            if (todayShifts.length > 0) {
-              todayShifts.sort((a, b) => {
-                const ta = new Date(a.start_at).getTime();
-                const tb = new Date(b.start_at).getTime();
-                if (ta !== tb) return ta - tb;
-                const na = (staffs.value.find(st => st.id === a.staff_id)?.name || '');
-                const nb = (staffs.value.find(st => st.id === b.staff_id)?.name || '');
-                return na.localeCompare(nb, 'ja');
-              });
-              shifts[shop.id] = todayShifts;
-            }
-          } catch (e) {
-            // skip
+        for (const shop of shops) {
+          if (shop.staffs && shop.staffs.length > 0) {
+            shifts[shop.shop_id] = shop.staffs;
           }
         }
         todayShifts.value = shifts;

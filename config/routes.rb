@@ -32,8 +32,12 @@ Rails.application.routes.draw do
     # preferences
     resources :staff_preferences, only: %i[index create show update destroy ]
 
-    # shedules
-    resources :schedules, only: %i[index]
+    # schedules
+    resources :schedules, only: %i[index] do
+      collection do
+        get :today
+      end
+    end
 
     # action_logs
     resources :action_logs, only: %i[index]

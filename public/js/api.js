@@ -144,6 +144,10 @@ const API = {
   },
 
   // Schedules
+  getTodaySchedule() {
+    return this.request('GET', '/v1/schedules/today');
+  },
+
   getSchedules(datetimeBegin, datetimeEnd) {
     const params = new URLSearchParams({
       datetime_begin: datetimeBegin,

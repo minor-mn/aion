@@ -10,4 +10,10 @@ class V1::SchedulesController < ApplicationController
   rescue ArgumentError
     render json: { error: "Invalid date format" }, status: :bad_request
   end
+
+  def today
+    service = Schedules::TodayService.new(user: current_user)
+    shops = service.call
+    render json: { shops: shops }, status: :ok
+  end
 end

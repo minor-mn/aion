@@ -1937,17 +1937,17 @@ app.component('event-form-page', {
       </div>
       <div v-if="filteredEvents.length === 0" class="no-data">イベントがありません</div>
       <div v-for="event in filteredEvents" :key="event.id" class="shop-block" style="background:#1e1e38">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="min-width:0;flex:1;overflow:hidden">
             <div class="shop-block-name">{{ event.title }}</div>
             <div style="font-size:0.8rem;color:#a0a0b8">{{ event.shop ? event.shop.name : '' }}</div>
             <div v-if="event.start_at" style="font-size:0.8rem;color:#a0a0b8">
               {{ formatDatetime(event.start_at) }}
               <template v-if="event.end_at"> 〜 {{ formatDatetime(event.end_at) }}</template>
             </div>
-            <div v-if="event.url" style="font-size:0.8rem"><a :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe">{{ event.url }}</a></div>
+            <div v-if="event.url" style="font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe">{{ event.url }}</a></div>
           </div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-shrink:0">
             <button class="btn btn-secondary btn-sm" @click="editExisting(event)">編集</button>
             <button class="btn btn-danger btn-sm" @click="deleteEvent(event)">削除</button>
           </div>

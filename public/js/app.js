@@ -129,6 +129,10 @@ const app = createApp({
         const shopData = await API.getShops();
         todayShops.value = shopData.shops || [];
 
+        // Load all staffs first for name resolution
+        const staffData = await API.getStaffs();
+        staffs.value = staffData.staffs || [];
+
         // Load shifts for each shop for today
         const today = new Date();
         const shifts = {};
@@ -140,6 +144,14 @@ const app = createApp({
               return shiftDate.toDateString() === today.toDateString();
             });
             if (todayShifts.length > 0) {
+              todayShifts.sort((a, b) => {
+                const ta = new Date(a.start_at).getTime();
+                const tb = new Date(b.start_at).getTime();
+                if (ta !== tb) return ta - tb;
+                const na = (staffs.value.find(st => st.id === a.staff_id)?.name || '');
+                const nb = (staffs.value.find(st => st.id === b.staff_id)?.name || '');
+                return na.localeCompare(nb, 'ja');
+              });
               shifts[shop.id] = todayShifts;
             }
           } catch (e) {
@@ -147,10 +159,6 @@ const app = createApp({
           }
         }
         todayShifts.value = shifts;
-
-        // Load all staffs for name resolution
-        const staffData = await API.getStaffs();
-        staffs.value = staffData.staffs || [];
       } catch (e) {
         // ignore
       }
@@ -281,6 +289,15 @@ const app = createApp({
         }
         groups[key].staffs.push(staff);
         groups[key].totalScore += staff.score;
+      }
+      // Sort staffs in each group by start time, then name
+      for (const g of Object.values(groups)) {
+        g.staffs.sort((a, b) => {
+          const ta = new Date(a.datetime_begin).getTime();
+          const tb = new Date(b.datetime_begin).getTime();
+          if (ta !== tb) return ta - tb;
+          return (a.name || '').localeCompare(b.name || '', 'ja');
+        });
       }
       return Object.values(groups);
     });

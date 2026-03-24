@@ -90,10 +90,10 @@ const app = createApp({
         }
         currentView.value = 'home';
         history.replaceState(null, '', window.location.pathname + window.location.search);
-        success.value = 'ログインしました';
+        success.value = 'サインインしました';
         await loadHomeData();
       } catch (e) {
-        error.value = e.data?.error || 'ログインに失敗しました';
+        error.value = e.data?.error || 'サインインに失敗しました';
       }
     }
 
@@ -431,7 +431,7 @@ const app = createApp({
       if (authRequiredViews.includes(view) && !currentUser.value) {
         currentView.value = 'login';
         menuOpen.value = false;
-        error.value = 'この機能を使うにはログインが必要です';
+        error.value = 'この機能を使うにはサインインが必要です';
         if (updateHash) window.location.hash = 'login';
         return;
       }
@@ -530,7 +530,7 @@ const app = createApp({
       // Handle email confirmation redirect
       const params = new URLSearchParams(window.location.search);
       if (params.get('confirmed') === 'true') {
-        success.value = 'メールアドレスが確認されました。ログインしてください。';
+        success.value = 'メールアドレスが確認されました。サインインしてください。';
         currentView.value = 'login';
         window.history.replaceState({}, '', '/');
       } else if (params.get('confirmation_error')) {
@@ -585,7 +585,7 @@ const app = createApp({
 app.component('login-page', {
   template: `
     <div class="auth-container">
-      <h2>ログイン</h2>
+      <h2>サインイン</h2>
       <div v-if="$root.error" class="alert alert-error">{{ $root.error }}</div>
       <div v-if="$root.success" class="alert alert-success">{{ $root.success }}</div>
       <div class="form-group">
@@ -598,7 +598,7 @@ app.component('login-page', {
       </div>
       <div class="form-actions">
         <button class="btn btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? 'ログイン中...' : 'ログイン' }}
+          {{ submitting ? 'サインイン中...' : 'サインイン' }}
         </button>
       </div>
       <div class="auth-link">
@@ -640,7 +640,7 @@ app.component('forgot-password-page', {
         </button>
       </div>
       <div class="auth-link">
-        <a @click="$root.navigate('login')">ログインに戻る</a>
+        <a @click="$root.navigate('login')">サインインに戻る</a>
       </div>
     </div>
   `,
@@ -686,7 +686,7 @@ app.component('reset-password-page', {
         </button>
       </div>
       <div class="auth-link">
-        <a @click="$root.navigate('login')">ログインに戻る</a>
+        <a @click="$root.navigate('login')">サインインに戻る</a>
       </div>
     </div>
   `,
@@ -741,7 +741,7 @@ app.component('register-page', {
         </button>
       </div>
       <div class="auth-link">
-        すでにアカウントをお持ちの方は <a @click="$root.navigate('login')">ログイン</a>
+        すでにアカウントをお持ちの方は <a @click="$root.navigate('login')">サインイン</a>
       </div>
     </div>
   `,
@@ -1548,7 +1548,7 @@ app.component('my-page', {
 
         <!-- Email Change -->
         <div class="mypage-card">
-          <h3 class="mypage-card-title">ログインID (メールアドレス) 変更</h3>
+          <h3 class="mypage-card-title">サインインID (メールアドレス) 変更</h3>
           <div v-if="emailMsg" class="alert" :class="emailMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ emailMsg }}</div>
           <div class="form-group">
             <label>新しいメールアドレス</label>

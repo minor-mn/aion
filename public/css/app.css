@@ -64,8 +64,25 @@ body {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
+  position: absolute;
+  top: 12px;
+  right: 16px;
+}
+
+.btn-signin {
+  background: #252547;
+  color: #e0e0e0;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-signin:hover {
+  background: #3a3a5c;
 }
 
 .header-user {
@@ -118,7 +135,7 @@ body {
   background: none;
   border: none;
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 2rem;
   cursor: pointer;
   padding: 4px 8px;
   line-height: 1;

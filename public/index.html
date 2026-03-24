@@ -21,6 +21,8 @@
     <header class="header" @click="navigate('home')">
       <span class="header-logo">Okyuyote!</span>
       <div class="header-right" @click.stop>
+        <button v-if="currentUser" class="btn-signin" @click="handleLogout">サインアウト</button>
+        <button v-else class="btn-signin" @click="navigate('login')">サインイン</button>
         <button class="hamburger-btn" @click="menuOpen = true">&#9776;</button>
       </div>
     </header>
@@ -37,10 +39,8 @@
           <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
           <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
           <button class="menu-item" @click="navigate('shiftForm')">シフト登録</button>
-          <button class="menu-item" @click="handleLogout">ログアウト</button>
         </template>
         <template v-else>
-          <button class="menu-item" @click="navigate('login')">ログイン</button>
           <button class="menu-item" @click="navigate('mapView')">地図で見る</button>
         </template>
       </div>

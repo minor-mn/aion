@@ -34,7 +34,18 @@ module Schedules
 
       group_by_date = shifts.group_by { |sh| sh.start_at.to_date }
 
-      result = group_by_date.map do |date, shifts_on_date|
+      # Load events in the date range
+      events = Event.where("(start_at BETWEEN ? AND ?) OR (end_at BETWEEN ? AND ?) OR (start_at <= ? AND end_at >= ?)",
+        datetime_begin, datetime_end, datetime_begin, datetime_end, datetime_begin, datetime_end)
+        .includes(:shop)
+
+      events_by_date = events.group_by { |e| (e.start_at || e.created_at).to_date }
+
+      # Collect all dates that have shifts or events
+      all_dates = (group_by_date.keys + events_by_date.keys).uniq
+
+      result = all_dates.map do |date|
+        shifts_on_date = group_by_date[date] || []
         staffs = shifts_on_date.map do |shift|
           pref = preferences[shift.staff_id]
           {
@@ -50,10 +61,23 @@ module Schedules
           }
         end
 
+        date_events = (events_by_date[date] || []).map do |event|
+          {
+            id:        event.id,
+            title:     event.title,
+            url:       event.url,
+            shop_id:   event.shop_id,
+            shop_name: event.shop.name,
+            start_at:  event.start_at&.iso8601,
+            end_at:    event.end_at&.iso8601
+          }
+        end
+
         {
           date:         date.to_s,
           total_score:  staffs.sum { |s| s[:score] },
-          staffs:       staffs.sort_by { |s| s[:name].to_s }
+          staffs:       staffs.sort_by { |s| s[:name].to_s },
+          events:       date_events
         }
       end
 

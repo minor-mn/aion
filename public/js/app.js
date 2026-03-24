@@ -21,6 +21,7 @@ const app = createApp({
     // Today's data (for unauthenticated + bottom section)
     const todayShops = ref([]);
     const todayShifts = ref({});
+    const todayEvents = ref([]);
 
     // Form data
     const shops = ref([]);
@@ -130,12 +131,19 @@ const app = createApp({
         const shops = data.shops || [];
         todayShops.value = shops.map(s => ({ id: s.shop_id, name: s.shop_name }));
         const shifts = {};
+        const allEvents = [];
         for (const shop of shops) {
           if (shop.staffs && shop.staffs.length > 0) {
             shifts[shop.shop_id] = shop.staffs;
           }
+          if (shop.events && shop.events.length > 0) {
+            for (const ev of shop.events) {
+              allEvents.push({ ...ev, shop_name: shop.shop_name });
+            }
+          }
         }
         todayShifts.value = shifts;
+        todayEvents.value = allEvents;
       } catch (e) {
         // ignore
       }
@@ -221,6 +229,9 @@ const app = createApp({
         const totalScore = scheduleDay ? scheduleDay.total_score : null;
         const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
 
+        const hasEvents = scheduleDay && scheduleDay.events && scheduleDay.events.length > 0;
+        const hasStaffs = scheduleDay && scheduleDay.staffs && scheduleDay.staffs.length > 0;
+
         const gradient = scheduleDay
                     ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)')
                     : '#252547';
@@ -232,6 +243,7 @@ const app = createApp({
           isToday,
           totalScore,
           hasData: !!scheduleDay,
+          hasEvents,
           gradient
         });
       }
@@ -248,6 +260,12 @@ const app = createApp({
     const selectedDayData = computed(() => {
       if (!selectedDate.value) return null;
       return scheduleData.value.find(s => s.date === selectedDate.value) || null;
+    });
+
+    const selectedDayEvents = computed(() => {
+      const day = selectedDayData.value;
+      if (!day || !day.events) return [];
+      return day.events;
     });
 
     const selectedDayShopGroups = computed(() => {
@@ -436,19 +454,21 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage', 'eventForm'];
 
     // Mapping between hash fragments and view names
     const hashToView = {
       '': 'home', 'home': 'home',
       'map': 'mapView', 'login': 'login', 'register': 'register',
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
-      'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm'
+      'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm',
+      'events': 'eventForm'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
-      'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts'
+      'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts',
+      'eventForm': 'events'
     };
 
     function navigate(view, updateHash = true) {
@@ -479,6 +499,7 @@ const app = createApp({
       if (view === 'shiftForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftEdit') { loadShops(); }
       if (view === 'mapView') { loadShops(); }
+      if (view === 'eventForm') { loadShops(); }
     }
 
     function handleHashChange() {
@@ -590,12 +611,12 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
-      todayShops, todayShifts, shops, staffs,
+      todayShops, todayShifts, todayEvents, shops, staffs,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
       editingShift, editingStaff, editingShop,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
-      openDayModal, selectedDayData, selectedDayShopGroups, closeModal,
+      openDayModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift,
       editStaff, confirmDeleteStaff, editShop,
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
@@ -1851,6 +1872,232 @@ app.component('my-page', {
   }
 });
 
+// ========== Event Form Component ==========
+app.component('event-form-page', {
+  template: `
+    <div class="register-container">
+      <h2>イベント管理</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+
+      <h3 style="margin-bottom:12px">{{ editMode ? 'イベント編集' : '新規イベント登録' }}</h3>
+      <div class="form-group">
+        <label>イベント名 *</label>
+        <input v-model="form.title" type="text" placeholder="イベント名">
+      </div>
+      <div class="form-group">
+        <label>店舗 *</label>
+        <select v-model="form.shop_id">
+          <option value="">選択してください</option>
+          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>URL</label>
+        <input v-model="form.url" type="url" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label>開始日時</label>
+        <div class="shift-entry-fields">
+          <div class="form-group" style="margin-bottom:0">
+            <input type="date" v-model="form.startDate">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <input type="time" v-model="form.startTime" step="3600">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>終了日時</label>
+        <div class="shift-entry-fields">
+          <div class="form-group" style="margin-bottom:0">
+            <input type="date" v-model="form.endDate">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <input type="time" v-model="form.endTime" step="3600">
+          </div>
+        </div>
+      </div>
+      <div class="form-actions" style="margin-bottom:12px">
+        <button class="btn btn-primary" @click="editMode ? updateEvent() : createEvent()" :disabled="submitting">
+          {{ submitting ? (editMode ? '更新中...' : '登録中...') : (editMode ? 'イベントを更新' : 'イベントを登録') }}
+        </button>
+      </div>
+      <div v-if="editMode" style="margin-bottom:32px">
+        <button class="btn btn-outline" @click="cancelEdit">新規登録に切り替え</button>
+      </div>
+
+      <h3 style="margin-bottom:12px">登録済みイベント</h3>
+      <div class="form-group">
+        <label>店舗で絞り込み</label>
+        <select v-model="filterShopId">
+          <option value="">全て</option>
+          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
+      </div>
+      <div v-if="filteredEvents.length === 0" class="no-data">イベントがありません</div>
+      <div v-for="event in filteredEvents" :key="event.id" class="shop-block" style="background:#1e1e38">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="shop-block-name">{{ event.title }}</div>
+            <div style="font-size:0.8rem;color:#a0a0b8">{{ event.shop ? event.shop.name : '' }}</div>
+            <div v-if="event.start_at" style="font-size:0.8rem;color:#a0a0b8">
+              {{ formatDatetime(event.start_at) }}
+              <template v-if="event.end_at"> 〜 {{ formatDatetime(event.end_at) }}</template>
+            </div>
+            <div v-if="event.url" style="font-size:0.8rem"><a :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe">{{ event.url }}</a></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" @click="editExisting(event)">編集</button>
+            <button class="btn btn-danger btn-sm" @click="deleteEvent(event)">削除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  data() {
+    return {
+      form: { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' },
+      editMode: false,
+      editEventId: null,
+      submitting: false,
+      localError: '',
+      localSuccess: '',
+      filterShopId: '',
+      events: []
+    };
+  },
+  computed: {
+    filteredEvents() {
+      if (!this.filterShopId) return this.events;
+      return this.events.filter(e => e.shop_id == this.filterShopId);
+    }
+  },
+  async mounted() {
+    await this.$root.loadShops();
+    await this.loadEvents();
+  },
+  methods: {
+    formatDatetime(isoStr) {
+      if (!isoStr) return '';
+      const d = new Date(isoStr);
+      return d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' }) +
+        ' ' + d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+    },
+    async loadEvents() {
+      try {
+        const data = await API.getEvents();
+        this.events = data.events || [];
+      } catch (e) {
+        // ignore
+      }
+    },
+    editExisting(event) {
+      this.form.title = event.title || '';
+      this.form.shop_id = event.shop_id || '';
+      this.form.url = event.url || '';
+      if (event.start_at) {
+        const s = new Date(event.start_at);
+        this.form.startDate = this.toDateStr(s);
+        this.form.startTime = this.toTimeStr(s);
+      } else {
+        this.form.startDate = '';
+        this.form.startTime = '';
+      }
+      if (event.end_at) {
+        const e = new Date(event.end_at);
+        this.form.endDate = this.toDateStr(e);
+        this.form.endTime = this.toTimeStr(e);
+      } else {
+        this.form.endDate = '';
+        this.form.endTime = '';
+      }
+      this.editMode = true;
+      this.editEventId = event.id;
+      this.localError = '';
+      this.localSuccess = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    toDateStr(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    },
+    toTimeStr(d) {
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    },
+    cancelEdit() {
+      this.editMode = false;
+      this.editEventId = null;
+      this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' };
+      this.localError = '';
+      this.localSuccess = '';
+    },
+    buildPayload() {
+      const payload = {
+        title: this.form.title,
+        shop_id: this.form.shop_id,
+        url: this.form.url || null
+      };
+      if (this.form.startDate && this.form.startTime) {
+        payload.start_at = new Date(`${this.form.startDate}T${this.form.startTime}:00`).toISOString();
+      } else if (this.form.startDate) {
+        payload.start_at = new Date(`${this.form.startDate}T00:00:00`).toISOString();
+      }
+      if (this.form.endDate && this.form.endTime) {
+        payload.end_at = new Date(`${this.form.endDate}T${this.form.endTime}:00`).toISOString();
+      } else if (this.form.endDate) {
+        payload.end_at = new Date(`${this.form.endDate}T23:59:00`).toISOString();
+      }
+      return payload;
+    },
+    async createEvent() {
+      if (!this.form.title || !this.form.shop_id) {
+        this.localError = 'イベント名と店舗は必須です';
+        return;
+      }
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        await API.createEvent(this.buildPayload());
+        this.localSuccess = 'イベントを登録しました';
+        this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' };
+        await this.loadEvents();
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || '登録に失敗しました';
+      }
+      this.submitting = false;
+    },
+    async updateEvent() {
+      if (!this.form.title || !this.form.shop_id) {
+        this.localError = 'イベント名と店舗は必須です';
+        return;
+      }
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        await API.updateEvent(this.editEventId, this.buildPayload());
+        this.localSuccess = 'イベントを更新しました';
+        this.cancelEdit();
+        await this.loadEvents();
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
+      }
+      this.submitting = false;
+    },
+    async deleteEvent(event) {
+      if (!confirm(`「${event.title}」を削除しますか？`)) return;
+      try {
+        await API.deleteEvent(event.id);
+        this.localSuccess = '削除しました';
+        await this.loadEvents();
+      } catch (e) {
+        this.localError = '削除に失敗しました';
+      }
+    }
+  }
+});
+
 // ========== Map View Component ==========
 app.component('map-view-page', {
   template: `
@@ -1956,6 +2203,20 @@ app.component('map-view-page', {
                 const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                 const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                 popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
+              }
+            }
+            const events = shop.events || [];
+            if (events.length > 0) {
+              popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #3a3a5c">';
+              popupHtml += '<div style="font-size:0.8rem;color:#e0e0e0;font-weight:bold">イベント</div>';
+              for (const ev of events) {
+                popupHtml += '<div style="font-size:0.8rem">';
+                if (ev.url) {
+                  popupHtml += '<a href="' + this.escapeHtml(ev.url) + '" target="_blank" rel="noopener" style="color:#a29bfe;text-decoration:none">' + this.escapeHtml(ev.title) + '</a>';
+                } else {
+                  popupHtml += this.escapeHtml(ev.title);
+                }
+                popupHtml += '</div>';
               }
             }
             popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';

@@ -187,6 +187,24 @@ const API = {
     return this.request('DELETE', '/v1/user/push_subscriptions');
   },
 
+  // Events
+  getEvents(shopId = null) {
+    const query = shopId ? `?shop_id=${shopId}` : '';
+    return this.request('GET', `/v1/events${query}`);
+  },
+
+  createEvent(data) {
+    return this.request('POST', '/v1/events', data);
+  },
+
+  updateEvent(id, data) {
+    return this.request('PUT', `/v1/events/${id}`, data);
+  },
+
+  deleteEvent(id) {
+    return this.request('DELETE', `/v1/events/${id}`);
+  },
+
   // Action Logs
   getActionLogs(filters = {}) {
     const params = new URLSearchParams();

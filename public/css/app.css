@@ -403,6 +403,15 @@ body {
   z-index: 1;
 }
 
+.calendar-cell .event-crown {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 0.55rem;
+  line-height: 1;
+  z-index: 1;
+}
+
 /* ========== Modal ========== */
 body.modal-open {
   overflow: hidden;

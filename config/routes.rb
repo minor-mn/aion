@@ -44,6 +44,9 @@ Rails.application.routes.draw do
       end
     end
 
+    # events
+    resources :events, only: %i[index create show update destroy]
+
     # action_logs
     resources :action_logs, only: %i[index]
   end

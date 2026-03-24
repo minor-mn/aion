@@ -38,6 +38,7 @@
           <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
           <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
           <button class="menu-item" @click="navigate('shiftForm')">シフト登録</button>
+          <button class="menu-item" @click="navigate('eventForm')">イベント管理</button>
         </template>
         <template v-else>
           <button class="menu-item" @click="navigate('mapView')">地図で見る</button>
@@ -73,6 +74,9 @@
       <!-- Shift Edit -->
       <shift-edit-page v-if="currentView === 'shiftEdit'"></shift-edit-page>
 
+      <!-- Event Form -->
+      <event-form-page v-if="currentView === 'eventForm'"></event-form-page>
+
       <!-- My Page -->
       <my-page v-if="currentView === 'myPage'"></my-page>
 
@@ -97,6 +101,7 @@
                  :style="{ background: cell.empty ? 'transparent' : cell.gradient }"
                  @click="openDayModal(cell)">
               <span v-if="!cell.empty" class="date-num">{{ cell.day }}</span>
+              <span v-if="cell.hasEvents" class="event-crown">👑</span>
             </div>
           </div>
         </div>
@@ -123,6 +128,22 @@
           <div v-if="Object.keys(todayShifts).length === 0" class="no-data">本日のシフトはありません</div>
         </div>
 
+        <!-- Today's Events -->
+        <div v-if="todayEvents && todayEvents.length > 0" class="today-section">
+          <div class="section-title">本日のイベント</div>
+          <div v-for="ev in todayEvents" :key="ev.id" class="shop-block" style="background:#1e1e38">
+            <div class="shop-block-name">
+              <template v-if="ev.url"><a :href="ev.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe;text-decoration:none">{{ ev.title }}</a></template>
+              <template v-else>{{ ev.title }}</template>
+            </div>
+            <div style="font-size:0.8rem;color:#a0a0b8">{{ ev.shop_name }}</div>
+            <div v-if="ev.start_at" style="font-size:0.8rem;color:#a0a0b8">
+              {{ new Date(ev.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+              <template v-if="ev.end_at"> 〜 {{ new Date(ev.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}</template>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- Day Detail Modal -->
@@ -130,13 +151,30 @@
         <div class="modal-overlay" @click="closeModal">
           <div class="modal-content" @click.stop>
             <div class="modal-header">
-              <h3>{{ selectedDate }} のシフト</h3>
+              <h3>{{ selectedDate }}</h3>
               <button class="modal-close" @click="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-              <div v-if="selectedDayShopGroups.length === 0" class="no-data">
-                この日のシフトデータはありません
+              <div v-if="selectedDayShopGroups.length === 0 && (!selectedDayEvents || selectedDayEvents.length === 0)" class="no-data">
+                この日のデータはありません
               </div>
+              <!-- Events for this day -->
+              <div v-if="selectedDayEvents && selectedDayEvents.length > 0" style="margin-bottom:16px">
+                <div class="section-title" style="font-size:0.95rem;margin-bottom:8px">{{ selectedDate }} のイベント</div>
+                <div v-for="ev in selectedDayEvents" :key="ev.id" class="shop-block" style="background:#2a1a3e">
+                  <div class="shop-block-name">
+                    <template v-if="ev.url"><a :href="ev.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe;text-decoration:none">{{ ev.title }}</a></template>
+                    <template v-else>{{ ev.title }}</template>
+                  </div>
+                  <div style="font-size:0.8rem;color:#a0a0b8">{{ ev.shop_name }}</div>
+                  <div v-if="ev.start_at" style="font-size:0.8rem;color:#a0a0b8">
+                    {{ new Date(ev.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                    <template v-if="ev.end_at"> 〜 {{ new Date(ev.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}</template>
+                  </div>
+                </div>
+              </div>
+              <!-- Shifts for this day -->
+              <div v-if="selectedDayShopGroups.length > 0" class="section-title" style="font-size:0.95rem;margin-bottom:8px">{{ selectedDate }} のシフト</div>
               <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                    class="shop-block"
                    :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)' }">

@@ -263,6 +263,15 @@ body {
   border-color: #6c5ce7;
 }
 
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #e0e0e0;
+  -webkit-box-shadow: 0 0 0px 1000px #1a1a2e inset;
+  border: 1px solid #3a3a5c;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .form-actions {
   margin-top: 20px;
 }

@@ -1590,7 +1590,7 @@ app.component('my-page', {
           <div v-if="notifMsg" class="alert" :class="notifMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ notifMsg }}</div>
 
           <div class="notif-instruction-box">
-            iPhoneのホーム画面に追加すると、指定の条件でアプリに通知が届きます。追加するにはSafariでこのページを開き、メニュー (おそらく画面下のアドレスバーの横の&hellip;) から 共有 &rarr; もっと見る &rarr; ホーム画面に追加 を選択してください。その後、ホーム画面に追加されたアイコンをタップして開き直してください。
+            iPhoneのホーム画面に追加すると、指定の条件でアプリに通知が届きます。ホーム画面に追加するには、Safariでこのページを開き、メニュー (おそらく画面下のアドレスバーの横の&hellip;) から 共有 &rarr; もっと見る &rarr; ホーム画面に追加 を選択します。その後、ホーム画面に追加されたアイコンをタップして、この画面で「通知を許可する」をOFF&rarr;ONすると、そのiPhoneに通知が届きます。
           </div>
 
           <div class="mypage-toggle-row">

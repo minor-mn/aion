@@ -11,6 +11,30 @@ class V1::StaffsController < ApplicationController
     render json: staff
   end
 
+  def upcoming_shifts
+    now = Time.current.beginning_of_day
+    shifts = StaffShift
+      .where(staff_id: params[:id])
+      .where("start_at >= ?", now)
+      .includes(staff: :shop)
+      .order(:start_at)
+      .limit(30)
+
+    result = shifts.map do |shift|
+      {
+        id: shift.id,
+        staff_id: shift.staff_id,
+        shop_id: shift.shop_id,
+        start_at: shift.start_at.iso8601,
+        end_at: shift.end_at.iso8601,
+        _shop_id: shift.shop_id,
+        _shop_name: shift.staff&.shop&.name
+      }
+    end
+
+    render json: { staff_shifts: result }, status: :ok
+  end
+
   def create
     pp staff_params
     new_staff = Staff.new(staff_params)

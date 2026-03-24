@@ -22,7 +22,11 @@ Rails.application.routes.draw do
     resources :shops, only: %i[index create show update destroy]
 
     # staffs
-    resources :staffs, only: %i[index create show update destroy]
+    resources :staffs, only: %i[index create show update destroy] do
+      member do
+        get :upcoming_shifts
+      end
+    end
 
     # staff_shifts
     resources :shops do

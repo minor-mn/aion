@@ -111,6 +111,10 @@ const API = {
     return this.request('DELETE', `/v1/staffs/${id}`);
   },
 
+  getStaffUpcomingShifts(staffId) {
+    return this.request('GET', `/v1/staffs/${staffId}/upcoming_shifts`);
+  },
+
   // Staff Shifts
   getStaffShifts(shopId) {
     return this.request('GET', `/v1/shops/${shopId}/staff_shifts`);

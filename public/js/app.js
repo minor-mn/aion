@@ -309,24 +309,8 @@ const app = createApp({
       loadModalPreferences();
       staffScheduleLoading.value = true;
       try {
-        const allShifts = [];
-        for (const shop of (shops.value.length > 0 ? shops.value : todayShops.value)) {
-          try {
-            const data = await API.getStaffShifts(shop.id);
-            const shifts = (data.staff_shifts || []).filter(s => s.staff_id === staffId);
-            for (const s of shifts) {
-              s._shop_id = shop.id;
-              s._shop_name = shop.name;
-            }
-            allShifts.push(...shifts);
-          } catch (e) { /* skip */ }
-        }
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-        staffScheduleShifts.value = allShifts
-          .filter(s => new Date(s.start_at) >= now)
-          .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
-          .slice(0, 30);
+        const data = await API.getStaffUpcomingShifts(staffId);
+        staffScheduleShifts.value = (data.staff_shifts || []);
       } catch (e) { /* ignore */ }
       staffScheduleLoading.value = false;
     }

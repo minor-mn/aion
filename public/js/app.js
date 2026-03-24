@@ -292,15 +292,24 @@ const app = createApp({
         groups[key].totalScore += staff.score;
       }
       // Sort staffs in each group by start time, then name
+      const sortFn = (a, b) => {
+        const ta = new Date(a.datetime_begin).getTime();
+        const tb = new Date(b.datetime_begin).getTime();
+        if (ta !== tb) return ta - tb;
+        return (a.name || '').localeCompare(b.name || '', 'ja');
+      };
       for (const g of Object.values(groups)) {
-        g.staffs.sort((a, b) => {
-          const ta = new Date(a.datetime_begin).getTime();
-          const tb = new Date(b.datetime_begin).getTime();
-          if (ta !== tb) return ta - tb;
-          return (a.name || '').localeCompare(b.name || '', 'ja');
-        });
+        g.staffs.sort(sortFn);
       }
-      return Object.values(groups);
+      // Sort shop groups by earliest start time, then shop name
+      const result = Object.values(groups);
+      result.sort((a, b) => {
+        const ta = new Date(a.staffs[0].datetime_begin).getTime();
+        const tb = new Date(b.staffs[0].datetime_begin).getTime();
+        if (ta !== tb) return ta - tb;
+        return (a.shop_name || '').localeCompare(b.shop_name || '', 'ja');
+      });
+      return result;
     });
 
     function closeModal() {

@@ -16,13 +16,18 @@ module Schedules
 
       if @user
         preferences = @user.staff_preferences.index_by(&:staff_id)
+        staff_ids = preferences.keys
+
+        shifts = StaffShift
+          .where(staff_id: staff_ids)
+          .where(start_at: datetime_begin..datetime_end)
+          .includes(staff: :shop)
       else
         preferences = {}
+        shifts = StaffShift
+          .where(start_at: datetime_begin..datetime_end)
+          .includes(staff: :shop)
       end
-
-      shifts = StaffShift
-        .where(start_at: datetime_begin..datetime_end)
-        .includes(staff: :shop)
 
       # Filter out orphaned shifts (staff or shop deleted)
       shifts = shifts.select { |sh| sh.staff.present? && sh.staff.shop.present? }

@@ -1919,8 +1919,8 @@ app.component('map-view-page', {
     createMarkerIcon(score) {
       let color, borderColor;
       if (score === null) {
-        color = '#888';
-        borderColor = '#aaa';
+        color = '#c8a800';
+        borderColor = '#e8d040';
       } else {
         const { r, g, b } = scoreToColor(score);
         color = `rgb(${r},${g},${b})`;

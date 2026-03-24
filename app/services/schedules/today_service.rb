@@ -5,8 +5,8 @@ module Schedules
     end
 
     def call
-      today_begin = Time.current.in_time_zone("Tokyo").beginning_of_day
-      today_end = Time.current.in_time_zone("Tokyo").end_of_day
+      today_begin = Time.current.beginning_of_day
+      today_end = Time.current.end_of_day
 
       shifts = StaffShift
         .where(start_at: today_begin..today_end)

@@ -98,7 +98,7 @@ body {
 }
 
 .btn-danger {
-  background: #e74c3c;
+  background: #d63384;
   color: #fff;
 }
 
@@ -446,7 +446,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 6px 0;
-  border-bottom: 1px solid #2a2a4a;
+  border-bottom: 1px solid #3a3a5c;
   font-size: 0.9rem;
 }
 

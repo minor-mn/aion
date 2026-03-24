@@ -1881,14 +1881,11 @@ app.component('map-view-page', {
       map: null,
       locating: true,
       shopShifts: {},
-      preferences: {}
+      nowShops: []
     };
   },
   async mounted() {
-    await this.$root.loadShops();
-    await this.$root.loadStaffs();
-    await this.loadAllShifts();
-    await this.loadPreferences();
+    await this.loadNowData();
     this.$nextTick(() => { this.initMap(); });
   },
   beforeUnmount() {
@@ -1898,24 +1895,20 @@ app.component('map-view-page', {
     }
   },
   methods: {
-    async loadAllShifts() {
-      const shops = this.$root.shops || [];
-      const now = new Date();
-      for (const shop of shops) {
-        if (!shop.latitude || !shop.longitude) continue;
-        try {
-          const data = await API.getStaffShifts(shop.id);
-          const currentShifts = (data.staff_shifts || []).filter(s => {
-            const start = new Date(s.start_at);
-            const end = new Date(s.end_at);
-            return start <= now && now <= end;
-          });
-          if (currentShifts.length > 0) {
-            this.shopShifts[shop.id] = currentShifts;
+    async loadNowData() {
+      try {
+        const data = await API.getNowSchedule();
+        const shops = data.shops || [];
+        this.nowShops = shops;
+        const shifts = {};
+        for (const shop of shops) {
+          if (shop.staffs && shop.staffs.length > 0) {
+            shifts[shop.shop_id] = shop.staffs;
           }
-        } catch (e) {
-          // skip
         }
+        this.shopShifts = shifts;
+      } catch (e) {
+        // ignore
       }
     },
     initMap() {
@@ -1930,32 +1923,14 @@ app.component('map-view-page', {
       this.addShopMarkers();
       this.getCurrentLocation();
     },
-    async loadPreferences() {
-      if (!this.$root.currentUser) return;
-      try {
-        const data = await API.getPreferences();
-        const prefs = {};
-        for (const p of (data.staff_preferences || [])) {
-          prefs[p.staff_id] = p.score;
-        }
-        this.preferences = prefs;
-      } catch (e) {
-        // ignore
-      }
-    },
     shopScore(shopId) {
       const shifts = this.shopShifts[shopId] || [];
       if (shifts.length === 0) return null;
       let total = 0;
-      let hasPreference = false;
       for (const shift of shifts) {
-        const score = this.preferences[shift.staff_id];
-        if (score !== undefined) {
-          total += score;
-          hasPreference = true;
-        }
+        total += shift.score || 0;
       }
-      return hasPreference ? total : null;
+      return total;
     },
     createMarkerIcon(score) {
       let color;
@@ -1974,30 +1949,27 @@ app.component('map-view-page', {
       });
     },
     addShopMarkers() {
-      const shops = this.$root.shops || [];
-      const staffs = this.$root.staffs || [];
+      const shops = this.nowShops || [];
       for (const shop of shops) {
         if (shop.latitude && shop.longitude) {
           const lat = parseFloat(shop.latitude);
           const lng = parseFloat(shop.longitude);
           if (!isNaN(lat) && !isNaN(lng)) {
-            const score = this.$root.currentUser ? this.shopScore(shop.id) : null;
+            const score = this.$root.currentUser ? this.shopScore(shop.shop_id) : null;
             const icon = this.createMarkerIcon(score);
             const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
-            let popupHtml = '<strong>' + this.escapeHtml(shop.name) + '</strong>';
+            let popupHtml = '<strong>' + this.escapeHtml(shop.shop_name) + '</strong>';
             if (shop.address) {
               popupHtml += '<br><span style="font-size:0.85rem;color:#a0a0b8">' + this.escapeHtml(shop.address) + '</span>';
             }
-            const shifts = this.shopShifts[shop.id] || [];
+            const shifts = shop.staffs || [];
             if (shifts.length > 0) {
               popupHtml += '<hr style="margin:4px 0;border:none;border-top:1px solid #3a3a5c">';
               popupHtml += '<div style="font-size:0.8rem;color:#e0e0e0;font-weight:bold">シフト中</div>';
               for (const shift of shifts) {
-                const staff = staffs.find(s => s.id === shift.staff_id);
-                const name = staff ? staff.name : 'Staff #' + shift.staff_id;
                 const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                 const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
+                popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
               }
             }
             popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';

@@ -36,6 +36,7 @@ Rails.application.routes.draw do
     resources :schedules, only: %i[index] do
       collection do
         get :today
+        get :now
       end
     end
 

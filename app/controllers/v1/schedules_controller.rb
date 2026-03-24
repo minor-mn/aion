@@ -16,4 +16,10 @@ class V1::SchedulesController < ApplicationController
     shops = service.call
     render json: { shops: shops }, status: :ok
   end
+
+  def now
+    service = Schedules::NowService.new(user: current_user)
+    shops = service.call
+    render json: { shops: shops }, status: :ok
+  end
 end

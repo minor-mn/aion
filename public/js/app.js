@@ -1982,7 +1982,7 @@ app.component('map-view-page', {
           this.map.setView([lat, lng], 15);
           const currentIcon = L.divIcon({
             className: 'current-location-marker',
-            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #3a3a5c;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
+            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #7ab8ff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
             iconSize: [22, 22],
             iconAnchor: [11, 11]
           });

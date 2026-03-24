@@ -1920,11 +1920,11 @@ app.component('map-view-page', {
       let color, borderColor;
       if (score === null) {
         color = '#888';
-        borderColor = '#000';
+        borderColor = '#aaa';
       } else {
         const { r, g, b } = scoreToColor(score);
         color = `rgb(${r},${g},${b})`;
-        borderColor = `rgb(${Math.max(0, r - 40)},${Math.max(0, g - 40)},${Math.max(0, b - 40)})`;
+        borderColor = `rgb(${Math.min(255, r + 60)},${Math.min(255, g + 60)},${Math.min(255, b + 60)})`;
       }
       return L.divIcon({
         className: 'shop-marker',

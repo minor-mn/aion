@@ -31,6 +31,7 @@ module Schedules
             staff_id: shift.staff_id,
             name: shift.staff.name,
             image_url: shift.staff.image_url,
+            site_url: shift.staff.site_url,
             start_at: shift.start_at.iso8601,
             end_at: shift.end_at.iso8601,
             score: pref&.score || 0

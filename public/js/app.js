@@ -265,6 +265,7 @@ const app = createApp({
       if (cell.empty) return;
       selectedDate.value = cell.dateStr;
       modalOpen.value = true;
+      document.body.classList.add('modal-open');
     }
 
     const selectedDayData = computed(() => {
@@ -305,6 +306,7 @@ const app = createApp({
     function closeModal() {
       modalOpen.value = false;
       selectedDate.value = null;
+      if (!staffScheduleOpen.value) document.body.classList.remove('modal-open');
     }
 
     // ========== Staff Schedule Modal ==========
@@ -317,6 +319,7 @@ const app = createApp({
       };
       staffScheduleShifts.value = [];
       staffScheduleOpen.value = true;
+      document.body.classList.add('modal-open');
       loadModalPreferences();
       staffScheduleLoading.value = true;
       try {
@@ -346,6 +349,7 @@ const app = createApp({
       staffScheduleOpen.value = false;
       staffScheduleStaff.value = null;
       staffScheduleShifts.value = [];
+      if (!modalOpen.value) document.body.classList.remove('modal-open');
     }
 
     async function confirmDeleteShift(shift) {
@@ -360,6 +364,7 @@ const app = createApp({
       editingShift.value = shift;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
+      document.body.classList.remove('modal-open');
       currentView.value = 'shiftEdit';
     }
 
@@ -369,6 +374,7 @@ const app = createApp({
       editingStaff.value = full || staffInfo;
       staffScheduleOpen.value = false;
       modalOpen.value = false;
+      document.body.classList.remove('modal-open');
       if (currentView.value === 'staffForm') {
         // Force re-mount when already on staffForm
         currentView.value = '';
@@ -384,6 +390,7 @@ const app = createApp({
         await API.deleteStaff(staffInfo.id);
         staffScheduleOpen.value = false;
         modalOpen.value = false;
+        document.body.classList.remove('modal-open');
         await loadStaffs();
         await loadHomeData();
       } catch (e) { /* ignore */ }
@@ -394,6 +401,7 @@ const app = createApp({
         || todayShops.value.find(s => s.id === shopInfo.id || s.id == shopInfo.id);
       editingShop.value = full || shopInfo;
       modalOpen.value = false;
+      document.body.classList.remove('modal-open');
       currentView.value = 'shopForm';
     }
 

@@ -404,6 +404,12 @@ body {
 }
 
 /* ========== Modal ========== */
+body.modal-open {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -415,6 +421,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -454,6 +461,7 @@ body {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ========== Shop Card (in modal & main list) ========== */

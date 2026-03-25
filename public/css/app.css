@@ -1151,4 +1151,5 @@ body.modal-open {
   text-align: center;
   word-break: break-all;
   line-height: 1.3;
+  white-space: pre-line;
 }

@@ -534,7 +534,13 @@ const app = createApp({
           const dayStart = new Date(y, m - 1, d, 0, 0, 0);
           const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
           if (start <= dayEnd && end >= dayStart) {
-            dayEvents.push({ id: ev.id, title: ev.title });
+            const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+            const totalDays = Math.round((endDate - startDate) / 86400000) + 1;
+            const thisDate = new Date(y, m - 1, d);
+            const dayNum = Math.round((thisDate - startDate) / 86400000) + 1;
+            const label = totalDays > 1 ? `${ev.title}\n${dayNum}日目` : ev.title;
+            dayEvents.push({ id: ev.id, title: label });
           }
         }
         cells.push({ day: d, current: true, isToday, shifts: dayShifts, events: dayEvents });

@@ -35,6 +35,34 @@ class V1::StaffsController < ApplicationController
     render json: { staff_shifts: result }, status: :ok
   end
 
+  def monthly_shifts
+    year = params[:year].to_i
+    month = params[:month].to_i
+    begin
+      start_date = Time.zone.local(year, month, 1).beginning_of_day
+      end_date = start_date.end_of_month.end_of_day
+    rescue ArgumentError
+      return render json: { error: "invalid year/month" }, status: :bad_request
+    end
+
+    shifts = StaffShift
+      .where(staff_id: params[:id])
+      .where("start_at <= ? AND end_at >= ?", end_date, start_date)
+      .order(:start_at)
+
+    result = shifts.map do |shift|
+      {
+        id: shift.id,
+        staff_id: shift.staff_id,
+        shop_id: shift.shop_id,
+        start_at: shift.start_at.iso8601,
+        end_at: shift.end_at.iso8601
+      }
+    end
+
+    render json: { staff_shifts: result }, status: :ok
+  end
+
   def create
     pp staff_params
     new_staff = Staff.new(staff_params)

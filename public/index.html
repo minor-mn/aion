@@ -235,6 +235,7 @@
                 <div class="staff-detail-actions">
                   <button class="btn btn-outline btn-sm" @click="editStaff(staffScheduleStaff)">キャスト編集</button>
                   <button class="btn btn-danger btn-sm" @click="confirmDeleteStaff(staffScheduleStaff)">キャスト削除</button>
+                  <button class="btn btn-outline btn-sm" @click="openMonthlyCalendar(staffScheduleStaff)">おきゅよて</button>
                 </div>
               </div>
               <hr class="staff-detail-divider">
@@ -258,6 +259,36 @@
                   <div v-if="currentUser" class="staff-schedule-actions">
                     <button class="btn btn-outline btn-sm" @click="editShift(shift)">編集</button>
                     <button class="btn btn-danger btn-sm" @click="confirmDeleteShift(shift)">削除</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Monthly Calendar Modal -->
+      <template v-if="monthlyCalendarOpen">
+        <div class="modal-overlay" @click="closeMonthlyCalendar">
+          <div class="modal-content monthly-calendar-modal" @click.stop>
+            <div class="modal-header">
+              <h3>{{ monthlyCalendarStaff?.name }} - おきゅよて</h3>
+              <button class="modal-close" @click="closeMonthlyCalendar">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="monthly-nav">
+                <button class="btn btn-outline btn-sm" @click="changeMonth(-1)">&lt;</button>
+                <span class="monthly-title">{{ monthlyYear }}年{{ monthlyMonth }}月</span>
+                <button class="btn btn-outline btn-sm" @click="changeMonth(1)">&gt;</button>
+              </div>
+              <div v-if="monthlyLoading" class="loading">読み込み中</div>
+              <div v-else class="monthly-grid">
+                <div class="monthly-dow" v-for="d in ['日','月','火','水','木','金','土']" :key="d">{{ d }}</div>
+                <div v-for="(cell, i) in monthlyCalendarCells" :key="i"
+                  class="monthly-cell" :class="{ 'monthly-cell-other': !cell.current, 'monthly-cell-today': cell.isToday }">
+                  <div class="monthly-day-num">{{ cell.day }}</div>
+                  <div v-for="shift in cell.shifts" :key="shift.id" class="monthly-shift-badge">
+                    {{ shift.label }}
                   </div>
                 </div>
               </div>

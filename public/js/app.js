@@ -447,6 +447,95 @@ const app = createApp({
       saveModalPreference(staffId, val);
     }
 
+    // ========== Monthly Calendar (おきゅよて) ==========
+    const monthlyCalendarOpen = ref(false);
+    const monthlyCalendarStaff = ref(null);
+    const monthlyYear = ref(new Date().getFullYear());
+    const monthlyMonth = ref(new Date().getMonth() + 1);
+    const monthlyShifts = ref([]);
+    const monthlyLoading = ref(false);
+
+    function openMonthlyCalendar(staff) {
+      monthlyCalendarStaff.value = staff;
+      monthlyYear.value = new Date().getFullYear();
+      monthlyMonth.value = new Date().getMonth() + 1;
+      monthlyCalendarOpen.value = true;
+      loadMonthlyShifts();
+    }
+
+    function closeMonthlyCalendar() {
+      monthlyCalendarOpen.value = false;
+      monthlyCalendarStaff.value = null;
+      monthlyShifts.value = [];
+    }
+
+    function changeMonth(delta) {
+      let y = monthlyYear.value;
+      let m = monthlyMonth.value + delta;
+      if (m < 1) { m = 12; y--; }
+      if (m > 12) { m = 1; y++; }
+      monthlyYear.value = y;
+      monthlyMonth.value = m;
+      loadMonthlyShifts();
+    }
+
+    async function loadMonthlyShifts() {
+      if (!monthlyCalendarStaff.value) return;
+      monthlyLoading.value = true;
+      try {
+        const data = await API.getStaffMonthlyShifts(monthlyCalendarStaff.value.id, monthlyYear.value, monthlyMonth.value);
+        monthlyShifts.value = data.staff_shifts || [];
+      } catch (e) { monthlyShifts.value = []; }
+      monthlyLoading.value = false;
+    }
+
+    const monthlyCalendarCells = computed(() => {
+      const y = monthlyYear.value;
+      const m = monthlyMonth.value;
+      const firstDay = new Date(y, m - 1, 1);
+      const lastDay = new Date(y, m, 0);
+      const startDow = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+
+      const cells = [];
+
+      // Previous month padding
+      const prevLast = new Date(y, m - 1, 0);
+      for (let i = startDow - 1; i >= 0; i--) {
+        cells.push({ day: prevLast.getDate() - i, current: false, isToday: false, shifts: [] });
+      }
+
+      // Current month
+      for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = todayStr === `${y}-${m}-${d}`;
+        const dayShifts = [];
+        for (const shift of monthlyShifts.value) {
+          const start = new Date(shift.start_at);
+          const end = new Date(shift.end_at);
+          const dayStart = new Date(y, m - 1, d, 0, 0, 0);
+          const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
+          if (start <= dayEnd && end >= dayStart) {
+            const sh = start.getHours();
+            const eh = end.getHours() || 24;
+            dayShifts.push({ id: shift.id, label: `${sh}-${eh === 24 ? 0 : eh}` });
+          }
+        }
+        cells.push({ day: d, current: true, isToday, shifts: dayShifts });
+      }
+
+      // Next month padding
+      const remainder = cells.length % 7;
+      if (remainder > 0) {
+        for (let d = 1; d <= 7 - remainder; d++) {
+          cells.push({ day: d, current: false, isToday: false, shifts: [] });
+        }
+      }
+
+      return cells;
+    });
+
     // ========== Staff name helper ==========
     function getStaffName(staffId) {
       const staff = staffs.value.find(s => s.id === staffId);
@@ -623,7 +712,10 @@ const app = createApp({
       loadScheduleData, loadTodayData,
       scoreToGradient,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
-      modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle
+      modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle,
+      monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
+      monthlyShifts, monthlyLoading, monthlyCalendarCells,
+      openMonthlyCalendar, closeMonthlyCalendar, changeMonth
     };
   }
 });

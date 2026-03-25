@@ -454,6 +454,8 @@ const app = createApp({
     const monthlyMonth = ref(new Date().getMonth() + 1);
     const monthlyShifts = ref([]);
     const monthlyLoading = ref(false);
+    const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const monthlyMonthName = computed(() => monthNames[monthlyMonth.value - 1]);
 
     function openMonthlyCalendar(staff) {
       monthlyCalendarStaff.value = staff;
@@ -714,7 +716,7 @@ const app = createApp({
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
       modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle,
       monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
-      monthlyShifts, monthlyLoading, monthlyCalendarCells,
+      monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
       openMonthlyCalendar, closeMonthlyCalendar, changeMonth
     };
   }

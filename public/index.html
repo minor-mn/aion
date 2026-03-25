@@ -272,18 +272,21 @@
         <div class="modal-overlay" @click="closeMonthlyCalendar">
           <div class="modal-content monthly-calendar-modal" @click.stop>
             <div class="modal-header">
-              <h3>{{ monthlyCalendarStaff?.name }} - おきゅよて</h3>
+              <h3>{{ monthlyCalendarStaff?.name }}</h3>
               <button class="modal-close" @click="closeMonthlyCalendar">&times;</button>
             </div>
             <div class="modal-body">
-              <div class="monthly-nav">
-                <button class="btn btn-outline btn-sm" @click="changeMonth(-1)">&lt;</button>
-                <span class="monthly-title">{{ monthlyYear }}年{{ monthlyMonth }}月</span>
-                <button class="btn btn-outline btn-sm" @click="changeMonth(1)">&gt;</button>
+              <div class="monthly-header-block">
+                <div class="monthly-header-month">{{ monthlyMonthName }}</div>
+                <div class="monthly-header-year">{{ monthlyYear }}</div>
               </div>
-              <div v-if="monthlyLoading" class="loading">読み込み中</div>
+              <div class="monthly-nav">
+                <button @click="changeMonth(-1)">&lt;</button>
+                <button @click="changeMonth(1)">&gt;</button>
+              </div>
+              <div v-if="monthlyLoading" class="loading" style="color:#fff">読み込み中</div>
               <div v-else class="monthly-grid">
-                <div class="monthly-dow" v-for="d in ['日','月','火','水','木','金','土']" :key="d">{{ d }}</div>
+                <div class="monthly-dow" v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d">{{ d }}</div>
                 <div v-for="(cell, i) in monthlyCalendarCells" :key="i"
                   class="monthly-cell" :class="{ 'monthly-cell-other': !cell.current, 'monthly-cell-today': cell.isToday }">
                   <div class="monthly-day-num">{{ cell.day }}</div>

@@ -60,7 +60,22 @@ class V1::StaffsController < ApplicationController
       }
     end
 
-    render json: { staff_shifts: result }, status: :ok
+    staff = Staff.find(params[:id])
+    events = Event
+      .where(shop_id: staff.shop_id)
+      .where("start_at <= ? AND end_at >= ?", end_date, start_date)
+      .order(:start_at)
+
+    events_result = events.map do |event|
+      {
+        id: event.id,
+        title: event.title,
+        start_at: event.start_at.iso8601,
+        end_at: event.end_at.iso8601
+      }
+    end
+
+    render json: { staff_shifts: result, events: events_result }, status: :ok
   end
 
   def create

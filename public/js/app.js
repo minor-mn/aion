@@ -453,6 +453,7 @@ const app = createApp({
     const monthlyYear = ref(new Date().getFullYear());
     const monthlyMonth = ref(new Date().getMonth() + 1);
     const monthlyShifts = ref([]);
+    const monthlyEvents = ref([]);
     const monthlyLoading = ref(false);
     const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     const monthlyMonthName = computed(() => monthNames[monthlyMonth.value - 1]);
@@ -469,6 +470,7 @@ const app = createApp({
       monthlyCalendarOpen.value = false;
       monthlyCalendarStaff.value = null;
       monthlyShifts.value = [];
+      monthlyEvents.value = [];
     }
 
     function changeMonth(delta) {
@@ -487,7 +489,8 @@ const app = createApp({
       try {
         const data = await API.getStaffMonthlyShifts(monthlyCalendarStaff.value.id, monthlyYear.value, monthlyMonth.value);
         monthlyShifts.value = data.staff_shifts || [];
-      } catch (e) { monthlyShifts.value = []; }
+        monthlyEvents.value = data.events || [];
+      } catch (e) { monthlyShifts.value = []; monthlyEvents.value = []; }
       monthlyLoading.value = false;
     }
 
@@ -524,7 +527,17 @@ const app = createApp({
             dayShifts.push({ id: shift.id, label: `${sh}-${eh === 24 ? 0 : eh}` });
           }
         }
-        cells.push({ day: d, current: true, isToday, shifts: dayShifts });
+        const dayEvents = [];
+        for (const ev of monthlyEvents.value) {
+          const start = new Date(ev.start_at);
+          const end = new Date(ev.end_at);
+          const dayStart = new Date(y, m - 1, d, 0, 0, 0);
+          const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
+          if (start <= dayEnd && end >= dayStart) {
+            dayEvents.push({ id: ev.id, title: ev.title });
+          }
+        }
+        cells.push({ day: d, current: true, isToday, shifts: dayShifts, events: dayEvents });
       }
 
       // Next month padding

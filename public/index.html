@@ -292,7 +292,7 @@
               <div v-else class="monthly-grid">
                 <div class="monthly-dow" v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d">{{ d }}</div>
                 <div v-for="(cell, i) in monthlyCalendarCells" :key="i"
-                  class="monthly-cell" :class="{ 'monthly-cell-other': !cell.current, 'monthly-cell-today': cell.isToday }">
+                  class="monthly-cell" :class="{ 'monthly-cell-other': !cell.current }">
                   <div class="monthly-day-num">{{ cell.day }}</div>
                   <div v-for="shift in cell.shifts" :key="shift.id" class="monthly-shift-badge">
                     {{ shift.label }}

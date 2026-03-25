@@ -1030,6 +1030,9 @@ body.modal-open {
 .monthly-calendar-modal {
   max-width: 95vw;
   width: 95vw;
+  resize: horizontal;
+  overflow: auto;
+  min-width: 300px;
   background: linear-gradient(180deg, #4a5a8a 0%, #7b8dbd 40%, #a0aed0 100%) !important;
   color: #fff;
   border: none !important;

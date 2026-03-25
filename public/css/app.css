@@ -1109,16 +1109,6 @@ body.modal-open {
 .monthly-cell-other {
   opacity: 0.3;
 }
-.monthly-cell-today .monthly-day-num {
-  background: rgba(255,255,255,0.35);
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
 .monthly-day-num {
   font-size: 0.8rem;
   color: #fff;

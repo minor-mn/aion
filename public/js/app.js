@@ -540,7 +540,8 @@ const app = createApp({
             const thisDate = new Date(y, m - 1, d);
             const dayNum = Math.round((thisDate - startDate) / 86400000) + 1;
             const label = totalDays > 1 ? `${ev.title}\n${dayNum}日目` : ev.title;
-            dayEvents.push({ id: ev.id, title: label });
+            const hue = (ev.id * 137) % 360;
+            dayEvents.push({ id: ev.id, title: label, color: `hsla(${hue},60%,65%,0.45)` });
           }
         }
         cells.push({ day: d, current: true, isToday, shifts: dayShifts, events: dayEvents });

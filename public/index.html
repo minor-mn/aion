@@ -293,7 +293,7 @@
                   <div v-for="shift in cell.shifts" :key="shift.id" class="monthly-shift-badge">
                     {{ shift.label }}
                   </div>
-                  <div v-for="ev in cell.events" :key="'ev'+ev.id" class="monthly-event-badge">
+                  <div v-for="ev in cell.events" :key="'ev'+ev.id" class="monthly-event-badge" :style="{ background: ev.color }">
                     {{ ev.title }}
                   </div>
                 </div>

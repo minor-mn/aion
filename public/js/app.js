@@ -2072,7 +2072,7 @@ app.component('event-form-page', {
   `,
   data() {
     return {
-      form: { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' },
+      form: { title: '', shop_id: '', url: '', startDate: '', startTime: '17:00', endDate: '', endTime: '23:00' },
       editMode: false,
       editEventId: null,
       submitting: false,
@@ -2142,7 +2142,7 @@ app.component('event-form-page', {
     cancelEdit() {
       this.editMode = false;
       this.editEventId = null;
-      this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' };
+      this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '17:00', endDate: '', endTime: '23:00' };
       this.localError = '';
       this.localSuccess = '';
     },
@@ -2175,7 +2175,7 @@ app.component('event-form-page', {
       try {
         await API.createEvent(this.buildPayload());
         this.localSuccess = 'イベントを登録しました';
-        this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' };
+        this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '17:00', endDate: '', endTime: '23:00' };
         await this.loadEvents();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '登録に失敗しました';

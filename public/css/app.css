@@ -1028,7 +1028,8 @@ body.modal-open {
 
 /* ========== Monthly Calendar (おきゅよて) ========== */
 .monthly-calendar-modal {
-  max-width: 420px;
+  max-width: 95vw;
+  width: 95vw;
   background: linear-gradient(180deg, #4a5a8a 0%, #7b8dbd 40%, #a0aed0 100%) !important;
   color: #fff;
   border: none !important;

@@ -269,8 +269,8 @@
 
       <!-- Monthly Calendar Modal -->
       <template v-if="monthlyCalendarOpen">
-        <div class="modal-overlay" @click="closeMonthlyCalendar">
-          <div class="modal-content monthly-calendar-modal" @click.stop>
+        <div class="modal-overlay" @mousedown.self="monthlyMouseDown = true" @mouseup.self="if (monthlyMouseDown) closeMonthlyCalendar(); monthlyMouseDown = false" @mouseup="monthlyMouseDown = false">
+          <div class="modal-content monthly-calendar-modal">
             <div class="modal-header">
               <h3>{{ monthlyCalendarStaff?.name }}</h3>
               <button class="modal-close" @click="closeMonthlyCalendar">&times;</button>

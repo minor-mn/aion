@@ -455,6 +455,7 @@ const app = createApp({
     const monthlyShifts = ref([]);
     const monthlyEvents = ref([]);
     const monthlyLoading = ref(false);
+    const monthlyMouseDown = ref(false);
     const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     const monthlyMonthName = computed(() => monthNames[monthlyMonth.value - 1]);
 
@@ -737,7 +738,7 @@ const app = createApp({
       modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle,
       monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
       monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
-      openMonthlyCalendar, closeMonthlyCalendar, changeMonth
+      openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown
     };
   }
 });

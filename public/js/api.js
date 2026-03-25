@@ -115,6 +115,10 @@ const API = {
     return this.request('GET', `/v1/staffs/${staffId}/upcoming_shifts`);
   },
 
+  getStaffMonthlyShifts(staffId, year, month) {
+    return this.request('GET', `/v1/staffs/${staffId}/monthly_shifts?year=${year}&month=${month}`);
+  },
+
   // Staff Shifts
   getStaffShifts(shopId) {
     return this.request('GET', `/v1/shops/${shopId}/staff_shifts`);

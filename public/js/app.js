@@ -447,6 +447,118 @@ const app = createApp({
       saveModalPreference(staffId, val);
     }
 
+    // ========== Monthly Calendar (おきゅよて) ==========
+    const monthlyCalendarOpen = ref(false);
+    const monthlyCalendarStaff = ref(null);
+    const monthlyYear = ref(new Date().getFullYear());
+    const monthlyMonth = ref(new Date().getMonth() + 1);
+    const monthlyShifts = ref([]);
+    const monthlyEvents = ref([]);
+    const monthlyLoading = ref(false);
+    const monthlyMouseDown = ref(false);
+    const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const monthlyMonthName = computed(() => monthNames[monthlyMonth.value - 1]);
+
+    function openMonthlyCalendar(staff) {
+      monthlyCalendarStaff.value = staff;
+      monthlyYear.value = new Date().getFullYear();
+      monthlyMonth.value = new Date().getMonth() + 1;
+      monthlyCalendarOpen.value = true;
+      loadMonthlyShifts();
+    }
+
+    function closeMonthlyCalendar() {
+      monthlyCalendarOpen.value = false;
+      monthlyCalendarStaff.value = null;
+      monthlyShifts.value = [];
+      monthlyEvents.value = [];
+    }
+
+    function changeMonth(delta) {
+      let y = monthlyYear.value;
+      let m = monthlyMonth.value + delta;
+      if (m < 1) { m = 12; y--; }
+      if (m > 12) { m = 1; y++; }
+      monthlyYear.value = y;
+      monthlyMonth.value = m;
+      loadMonthlyShifts();
+    }
+
+    async function loadMonthlyShifts() {
+      if (!monthlyCalendarStaff.value) return;
+      monthlyLoading.value = true;
+      try {
+        const data = await API.getStaffMonthlyShifts(monthlyCalendarStaff.value.id, monthlyYear.value, monthlyMonth.value);
+        monthlyShifts.value = data.staff_shifts || [];
+        monthlyEvents.value = data.events || [];
+      } catch (e) { monthlyShifts.value = []; monthlyEvents.value = []; }
+      monthlyLoading.value = false;
+    }
+
+    const monthlyCalendarCells = computed(() => {
+      const y = monthlyYear.value;
+      const m = monthlyMonth.value;
+      const firstDay = new Date(y, m - 1, 1);
+      const lastDay = new Date(y, m, 0);
+      const startDow = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+
+      const cells = [];
+
+      // Previous month padding
+      const prevLast = new Date(y, m - 1, 0);
+      for (let i = startDow - 1; i >= 0; i--) {
+        cells.push({ day: prevLast.getDate() - i, current: false, isToday: false, shifts: [] });
+      }
+
+      // Current month
+      for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = todayStr === `${y}-${m}-${d}`;
+        const dayShifts = [];
+        for (const shift of monthlyShifts.value) {
+          const start = new Date(shift.start_at);
+          const end = new Date(shift.end_at);
+          const dayStart = new Date(y, m - 1, d, 0, 0, 0);
+          const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
+          if (start <= dayEnd && end >= dayStart) {
+            const sh = start.getHours();
+            const eh = end.getHours() || 24;
+            dayShifts.push({ id: shift.id, label: `${sh}-${eh === 24 ? 0 : eh}` });
+          }
+        }
+        const dayEvents = [];
+        for (const ev of monthlyEvents.value) {
+          const start = new Date(ev.start_at);
+          const end = new Date(ev.end_at);
+          const dayStart = new Date(y, m - 1, d, 0, 0, 0);
+          const dayEnd = new Date(y, m - 1, d, 23, 59, 59);
+          if (start <= dayEnd && end >= dayStart) {
+            const startDate = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            const endDate = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+            const totalDays = Math.round((endDate - startDate) / 86400000) + 1;
+            const thisDate = new Date(y, m - 1, d);
+            const dayNum = Math.round((thisDate - startDate) / 86400000) + 1;
+            const label = totalDays > 1 ? `${ev.title}\n${dayNum}日目` : ev.title;
+            const hue = (ev.id * 137) % 360;
+            dayEvents.push({ id: ev.id, title: label, color: `hsla(${hue},60%,65%,0.45)` });
+          }
+        }
+        cells.push({ day: d, current: true, isToday, shifts: dayShifts, events: dayEvents });
+      }
+
+      // Next month padding
+      const remainder = cells.length % 7;
+      if (remainder > 0) {
+        for (let d = 1; d <= 7 - remainder; d++) {
+          cells.push({ day: d, current: false, isToday: false, shifts: [] });
+        }
+      }
+
+      return cells;
+    });
+
     // ========== Staff name helper ==========
     function getStaffName(staffId) {
       const staff = staffs.value.find(s => s.id === staffId);
@@ -623,7 +735,10 @@ const app = createApp({
       loadScheduleData, loadTodayData,
       scoreToGradient,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
-      modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle
+      modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle,
+      monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
+      monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
+      openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown
     };
   }
 });
@@ -1957,7 +2072,7 @@ app.component('event-form-page', {
   `,
   data() {
     return {
-      form: { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' },
+      form: { title: '', shop_id: '', url: '', startDate: '', startTime: '17:00', endDate: '', endTime: '23:00' },
       editMode: false,
       editEventId: null,
       submitting: false,
@@ -2027,7 +2142,7 @@ app.component('event-form-page', {
     cancelEdit() {
       this.editMode = false;
       this.editEventId = null;
-      this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' };
+      this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '17:00', endDate: '', endTime: '23:00' };
       this.localError = '';
       this.localSuccess = '';
     },
@@ -2060,7 +2175,7 @@ app.component('event-form-page', {
       try {
         await API.createEvent(this.buildPayload());
         this.localSuccess = 'イベントを登録しました';
-        this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '', endDate: '', endTime: '' };
+        this.form = { title: '', shop_id: '', url: '', startDate: '', startTime: '17:00', endDate: '', endTime: '23:00' };
         await this.loadEvents();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '登録に失敗しました';

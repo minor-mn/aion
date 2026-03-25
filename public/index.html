@@ -237,6 +237,11 @@
                   <button class="btn btn-danger btn-sm" @click="confirmDeleteStaff(staffScheduleStaff)">キャスト削除</button>
                 </div>
               </div>
+              <div class="staff-detail-section">
+                <div class="staff-detail-actions">
+                  <button class="btn btn-outline btn-sm" @click="openMonthlyCalendar(staffScheduleStaff)">おきゅよて</button>
+                </div>
+              </div>
               <hr class="staff-detail-divider">
               <!-- Shifts Section -->
               <div class="staff-detail-label">シフト</div>
@@ -258,6 +263,42 @@
                   <div v-if="currentUser" class="staff-schedule-actions">
                     <button class="btn btn-outline btn-sm" @click="editShift(shift)">編集</button>
                     <button class="btn btn-danger btn-sm" @click="confirmDeleteShift(shift)">削除</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Monthly Calendar Modal -->
+      <template v-if="monthlyCalendarOpen">
+        <div class="modal-overlay" @mousedown.self="monthlyMouseDown = true" @mouseup.self="if (monthlyMouseDown) closeMonthlyCalendar(); monthlyMouseDown = false" @mouseup="monthlyMouseDown = false">
+          <div class="modal-content monthly-calendar-modal">
+            <div class="modal-header">
+              <h3>{{ monthlyCalendarStaff?.name }}</h3>
+              <button class="modal-close" @click="closeMonthlyCalendar">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="monthly-header-block">
+                <div class="monthly-header-month">{{ monthlyMonthName }}</div>
+                <div class="monthly-header-year">{{ monthlyYear }}</div>
+              </div>
+              <div class="monthly-nav">
+                <button @click="changeMonth(-1)">&lt;</button>
+                <button @click="changeMonth(1)">&gt;</button>
+              </div>
+              <div v-if="monthlyLoading" class="loading" style="color:#fff">読み込み中</div>
+              <div v-else class="monthly-grid">
+                <div class="monthly-dow" v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d">{{ d }}</div>
+                <div v-for="(cell, i) in monthlyCalendarCells" :key="i"
+                  class="monthly-cell" :class="{ 'monthly-cell-other': !cell.current, 'monthly-cell-today': cell.isToday }">
+                  <div class="monthly-day-num">{{ cell.day }}</div>
+                  <div v-for="shift in cell.shifts" :key="shift.id" class="monthly-shift-badge">
+                    {{ shift.label }}
+                  </div>
+                  <div v-for="ev in cell.events" :key="'ev'+ev.id" class="monthly-event-badge" :style="{ background: ev.color }">
+                    {{ ev.title }}
                   </div>
                 </div>
               </div>

@@ -25,6 +25,7 @@ Rails.application.routes.draw do
     resources :staffs, only: %i[index create show update destroy] do
       member do
         get :upcoming_shifts
+        get :monthly_shifts
       end
     end
 

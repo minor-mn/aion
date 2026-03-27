@@ -2699,6 +2699,28 @@ app.component('map-view-page', {
       <h2>地図で見る</h2>
       <div v-if="locating" style="text-align:center;padding:16px;color:#a0a0b8">現在地を取得中...</div>
       <div id="map-view" style="height:calc(100vh - 320px);min-height:300px;border-radius:8px;border:1px solid #3a3a5c"></div>
+      <div style="margin-top:20px">
+        <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">マーカー</div>
+        <div
+          v-if="currentLocationMarker"
+          class="shop-block"
+          style="background:#1e1e38;margin-bottom:10px"
+        >
+          <div
+            class="cast-name-link"
+            style="font-size:1rem;font-weight:700;color:#f3f3ff"
+            @click="focusCurrentLocation"
+          >現在地</div>
+        </div>
+        <div v-if="!currentLocationMarker && shopsWithCoordinates.length === 0" class="no-data">表示できるマーカーはありません</div>
+        <div v-for="shop in shopsWithCoordinates" :key="shop.shop_id" class="shop-block" style="background:#1e1e38;margin-bottom:10px">
+          <div
+            class="cast-name-link"
+            style="font-size:1rem;font-weight:700;color:#f3f3ff"
+            @click="focusShop(shop.shop_id)"
+          >{{ shop.shop_name }}</div>
+        </div>
+      </div>
     </div>
   `,
   data() {
@@ -2706,19 +2728,30 @@ app.component('map-view-page', {
       map: null,
       locating: true,
       shopShifts: {},
-      nowShops: []
+      nowShops: [],
+      shopMarkers: {},
+      currentLocationMarker: null
     };
+  },
+  computed: {
+    shopsWithCoordinates() {
+      return (this.nowShops || [])
+        .filter(shop => shop.latitude && shop.longitude)
+        .slice()
+        .sort((a, b) => a.shop_id - b.shop_id);
+    }
   },
   async mounted() {
     await this.loadNowData();
     this.$nextTick(() => { this.initMap(); });
   },
-  beforeUnmount() {
-    if (this.map) {
-      this.map.remove();
-      this.map = null;
-    }
-  },
+    beforeUnmount() {
+      if (this.map) {
+        this.map.remove();
+        this.map = null;
+      }
+      this.currentLocationMarker = null;
+    },
   methods: {
     async loadNowData() {
       try {
@@ -2777,6 +2810,7 @@ app.component('map-view-page', {
     },
     addShopMarkers() {
       const shops = this.nowShops || [];
+      this.shopMarkers = {};
       for (const shop of shops) {
         if (shop.latitude && shop.longitude) {
           const lat = parseFloat(shop.latitude);
@@ -2815,9 +2849,24 @@ app.component('map-view-page', {
             }
             popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';
             marker.bindPopup(popupHtml);
+            this.shopMarkers[shop.shop_id] = marker;
           }
         }
       }
+    },
+    focusShop(shopId) {
+      if (!this.map) return;
+      const marker = this.shopMarkers[shopId];
+      if (!marker) return;
+      const latLng = marker.getLatLng();
+      this.map.setView(latLng, 16);
+      marker.openPopup();
+    },
+    focusCurrentLocation() {
+      if (!this.map || !this.currentLocationMarker) return;
+      const latLng = this.currentLocationMarker.getLatLng();
+      this.map.setView(latLng, 15);
+      this.currentLocationMarker.openPopup();
     },
     getCurrentLocation() {
       if (!navigator.geolocation) {
@@ -2841,7 +2890,7 @@ app.component('map-view-page', {
             iconSize: [22, 22],
             iconAnchor: [11, 11]
           });
-          L.marker([lat, lng], { icon: currentIcon, zIndexOffset: 1000 })
+          this.currentLocationMarker = L.marker([lat, lng], { icon: currentIcon, zIndexOffset: 1000 })
             .addTo(this.map)
             .bindPopup('現在地');
         },

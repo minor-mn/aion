@@ -1,4 +1,5 @@
 class Shop < ApplicationRecord
+  belongs_to :user, optional: true
   has_many :staffs, dependent: :destroy
   has_many :staff_shifts, dependent: :destroy
   has_many :events, dependent: :destroy

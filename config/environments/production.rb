@@ -64,8 +64,7 @@ Rails.application.configure do
     domain: ENV.fetch("SMTP_DOMAIN", "example.com"),
     enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "false") == "true"
   }
-  # When using POP before SMTP, skip SMTP authentication entirely.
-  unless ENV["POP_ADDRESS"].present?
+  if ENV["SMTP_USERNAME"].present?
     smtp_settings[:user_name] = ENV["SMTP_USERNAME"]
     smtp_settings[:password] = ENV["SMTP_PASSWORD"]
     smtp_settings[:authentication] = :plain

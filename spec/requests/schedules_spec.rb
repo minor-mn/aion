@@ -2,7 +2,7 @@
 require "rails_helper"
 
 RSpec.describe "Schedules", type: :request do
-  let!(:user) { User.create!(email: "user@example.com", password: "password") }
+  let!(:user) { User.create!(email: "user@example.com", password: "password", confirmed_at: Time.current) }
   let!(:shop) { Shop.create!(name: "Test Shop") }
   let!(:staff1) { Staff.create!(name: "Alice", shop_id: shop.id) }
   let!(:staff2) { Staff.create!(name: "Bob", shop_id: shop.id) }

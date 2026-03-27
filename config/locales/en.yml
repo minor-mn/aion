@@ -36,4 +36,5 @@ en:
     jwt_decode_error: Invalid token.
     jwt_expired: Token has expired.
     unauthorized: Unauthorized access.
+    forbidden: Forbidden.
     session_disabled: Session is disabled. Use token-based authentication.

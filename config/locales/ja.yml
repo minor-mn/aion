@@ -7,4 +7,5 @@ ja:
     jwt_decode_error: トークンが不正です。
     jwt_expired: トークンの有効期限が切れています。
     unauthorized: 認証に失敗しました。
+    forbidden: 権限がありません。
     session_disabled: セッションは無効です。トークン認証を使用してください。

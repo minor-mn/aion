@@ -1,5 +1,6 @@
 class V1::ShopsController < ApplicationController
   before_action :authenticate_user!, except: %i[index show]
+  before_action :authorize_shop_management!, only: %i[update destroy]
 
   def index
     render json: { shops: Shop.all.sort_by { |s| s.name.to_s } }
@@ -11,6 +12,7 @@ class V1::ShopsController < ApplicationController
 
   def create
     new_shop = Shop.new(shop_params)
+    new_shop.user = current_user
     if new_shop.save
       render json: new_shop, status: :created
     else
@@ -46,5 +48,11 @@ class V1::ShopsController < ApplicationController
 
   def shop_params
     params.permit(:name, :address, :latitude, :longitude, :site_url, :image_url)
+  end
+
+  def authorize_shop_management!
+    return unless shop
+
+    authorize_owner_or_operator_or_admin!(shop)
   end
 end

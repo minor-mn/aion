@@ -29,6 +29,7 @@ const app = createApp({
     const staffs = ref([]);
     const users = ref([]);
     const shopHomeShop = ref(null);
+    const shopHomeStaffs = ref([]);
     const shopHomeLoading = ref(false);
 
     // Staff schedule modal state
@@ -200,12 +201,18 @@ const app = createApp({
     async function loadShopHome(shopId) {
       shopHomeLoading.value = true;
       shopHomeShop.value = null;
+      shopHomeStaffs.value = [];
       try {
-        const data = await API.getShops();
-        const allShops = data.shops || [];
+        const [shopsData, staffsData] = await Promise.all([
+          API.getShops(),
+          API.getStaffs(shopId)
+        ]);
+        const allShops = shopsData.shops || [];
         shopHomeShop.value = allShops.find(shop => shop.id == shopId) || null;
+        shopHomeStaffs.value = staffsData.staffs || [];
       } catch (e) {
         shopHomeShop.value = null;
+        shopHomeStaffs.value = [];
       }
       shopHomeLoading.value = false;
     }
@@ -454,6 +461,16 @@ const app = createApp({
       modalOpen.value = false;
       document.body.classList.remove('modal-open');
       currentView.value = 'shopForm';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function openShopHome(shopId) {
+      modalOpen.value = false;
+      document.body.classList.remove('modal-open');
+      currentView.value = 'shopHome';
+      error.value = '';
+      success.value = '';
+      window.location.hash = `shop-${shopId}`;
     }
 
     // ========== Modal Preference ==========
@@ -799,7 +816,7 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
-      todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeLoading,
+      todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeLoading,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
       staffSchedulePage, staffSchedulePageSize,
       editingShift, editingStaff, editingShop,
@@ -808,7 +825,7 @@ const app = createApp({
       openDayModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord,
       goStaffSchedulePrev, goStaffScheduleNext,
-      editStaff, confirmDeleteStaff, editShop,
+      editStaff, confirmDeleteStaff, editShop, openShopHome,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient,
@@ -827,10 +844,158 @@ app.component('shop-home-page', {
       <div v-if="$root.shopHomeLoading" class="loading">読み込み中</div>
       <div v-else-if="!$root.shopHomeShop" class="no-data">店舗が見つかりません</div>
       <template v-else>
-        <h2>{{ $root.shopHomeShop.name }}</h2>
+        <div style="display:flex;align-items:center;gap:20px">
+          <div
+            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+          >
+            <img
+              v-if="$root.shopHomeShop.image_url"
+              :src="$root.shopHomeShop.image_url"
+              :alt="$root.shopHomeShop.name"
+              style="width:100%;height:100%;object-fit:cover;display:block"
+            >
+            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+          </div>
+          <h2 style="margin:0">{{ shop.name }}</h2>
+        </div>
+        <div v-if="shop.address || hasCoordinates" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">所在地</div>
+          <div v-if="shop.address" style="margin-bottom:16px;color:#d6d6e7;line-height:1.7">
+            {{ shop.address }}
+          </div>
+          <div
+            v-if="hasCoordinates"
+            id="shop-home-map"
+            style="height:260px;border-radius:14px;border:1px solid #3a3a5c;overflow:hidden"
+          ></div>
+        </div>
+        <div style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">登録キャスト</div>
+          <div v-if="$root.shopHomeStaffs.length === 0" class="no-data">キャストがありません</div>
+          <div v-for="staff in $root.shopHomeStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:16px">
+              <a
+                v-if="staff.site_url"
+                :href="staff.site_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="display:block;width:100px;height:100px;flex-shrink:0;text-decoration:none"
+              >
+                <img
+                  v-if="staff.image_url"
+                  :src="staff.image_url"
+                  :alt="staff.name"
+                  style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:block"
+                >
+                <div
+                  v-else
+                  style="width:100px;height:100px;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:flex;align-items:center;justify-content:center;color:#a0a0b8;font-size:0.8rem;text-align:center"
+                >no image</div>
+              </a>
+              <div v-else style="width:100px;height:100px;flex-shrink:0">
+                <img
+                  v-if="staff.image_url"
+                  :src="staff.image_url"
+                  :alt="staff.name"
+                  style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:block"
+                >
+                <div
+                  v-else
+                  style="width:100px;height:100px;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:flex;align-items:center;justify-content:center;color:#a0a0b8;font-size:0.8rem;text-align:center"
+                >no image</div>
+              </div>
+              <div style="font-size:1rem;font-weight:700;color:#f3f3ff">{{ staff.name }}</div>
+            </div>
+          </div>
+        </div>
+        <div v-if="$root.canManageOwnedRecord(shop)" style="margin-top:30px;text-align:left">
+          <div class="shop-block" style="background:#1e1e38">
+            <div style="display:flex;justify-content:center">
+              <button class="btn btn-primary" @click="$root.editShop(shop)">編集</button>
+            </div>
+          </div>
+        </div>
       </template>
     </div>
-  `
+  `,
+  data() {
+    return {
+      map: null,
+      marker: null
+    };
+  },
+  computed: {
+    shop() {
+      return this.$root.shopHomeShop;
+    },
+    hasCoordinates() {
+      if (!this.shop) return false;
+      return this.shop.latitude !== null && this.shop.latitude !== '' && this.shop.longitude !== null && this.shop.longitude !== '';
+    }
+  },
+  watch: {
+    shop() {
+      this.$nextTick(() => { this.renderMap(); });
+    }
+  },
+  mounted() {
+    this.$nextTick(() => { this.renderMap(); });
+  },
+  beforeUnmount() {
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+      this.marker = null;
+    }
+  },
+  methods: {
+    renderMap() {
+      if (!this.hasCoordinates || !window.L) {
+        if (this.map) {
+          this.map.remove();
+          this.map = null;
+          this.marker = null;
+        }
+        return;
+      }
+
+      const mapEl = document.getElementById('shop-home-map');
+      if (!mapEl) return;
+
+      const lat = parseFloat(this.shop.latitude);
+      const lng = parseFloat(this.shop.longitude);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+      if (this.map) {
+        this.map.setView([lat, lng], 16);
+        if (this.marker) {
+          this.marker.setLatLng([lat, lng]);
+        } else {
+          this.marker = L.marker([lat, lng]).addTo(this.map);
+        }
+        return;
+      }
+
+      this.map = L.map('shop-home-map', {
+        zoomControl: false,
+        dragging: false,
+        scrollWheelZoom: false,
+        doubleClickZoom: false,
+        boxZoom: false,
+        keyboard: false,
+        tap: false,
+        touchZoom: false
+      }).setView([lat, lng], 16);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(this.map);
+
+      this.marker = L.marker([lat, lng]).addTo(this.map);
+    }
+  }
 });
 
 // ========== Login Component ==========
@@ -1049,7 +1214,7 @@ app.component('shop-form-page', {
             削除
           </button>
           <button class="btn btn-secondary" @click="cancelEdit" style="flex:1">
-            キャンセル
+            新規登録へ
           </button>
         </template>
         <template v-else>
@@ -1242,6 +1407,7 @@ app.component('shop-form-page', {
       }
       this.localError = '';
       this.localSuccess = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async createShop() {
       if (!this.form.name) {

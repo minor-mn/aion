@@ -30,6 +30,7 @@ const app = createApp({
     const users = ref([]);
     const shopHomeShop = ref(null);
     const shopHomeStaffs = ref([]);
+    const shopHomeEvents = ref([]);
     const shopHomeLoading = ref(false);
 
     // Staff schedule modal state
@@ -202,17 +203,22 @@ const app = createApp({
       shopHomeLoading.value = true;
       shopHomeShop.value = null;
       shopHomeStaffs.value = [];
+      shopHomeEvents.value = [];
       try {
-        const [shopsData, staffsData] = await Promise.all([
+        const now = new Date();
+        const [shopsData, staffsData, monthlyData] = await Promise.all([
           API.getShops(),
-          API.getStaffs(shopId)
+          API.getStaffs(shopId),
+          API.getShopMonthlyShifts(shopId, now.getFullYear(), now.getMonth() + 1)
         ]);
         const allShops = shopsData.shops || [];
         shopHomeShop.value = allShops.find(shop => shop.id == shopId) || null;
         shopHomeStaffs.value = staffsData.staffs || [];
+        shopHomeEvents.value = monthlyData.events || [];
       } catch (e) {
         shopHomeShop.value = null;
         shopHomeStaffs.value = [];
+        shopHomeEvents.value = [];
       }
       shopHomeLoading.value = false;
     }
@@ -645,6 +651,25 @@ const app = createApp({
       return staff ? staff.name : `Staff #${staffId}`;
     }
 
+    function formatEventTimeRange(startAt, endAt) {
+      if (!startAt) return '';
+      const start = new Date(startAt);
+      const end = endAt ? new Date(endAt) : null;
+      if (!end) {
+        return start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+      }
+
+      const durationMs = end.getTime() - start.getTime();
+      if (durationMs > 24 * 60 * 60 * 1000) {
+        const days = ['日', '月', '火', '水', '木', '金', '土'];
+        const startLabel = `${start.getMonth() + 1}月${start.getDate()}日(${days[start.getDay()]}) ${start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
+        const endLabel = `${end.getMonth() + 1}月${end.getDate()}日(${days[end.getDay()]}) ${end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
+        return `${startLabel} 〜 ${endLabel}`;
+      }
+
+      return `${start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} 〜 ${end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
     // ========== Navigation ==========
     const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
 
@@ -816,7 +841,7 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
-      todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeLoading,
+      todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
       staffSchedulePage, staffSchedulePageSize,
       editingShift, editingStaff, editingShop,
@@ -828,7 +853,7 @@ const app = createApp({
       editStaff, confirmDeleteStaff, editShop, openShopHome,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
       loadScheduleData, loadTodayData,
-      scoreToGradient,
+      scoreToGradient, formatEventTimeRange,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
       modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle,
       monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
@@ -844,7 +869,27 @@ app.component('shop-home-page', {
       <div v-if="$root.shopHomeLoading" class="loading">読み込み中</div>
       <div v-else-if="!$root.shopHomeShop" class="no-data">店舗が見つかりません</div>
       <template v-else>
-        <div style="display:flex;align-items:center;gap:20px">
+        <a
+          v-if="shop.site_url"
+          :href="shop.site_url"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="display:flex;align-items:center;gap:20px;text-decoration:none"
+        >
+          <div
+            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+          >
+            <img
+              v-if="$root.shopHomeShop.image_url"
+              :src="$root.shopHomeShop.image_url"
+              :alt="$root.shopHomeShop.name"
+              style="width:100%;height:100%;object-fit:cover;display:block"
+            >
+            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+          </div>
+          <h2 style="margin:0;color:#f3f3ff">{{ shop.name }}</h2>
+        </a>
+        <div v-else style="display:flex;align-items:center;gap:20px">
           <div
             style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
           >
@@ -869,8 +914,44 @@ app.component('shop-home-page', {
             style="height:260px;border-radius:14px;border:1px solid #3a3a5c;overflow:hidden"
           ></div>
         </div>
+        <div class="calendar-section" style="margin-top:30px">
+          <div class="calendar-header">
+            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <h2>{{ calendarTitle }}</h2>
+            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+          </div>
+          <div v-if="calendarLoading" class="loading">読み込み中</div>
+          <div v-else class="calendar-grid">
+            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+            <div
+              v-for="(cell, idx) in calendarDays"
+              :key="idx"
+              class="calendar-cell"
+              :class="{ empty: cell.empty }"
+              style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px;cursor:default;text-align:center"
+            >
+              <template v-if="!cell.empty">
+                <div
+                  class="date-num"
+                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                >{{ cell.day }}</div>
+                <div v-if="cell.label" class="shop-home-calendar-label">{{ cell.label }}</div>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div v-if="$root.shopHomeEvents.length > 0" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">イベント</div>
+          <div v-for="event in $root.shopHomeEvents" :key="event.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
+            <div style="font-size:1rem;font-weight:700;color:#f3f3ff;margin-bottom:6px">
+              <a v-if="event.url" :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#f3f3ff;text-decoration:none">{{ event.title }}</a>
+              <template v-else>{{ event.title }}</template>
+            </div>
+            <div style="font-size:0.85rem;color:#d6d6e7;line-height:1.6">{{ formatEventRange(event.start_at, event.end_at) }}</div>
+          </div>
+        </div>
         <div style="margin-top:30px;text-align:left">
-          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">登録キャスト</div>
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">キャスト</div>
           <div v-if="$root.shopHomeStaffs.length === 0" class="no-data">キャストがありません</div>
           <div v-for="staff in $root.shopHomeStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
             <div style="display:flex;align-items:center;gap:16px">
@@ -925,7 +1006,11 @@ app.component('shop-home-page', {
   data() {
     return {
       map: null,
-      marker: null
+      marker: null,
+      calendarYear: new Date().getFullYear(),
+      calendarMonth: new Date().getMonth(),
+      calendarDaysData: [],
+      calendarLoading: false
     };
   },
   computed: {
@@ -935,15 +1020,65 @@ app.component('shop-home-page', {
     hasCoordinates() {
       if (!this.shop) return false;
       return this.shop.latitude !== null && this.shop.latitude !== '' && this.shop.longitude !== null && this.shop.longitude !== '';
+    },
+    calendarTitle() {
+      return `${this.calendarYear}年${this.calendarMonth + 1}月`;
+    },
+    calendarDays() {
+      const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
+      const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const dayMap = {};
+      const eventDates = new Set();
+      for (const day of this.calendarDaysData) {
+        dayMap[day.date] = day;
+      }
+      for (const event of this.$root.shopHomeEvents) {
+        const current = new Date(event.start_at);
+        const last = new Date(event.end_at);
+        current.setHours(0, 0, 0, 0);
+        last.setHours(0, 0, 0, 0);
+
+        while (current <= last) {
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          eventDates.add(dateStr);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) {
+        cells.push({ empty: true });
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        cells.push({
+          empty: false,
+          day,
+          label: dayMap[dateStr]?.label || '',
+          hasEvent: eventDates.has(dateStr)
+        });
+      }
+
+      return cells;
     }
   },
   watch: {
     shop() {
-      this.$nextTick(() => { this.renderMap(); });
+      const today = new Date();
+      this.calendarYear = today.getFullYear();
+      this.calendarMonth = today.getMonth();
+      this.$nextTick(() => {
+        this.renderMap();
+        this.loadCalendarData();
+      });
     }
   },
   mounted() {
-    this.$nextTick(() => { this.renderMap(); });
+    this.$nextTick(() => {
+      this.renderMap();
+      this.loadCalendarData();
+    });
   },
   beforeUnmount() {
     if (this.map) {
@@ -953,6 +1088,48 @@ app.component('shop-home-page', {
     }
   },
   methods: {
+    formatEventRange(startAt, endAt) {
+      const start = new Date(startAt);
+      const end = new Date(endAt);
+      const startLabel = `${start.getMonth() + 1}月${start.getDate()}日(${['日','月','火','水','木','金','土'][start.getDay()]}) ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+      const endLabel = `${end.getMonth() + 1}月${end.getDate()}日(${['日','月','火','水','木','金','土'][end.getDay()]}) ${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+      return `${startLabel} 〜 ${endLabel}`;
+    },
+    async loadCalendarData() {
+      if (!this.shop?.id) {
+        this.calendarDaysData = [];
+        return;
+      }
+
+      this.calendarLoading = true;
+      try {
+        const data = await API.getShopMonthlyShifts(this.shop.id, this.calendarYear, this.calendarMonth + 1);
+        this.calendarDaysData = data.days || [];
+        this.$root.shopHomeEvents = data.events || [];
+      } catch (e) {
+        this.calendarDaysData = [];
+        this.$root.shopHomeEvents = [];
+      }
+      this.calendarLoading = false;
+    },
+    async prevMonth() {
+      if (this.calendarMonth === 0) {
+        this.calendarMonth = 11;
+        this.calendarYear -= 1;
+      } else {
+        this.calendarMonth -= 1;
+      }
+      await this.loadCalendarData();
+    },
+    async nextMonth() {
+      if (this.calendarMonth === 11) {
+        this.calendarMonth = 0;
+        this.calendarYear += 1;
+      } else {
+        this.calendarMonth += 1;
+      }
+      await this.loadCalendarData();
+    },
     renderMap() {
       if (!this.hasCoordinates || !window.L) {
         if (this.map) {

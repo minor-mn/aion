@@ -53,6 +53,62 @@ RSpec.describe "Shops", type: :request do
     end
   end
 
+  describe "GET /v1/shops/:id/monthly_shifts" do
+    let!(:shop) { Shop.create!(name: "Target Shop") }
+    let!(:staff1) { Staff.create!(name: "Alice", shop: shop) }
+    let!(:staff2) { Staff.create!(name: "Bob", shop: shop) }
+    let!(:shift1) do
+      StaffShift.create!(
+        staff: staff1,
+        shop_id: shop.id,
+        start_at: Time.zone.parse("2026-03-15 17:00"),
+        end_at: Time.zone.parse("2026-03-15 23:00")
+      )
+    end
+    let!(:shift2) do
+      StaffShift.create!(
+        staff: staff2,
+        shop_id: shop.id,
+        start_at: Time.zone.parse("2026-03-15 12:00"),
+        end_at: Time.zone.parse("2026-03-16 05:00")
+      )
+    end
+    let!(:event) do
+      Event.create!(
+        shop: shop,
+        title: "Spring Event",
+        url: "https://example.com/events/spring",
+        start_at: Time.zone.parse("2026-03-20 18:00"),
+        end_at: Time.zone.parse("2026-03-20 23:00")
+      )
+    end
+
+    it "returns the aggregated daily range for the month" do
+      get "/v1/shops/#{shop.id}/monthly_shifts", params: { year: 2026, month: 3 }
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body["days"]).to eq([
+        {
+          "date" => "2026-03-15",
+          "start_at" => "2026-03-15T12:00:00.000+09:00",
+          "end_at" => "2026-03-16T05:00:00.000+09:00",
+          "label" => "12:00\n05:00"
+        }
+      ])
+      expect(body["events"]).to eq([
+        {
+          "id" => event.id,
+          "user_id" => nil,
+          "title" => "Spring Event",
+          "url" => "https://example.com/events/spring",
+          "start_at" => "2026-03-20T18:00:00.000+09:00",
+          "end_at" => "2026-03-20T23:00:00.000+09:00"
+        }
+      ])
+    end
+  end
+
   describe "PATCH /v1/shops/:id" do
     let!(:shop) { Shop.create!(name: "Old Name", user: basic_user) }
 

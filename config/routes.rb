@@ -19,7 +19,11 @@ Rails.application.routes.draw do
     end
 
     # shops
-    resources :shops, only: %i[index create show update destroy]
+    resources :shops, only: %i[index create show update destroy] do
+      member do
+        get :monthly_shifts
+      end
+    end
 
     # staffs
     resources :staffs, only: %i[index create show update destroy] do

@@ -173,11 +173,8 @@
                     <template v-if="ev.url"><a :href="ev.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe;text-decoration:none">{{ ev.title }}</a></template>
                     <template v-else>{{ ev.title }}</template>
                   </div>
-                  <div style="font-size:0.8rem;color:#a0a0b8">{{ ev.shop_name }}</div>
-                  <div v-if="ev.start_at" style="font-size:0.8rem;color:#a0a0b8">
-                    {{ new Date(ev.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
-                    <template v-if="ev.end_at"> 〜 {{ new Date(ev.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}</template>
-                  </div>
+                  <div class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click.stop="openShopHome(ev.shop_id)">{{ ev.shop_name }}</div>
+                  <div v-if="ev.start_at" style="font-size:0.8rem;color:#a0a0b8">{{ formatEventTimeRange(ev.start_at, ev.end_at) }}</div>
                 </div>
               </div>
               <!-- Shifts for this day -->

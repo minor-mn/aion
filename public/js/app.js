@@ -904,7 +904,11 @@ app.component('shop-home-page', {
                   style="width:100px;height:100px;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:flex;align-items:center;justify-content:center;color:#a0a0b8;font-size:0.8rem;text-align:center"
                 >no image</div>
               </div>
-              <div style="font-size:1rem;font-weight:700;color:#f3f3ff">{{ staff.name }}</div>
+              <div
+                class="cast-name-link"
+                style="font-size:1rem;font-weight:700;color:#f3f3ff"
+                @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id, staff.image_url, staff.site_url)"
+              >{{ staff.name }}</div>
             </div>
           </div>
         </div>

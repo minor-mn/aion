@@ -1,5 +1,5 @@
 const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
-const DEFAULT_PAGE_SIZE = 1;
+const DEFAULT_PAGE_SIZE = 10;
 
 const app = createApp({
   setup() {

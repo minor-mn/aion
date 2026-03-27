@@ -13,7 +13,10 @@ class V1::UsersController < ApplicationController
   end
 
   def update
-    if @user.update(user_params)
+    @user.assign_attributes(profile_params)
+    assign_role_param
+
+    if @user.save
       render json: {
         user: @user.as_json(only: %i[id email nickname role confirmed_at created_at updated_at])
       }, status: :ok
@@ -41,7 +44,15 @@ class V1::UsersController < ApplicationController
     @user = User.find(params[:id])
   end
 
-  def user_params
-    params.permit(:nickname, :role)
+  def profile_params
+    params.permit(:nickname)
+  end
+
+  def assign_role_param
+    return unless params.key?(:role)
+    return if params[:role].blank?
+    return unless User.roles.key?(params[:role])
+
+    @user.role = params[:role]
   end
 end

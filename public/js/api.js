@@ -93,6 +93,10 @@ const API = {
     return this.request('DELETE', `/v1/shops/${id}`);
   },
 
+  getShopMonthlyShifts(shopId, year, month) {
+    return this.request('GET', `/v1/shops/${shopId}/monthly_shifts?year=${year}&month=${month}`);
+  },
+
   // Staffs
   getStaffs(shopId = null) {
     const query = shopId ? `?shop_id=${shopId}` : '';

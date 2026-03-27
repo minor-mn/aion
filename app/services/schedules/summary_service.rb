@@ -39,7 +39,18 @@ module Schedules
         datetime_begin, datetime_end, datetime_begin, datetime_end, datetime_begin, datetime_end)
         .includes(:shop)
 
-      events_by_date = events.group_by { |e| (e.start_at || e.created_at).to_date }
+      events_by_date = Hash.new { |hash, key| hash[key] = [] }
+      events.each do |event|
+        start_time = event.start_at || event.created_at
+        end_time = event.end_at || start_time
+        current_date = start_time.to_date
+        last_date = end_time.to_date
+
+        while current_date <= last_date
+          events_by_date[current_date] << event
+          current_date += 1.day
+        end
+      end
 
       # Collect all dates that have shifts or events
       all_dates = (group_by_date.keys + events_by_date.keys).uniq

@@ -8,4 +8,6 @@ ja:
     jwt_expired: トークンの有効期限が切れています。
     unauthorized: 認証に失敗しました。
     forbidden: 権限がありません。
+    cannot_delete_self: 自分自身のユーザーは削除できません。
+    cannot_delete_last_admin: 最後の管理者ユーザーは削除できません。
     session_disabled: セッションは無効です。トークン認証を使用してください。

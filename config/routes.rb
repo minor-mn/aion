@@ -50,5 +50,8 @@ Rails.application.routes.draw do
 
     # action_logs
     resources :action_logs, only: %i[index]
+
+    # users
+    resources :users, only: %i[index update destroy]
   end
 end

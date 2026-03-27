@@ -1,4 +1,6 @@
 class V1::StaffsController < ApplicationController
+  include Paginatable
+
   before_action :authenticate_user!, only: %i[create update destroy]
   before_action :validate_shop_id, only: %i[create]
   before_action :authorize_staff_management!, only: %i[update destroy]
@@ -19,7 +21,8 @@ class V1::StaffsController < ApplicationController
       .where("start_at >= ?", now)
       .includes(staff: :shop)
       .order(:start_at)
-      .limit(30)
+      .limit(pagination_limit)
+      .offset(pagination_offset)
 
     result = shifts.map do |shift|
       {

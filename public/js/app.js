@@ -1,4 +1,5 @@
 const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
+const DEFAULT_PAGE_SIZE = 1;
 
 const app = createApp({
   setup() {
@@ -26,12 +27,15 @@ const app = createApp({
     // Form data
     const shops = ref([]);
     const staffs = ref([]);
+    const users = ref([]);
 
     // Staff schedule modal state
     const staffScheduleOpen = ref(false);
     const staffScheduleStaff = ref(null);
     const staffScheduleShifts = ref([]);
     const staffScheduleLoading = ref(false);
+    const staffSchedulePage = ref(1);
+    const staffSchedulePageSize = ref(DEFAULT_PAGE_SIZE);
 
     // Shift edit state
     const editingShift = ref(null);
@@ -65,7 +69,7 @@ const app = createApp({
       const payload = decodeJwtPayload(API.token);
       if (payload) {
         currentUser.value = {
-          id: payload.sub,
+          id: Number(payload.sub),
           nickname: payload.nickname || '',
           email: payload.email || '',
           role: payload.role || 'user'
@@ -85,7 +89,7 @@ const app = createApp({
         const payload = decodeJwtPayload(API.token);
         if (payload) {
           currentUser.value = {
-            id: payload.sub,
+            id: Number(payload.sub),
             nickname: payload.nickname || '',
             email: payload.email || '',
             role: payload.role || 'user'
@@ -179,6 +183,15 @@ const app = createApp({
         staffs.value = data.staffs || [];
       } catch (e) {
         // ignore
+      }
+    }
+
+    async function loadUsers(page = 1, size = DEFAULT_PAGE_SIZE) {
+      try {
+        const data = await API.getUsers(page, size);
+        users.value = data.users || [];
+      } catch (e) {
+        users.value = [];
       }
     }
 
@@ -316,6 +329,26 @@ const app = createApp({
     }
 
     // ========== Staff Schedule Modal ==========
+    async function loadStaffScheduleShifts(page = 1) {
+      if (!staffScheduleStaff.value?.id) {
+        staffScheduleShifts.value = [];
+        return;
+      }
+      staffSchedulePage.value = page;
+      staffScheduleLoading.value = true;
+      try {
+        const data = await API.getStaffUpcomingShifts(
+          staffScheduleStaff.value.id,
+          staffSchedulePage.value,
+          staffSchedulePageSize.value
+        );
+        staffScheduleShifts.value = data.staff_shifts || [];
+      } catch (e) {
+        staffScheduleShifts.value = [];
+      }
+      staffScheduleLoading.value = false;
+    }
+
     async function openStaffSchedule(staffId, staffName, shopId, imageUrl, siteUrl) {
       const fullStaff = staffs.value.find(st => st.id === staffId || st.id == staffId);
       staffScheduleStaff.value = {
@@ -324,22 +357,19 @@ const app = createApp({
         image_url: imageUrl || fullStaff?.image_url || '',
         site_url: siteUrl || fullStaff?.site_url || ''
       };
+      staffSchedulePage.value = 1;
       staffScheduleShifts.value = [];
       staffScheduleOpen.value = true;
       document.body.classList.add('modal-open');
       loadModalPreferences();
-      staffScheduleLoading.value = true;
-      try {
-        const data = await API.getStaffUpcomingShifts(staffId);
-        staffScheduleShifts.value = (data.staff_shifts || []);
-      } catch (e) { /* ignore */ }
-      staffScheduleLoading.value = false;
+      await loadStaffScheduleShifts(1);
     }
 
     function closeStaffSchedule() {
       staffScheduleOpen.value = false;
       staffScheduleStaff.value = null;
       staffScheduleShifts.value = [];
+      staffSchedulePage.value = 1;
       if (!modalOpen.value) document.body.classList.remove('modal-open');
     }
 
@@ -347,8 +377,17 @@ const app = createApp({
       if (!confirm('このシフトを削除しますか？')) return;
       try {
         await API.deleteStaffShift(shift._shop_id, shift.id);
-        staffScheduleShifts.value = staffScheduleShifts.value.filter(s => s.id !== shift.id);
+        await loadStaffScheduleShifts(staffSchedulePage.value);
       } catch (e) { /* ignore */ }
+    }
+
+    async function goStaffSchedulePrev() {
+      if (staffSchedulePage.value <= 1) return;
+      await loadStaffScheduleShifts(staffSchedulePage.value - 1);
+    }
+
+    async function goStaffScheduleNext() {
+      await loadStaffScheduleShifts(staffSchedulePage.value + 1);
     }
 
     function editShift(shift) {
@@ -575,20 +614,20 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage', 'eventForm'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
 
     // Mapping between hash fragments and view names
     const hashToView = {
       '': 'home', 'home': 'home',
       'map': 'mapView', 'login': 'login', 'register': 'register',
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
-      'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm',
+      'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm',
       'events': 'eventForm'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
-      'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts',
+      'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts',
       'eventForm': 'events'
     };
 
@@ -615,9 +654,6 @@ const app = createApp({
         }
       }
       if (view === 'home') loadHomeData();
-      if (view === 'shopForm') loadShops();
-      if (view === 'staffForm') { loadShops(); loadStaffs(); }
-      if (view === 'shiftForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftEdit') { loadShops(); }
       if (view === 'mapView') { loadShops(); }
       if (view === 'eventForm') { loadShops(); }
@@ -732,15 +768,17 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
-      todayShops, todayShifts, todayEvents, shops, staffs,
+      todayShops, todayShifts, todayEvents, shops, staffs, users,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
+      staffSchedulePage, staffSchedulePageSize,
       editingShift, editingStaff, editingShop,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord,
+      goStaffSchedulePrev, goStaffScheduleNext,
       editStaff, confirmDeleteStaff, editShop,
-      getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
+      getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
@@ -1233,6 +1271,144 @@ app.component('shop-form-page', {
   }
 });
 
+app.component('user-list-page', {
+  template: `
+    <div class="register-container">
+      <h2>ユーザー管理</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+
+      <h3 style="margin-bottom:12px">{{ editMode ? 'ユーザー編集' : 'ユーザー管理' }}</h3>
+      <div class="form-group" v-if="editMode">
+        <label>メールアドレス</label>
+        <input v-model="form.email" type="email" disabled>
+      </div>
+      <div class="form-group">
+        <label>ニックネーム</label>
+        <input v-model="form.nickname" type="text" placeholder="ニックネーム">
+      </div>
+      <div class="form-group">
+        <label>ロール</label>
+        <select v-model="form.role">
+          <option value="admin">admin</option>
+          <option value="operator">operator</option>
+          <option value="user">user</option>
+        </select>
+      </div>
+      <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
+        <template v-if="editMode">
+          <button class="btn btn-primary" @click="updateUser" :disabled="submitting">
+            {{ submitting ? '更新中...' : '更新' }}
+          </button>
+        </template>
+      </div>
+
+      <h3 style="margin-bottom:12px">登録済みユーザー</h3>
+      <div v-if="$root.users.length === 0" class="no-data">ユーザーがありません</div>
+      <div v-for="user in $root.users" :key="user.id" class="shop-block" style="background:#1e1e38">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div class="shop-block-name">{{ user.nickname || 'ニックネーム未設定' }}</div>
+            <div style="font-size:0.8rem;color:#a0a0b8">{{ user.email }}</div>
+            <div style="font-size:0.8rem;color:#a0a0b8">role: {{ user.role }}</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" @click="editExistingUser(user)">編集</button>
+            <button v-if="user.id !== $root.currentUser.id" class="btn btn-danger btn-sm" @click="deleteUserWithConfirm(user)">削除</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px" v-if="showPrev || showNext">
+        <button v-if="showPrev" class="btn btn-secondary btn-sm" @click="goPrev">prev</button>
+        <div v-else></div>
+        <button v-if="showNext" class="btn btn-secondary btn-sm" @click="goNext">next</button>
+      </div>
+    </div>
+  `,
+  data() {
+    return {
+      form: { email: '', nickname: '', role: 'user' },
+      editMode: false,
+      editUserId: null,
+      currentPage: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
+      submitting: false,
+      localError: '',
+      localSuccess: ''
+    };
+  },
+  computed: {
+    showPrev() {
+      return this.currentPage > 1;
+    },
+    showNext() {
+      return this.$root.users.length === this.pageSize;
+    }
+  },
+  async mounted() {
+    await this.$root.loadUsers(this.currentPage, this.pageSize);
+  },
+  methods: {
+    editExistingUser(user) {
+      this.editMode = true;
+      this.editUserId = user.id;
+      this.form = {
+        email: user.email || '',
+        nickname: user.nickname || '',
+        role: user.role
+      };
+      this.localError = '';
+      this.localSuccess = '';
+    },
+    cancelEdit() {
+      this.editMode = false;
+      this.editUserId = null;
+      this.form = { email: '', nickname: '', role: 'user' };
+      this.localError = '';
+      this.localSuccess = '';
+    },
+    async updateUser() {
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        await API.updateUser(this.editUserId, this.form);
+        this.localSuccess = '更新しました';
+        this.cancelEdit();
+        this.localSuccess = '更新しました';
+        await this.$root.loadUsers(this.currentPage, this.pageSize);
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || e.data?.error || '更新に失敗しました';
+      }
+      this.submitting = false;
+    },
+    async deleteUserWithConfirm(user) {
+      if (!confirm('削除しますか？')) return;
+      this.submitting = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        await API.deleteUser(user.id);
+        this.localSuccess = '削除しました';
+        if (this.editUserId === user.id) this.cancelEdit();
+        await this.$root.loadUsers(this.currentPage, this.pageSize);
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || e.data?.error || '削除に失敗しました';
+      }
+      this.submitting = false;
+    },
+    async goPrev() {
+      if (this.currentPage <= 1) return;
+      this.currentPage -= 1;
+      await this.$root.loadUsers(this.currentPage, this.pageSize);
+    },
+    async goNext() {
+      this.currentPage += 1;
+      await this.$root.loadUsers(this.currentPage, this.pageSize);
+    }
+  }
+});
+
 // ========== Staff Form Component ==========
 app.component('staff-form-page', {
   template: `
@@ -1460,7 +1636,7 @@ app.component('staff-form-page', {
 app.component('shift-form-page', {
   template: `
     <div class="register-container">
-      <h2>シフト登録</h2>
+      <h2>シフト管理</h2>
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 
@@ -1474,7 +1650,7 @@ app.component('shift-form-page', {
 
       <div class="form-group">
         <label>キャスト *</label>
-        <select v-model="selectedStaffId" :disabled="!selectedShopId">
+        <select v-model="selectedStaffId" :disabled="!selectedShopId" @change="onStaffChange">
           <option value="">選択してください</option>
           <option v-for="staff in filteredStaffs" :key="staff.id" :value="staff.id">{{ staff.name }}</option>
         </select>
@@ -1512,6 +1688,35 @@ app.component('shift-form-page', {
             {{ submitting ? '登録中...' : 'シフトを登録' }}
           </button>
         </div>
+
+        <hr class="staff-detail-divider">
+        <div class="staff-detail-label">シフト</div>
+        <div v-if="existingShiftsLoading" class="loading">読み込み中</div>
+        <div v-else-if="existingShifts.length === 0" class="no-data">今日以降のシフトはありません</div>
+        <div v-else>
+          <div v-for="shift in existingShifts" :key="shift.id" class="staff-schedule-item">
+            <div class="staff-schedule-info">
+              <div class="staff-schedule-date">
+                {{ new Date(shift.start_at).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric',weekday:'short'}) }}
+              </div>
+              <div class="staff-schedule-time">
+                {{ new Date(shift.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                〜
+                {{ new Date(shift.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+              </div>
+              <div class="staff-schedule-shop">{{ shift._shop_name }}</div>
+            </div>
+            <div v-if="$root.canManageOwnedRecord(shift)" class="staff-schedule-actions">
+              <button class="btn btn-outline btn-sm" @click="$root.editShift(shift)">編集</button>
+              <button class="btn btn-danger btn-sm" @click="deleteExistingShift(shift)">削除</button>
+            </div>
+          </div>
+          <div v-if="showPrev || showNext" style="display:flex;justify-content:space-between;margin-top:16px">
+            <button v-if="showPrev" class="btn btn-secondary btn-sm" @click="goPrev">prev</button>
+            <div v-else></div>
+            <button v-if="showNext" class="btn btn-secondary btn-sm" @click="goNext">next</button>
+          </div>
+        </div>
       </template>
     </div>
   `,
@@ -1522,6 +1727,10 @@ app.component('shift-form-page', {
       selectedShopId: '',
       selectedStaffId: '',
       entries: [{ date: dateStr, startTime: '17:00', endTime: '23:00' }],
+      existingShifts: [],
+      existingShiftsLoading: false,
+      existingShiftsPage: 1,
+      existingShiftsPageSize: DEFAULT_PAGE_SIZE,
       submitting: false,
       localError: '',
       localSuccess: ''
@@ -1531,6 +1740,12 @@ app.component('shift-form-page', {
     filteredStaffs() {
       if (!this.selectedShopId) return [];
       return this.$root.staffs.filter(s => s.shop_id == this.selectedShopId);
+    },
+    showPrev() {
+      return this.existingShiftsPage > 1;
+    },
+    showNext() {
+      return this.existingShifts.length === this.existingShiftsPageSize;
     }
   },
   async mounted() {
@@ -1561,6 +1776,11 @@ app.component('shift-form-page', {
     },
     onShopChange() {
       this.selectedStaffId = '';
+      this.existingShiftsPage = 1;
+      this.existingShifts = [];
+    },
+    async onStaffChange() {
+      await this.loadExistingShifts(1);
     },
     buildDatetime(date, time, isNextDay) {
       const dt = new Date(`${date}T${time}:00`);
@@ -1611,10 +1831,47 @@ app.component('shift-form-page', {
           ? `${successCount}件のシフトを登録しました（${skipped}件は時間重複のためスキップ）`
           : `${successCount}件のシフトを登録しました`;
         this.entries = [this.newEntry()];
+        await this.loadExistingShifts(this.existingShiftsPage);
       } else if (errors.length > 0) {
         this.localError = '登録できるシフトがありませんでした（時間帯が重複しています）';
       }
       this.submitting = false;
+    },
+    async loadExistingShifts(page = 1) {
+      if (!this.selectedStaffId) {
+        this.existingShifts = [];
+        return;
+      }
+
+      this.existingShiftsPage = page;
+      this.existingShiftsLoading = true;
+      try {
+        const data = await API.getStaffUpcomingShifts(
+          this.selectedStaffId,
+          this.existingShiftsPage,
+          this.existingShiftsPageSize
+        );
+        this.existingShifts = data.staff_shifts || [];
+      } catch (e) {
+        this.existingShifts = [];
+      }
+      this.existingShiftsLoading = false;
+    },
+    async deleteExistingShift(shift) {
+      if (!confirm('このシフトを削除しますか？')) return;
+      try {
+        await API.deleteStaffShift(shift._shop_id, shift.id);
+        await this.loadExistingShifts(this.existingShiftsPage);
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || e.data?.error || '削除に失敗しました';
+      }
+    },
+    async goPrev() {
+      if (this.existingShiftsPage <= 1) return;
+      await this.loadExistingShifts(this.existingShiftsPage - 1);
+    },
+    async goNext() {
+      await this.loadExistingShifts(this.existingShiftsPage + 1);
     }
   }
 });
@@ -1899,7 +2156,7 @@ app.component('my-page', {
           API.setToken(data.token);
           const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
           const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
-          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
+          this.$root.currentUser = { id: Number(payload.sub), nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
         }
       } catch (e) {
         this.nicknameMsg = e.data?.error || '保存に失敗しました';
@@ -1928,7 +2185,7 @@ app.component('my-page', {
           API.setToken(data.token);
           const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
           const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
-          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
+          this.$root.currentUser = { id: Number(payload.sub), nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
         }
       } catch (e) {
         this.emailMsg = e.data?.error || '変更に失敗しました';

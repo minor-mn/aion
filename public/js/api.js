@@ -111,8 +111,8 @@ const API = {
     return this.request('DELETE', `/v1/staffs/${id}`);
   },
 
-  getStaffUpcomingShifts(staffId) {
-    return this.request('GET', `/v1/staffs/${staffId}/upcoming_shifts`);
+  getStaffUpcomingShifts(staffId, page = 1, size = 10) {
+    return this.request('GET', `/v1/staffs/${staffId}/upcoming_shifts?p=${page}&s=${size}`);
   },
 
   getStaffMonthlyShifts(staffId, year, month) {
@@ -217,6 +217,20 @@ const API = {
     if (filters.target_type) params.set('target_type', filters.target_type);
     const query = params.toString();
     return this.request('GET', `/v1/action_logs${query ? '?' + query : ''}`);
+  },
+
+  // Users
+  getUsers(page = 1, size = 10) {
+    const params = new URLSearchParams({ p: page, s: size });
+    return this.request('GET', `/v1/users?${params}`);
+  },
+
+  updateUser(id, data) {
+    return this.request('PATCH', `/v1/users/${id}`, data);
+  },
+
+  deleteUser(id) {
+    return this.request('DELETE', `/v1/users/${id}`);
   }
 };
 

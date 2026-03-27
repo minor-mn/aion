@@ -7,7 +7,7 @@ class V1::StaffsController < ApplicationController
 
   def index
     staffs = shop_id.present? ? Staff.where(shop_id: shop_id) : Staff.all
-    render json: { staffs: staffs.sort_by { |s| s.name.to_s } }
+    render json: { staffs: staffs.order(:name) }
   end
 
   def show
@@ -121,7 +121,7 @@ class V1::StaffsController < ApplicationController
   end
 
   def shop_id
-    staff_params[:shop_id]
+    params[:shop_id]
   end
 
   def staff

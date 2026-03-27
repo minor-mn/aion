@@ -87,6 +87,9 @@
       <!-- Map View -->
       <map-view-page v-if="currentView === 'mapView'"></map-view-page>
 
+      <!-- Shop Home -->
+      <shop-home-page v-if="currentView === 'shopHome'"></shop-home-page>
+
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">
 
@@ -116,7 +119,7 @@
           <div v-if="todayShops.length === 0" class="no-data">店舗が登録されていません</div>
           <template v-for="shop in todayShops" :key="shop.id">
             <div v-if="todayShifts[shop.id] && todayShifts[shop.id].length > 0" class="shop-block" style="background:#1e1e38">
-              <div class="shop-block-name" :class="{ 'cast-name-link': currentUser }" @click="currentUser && editShop(shop)">{{ shop.name }}</div>
+              <div class="shop-block-name cast-name-link" @click="openShopHome(shop.id)">{{ shop.name }}</div>
               <ul class="cast-list">
                 <li v-for="shift in todayShifts[shop.id]" :key="shift.staff_id" class="cast-item">
                   <span class="cast-name cast-name-link" @click="openStaffSchedule(shift.staff_id, shift.name, shop.id, shift.image_url, shift.site_url)">{{ shift.name }}</span>
@@ -182,7 +185,7 @@
               <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                    class="shop-block"
                    :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)' }">
-                <div class="shop-block-name" :class="{ 'cast-name-link': currentUser }" @click.stop="currentUser && editShop({ id: group.shop_id, name: group.shop_name })">{{ group.shop_name }}</div>
+                <div class="shop-block-name cast-name-link" @click.stop="openShopHome(group.shop_id)">{{ group.shop_name }}</div>
                 <div v-if="currentUser" class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
                 <ul class="cast-list">
                   <li v-for="staff in group.staffs" :key="staff.staff_id" class="cast-item">

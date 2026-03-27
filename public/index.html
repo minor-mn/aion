@@ -35,9 +35,10 @@
         <template v-if="currentUser">
           <button class="menu-item" @click="navigate('myPage')">マイページ</button>
           <button class="menu-item" @click="navigate('mapView')">地図で見る</button>
+          <button v-if="currentUser.role === 'admin'" class="menu-item" @click="navigate('userList')">ユーザー管理</button>
           <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
           <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
-          <button class="menu-item" @click="navigate('shiftForm')">シフト登録</button>
+          <button class="menu-item" @click="navigate('shiftForm')">シフト管理</button>
           <button class="menu-item" @click="navigate('eventForm')">イベント管理</button>
         </template>
         <template v-else>
@@ -64,6 +65,9 @@
 
       <!-- Shop Form -->
       <shop-form-page v-if="currentView === 'shopForm'"></shop-form-page>
+
+      <!-- User List -->
+      <user-list-page v-if="currentView === 'userList'"></user-list-page>
 
       <!-- Staff Form -->
       <staff-form-page v-if="currentView === 'staffForm'"></staff-form-page>
@@ -264,6 +268,11 @@
                     <button class="btn btn-outline btn-sm" @click="editShift(shift)">編集</button>
                     <button class="btn btn-danger btn-sm" @click="confirmDeleteShift(shift)">削除</button>
                   </div>
+                </div>
+                <div v-if="staffSchedulePage > 1 || staffScheduleShifts.length === staffSchedulePageSize" style="display:flex;justify-content:space-between;margin-top:16px">
+                  <button v-if="staffSchedulePage > 1" class="btn btn-secondary btn-sm" @click="goStaffSchedulePrev">prev</button>
+                  <div v-else></div>
+                  <button v-if="staffScheduleShifts.length === staffSchedulePageSize" class="btn btn-secondary btn-sm" @click="goStaffScheduleNext">next</button>
                 </div>
               </div>
             </div>

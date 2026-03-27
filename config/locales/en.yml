@@ -37,4 +37,6 @@ en:
     jwt_expired: Token has expired.
     unauthorized: Unauthorized access.
     forbidden: Forbidden.
+    cannot_delete_self: You cannot delete your own user.
+    cannot_delete_last_admin: You cannot delete the last admin user.
     session_disabled: Session is disabled. Use token-based authentication.

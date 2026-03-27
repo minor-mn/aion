@@ -1,10 +1,14 @@
 require "rails_helper"
 
 RSpec.describe "StaffShifts API", type: :request do
-  let!(:user) { User.create(email: "test@example.com", password: "password") }
+  let!(:user) { User.create!(email: "test@example.com", password: "password", role: "operator", confirmed_at: Time.current) }
+  let!(:basic_user) { User.create!(email: "viewer@example.com", password: "password", role: "user", confirmed_at: Time.current) }
+  let!(:other_user) { User.create!(email: "other@example.com", password: "password", role: "user", confirmed_at: Time.current) }
   let!(:shop) { Shop.create(name: "Test Shop") }
   let!(:staff) { Staff.create(name: "Test Staff", shop_id: shop.id) }
   let(:headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(user, :user, nil).first}" } }
+  let(:basic_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(basic_user, :user, nil).first}" } }
+  let(:other_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(other_user, :user, nil).first}" } }
 
   describe "GET /v1/shops/:shop_id/staff_shifts" do
     before { StaffShift.create!(shop_id: shop.id, staff_id: staff.id, start_at: Time.current, end_at: 1.hour.from_now) }
@@ -18,7 +22,7 @@ RSpec.describe "StaffShifts API", type: :request do
 
   describe "POST /v1/shops/:shop_id/staff_shifts" do
     it "creates a new staff shift" do
-      post "/v1/shops/#{shop.id}/staff_shifts", headers: headers, params: {
+      post "/v1/shops/#{shop.id}/staff_shifts", headers: basic_headers, params: {
         staff_id: staff.id,
         start_at: Time.current,
         end_at: 2.hours.from_now
@@ -28,22 +32,46 @@ RSpec.describe "StaffShifts API", type: :request do
   end
 
   describe "PATCH /v1/shops/:shop_id/staff_shifts/:id" do
-    let!(:shift) { StaffShift.create!(shop_id: shop.id, staff_id: staff.id, start_at: Time.current, end_at: 1.hour.from_now) }
+    let!(:shift) { StaffShift.create!(shop_id: shop.id, staff_id: staff.id, start_at: Time.current, end_at: 1.hour.from_now, user: basic_user) }
 
-    it "updates the staff shift" do
+    it "updates the staff shift for the owner" do
+      patch "/v1/shops/#{shop.id}/staff_shifts/#{shift.id}", headers: basic_headers, params: {
+        end_at: 3.hours.from_now
+      }
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "updates the staff shift for an operator" do
       patch "/v1/shops/#{shop.id}/staff_shifts/#{shift.id}", headers: headers, params: {
         end_at: 3.hours.from_now
       }
       expect(response).to have_http_status(:ok)
     end
+
+    it "rejects a different basic user" do
+      patch "/v1/shops/#{shop.id}/staff_shifts/#{shift.id}", headers: other_headers, params: {
+        end_at: 3.hours.from_now
+      }
+      expect(response).to have_http_status(:forbidden)
+    end
   end
 
   describe "DELETE /v1/shops/:shop_id/staff_shifts/:id" do
-    let!(:shift) { StaffShift.create!(shop_id: shop.id, staff_id: staff.id, start_at: Time.current, end_at: 1.hour.from_now) }
+    let!(:shift) { StaffShift.create!(shop_id: shop.id, staff_id: staff.id, start_at: Time.current, end_at: 1.hour.from_now, user: basic_user) }
 
-    it "deletes the staff shift" do
+    it "deletes the staff shift for the owner" do
+      delete "/v1/shops/#{shop.id}/staff_shifts/#{shift.id}", headers: basic_headers
+      expect(response).to have_http_status(:no_content)
+    end
+
+    it "deletes the staff shift for an operator" do
       delete "/v1/shops/#{shop.id}/staff_shifts/#{shift.id}", headers: headers
       expect(response).to have_http_status(:no_content)
+    end
+
+    it "rejects a different basic user" do
+      delete "/v1/shops/#{shop.id}/staff_shifts/#{shift.id}", headers: other_headers
+      expect(response).to have_http_status(:forbidden)
     end
   end
 end

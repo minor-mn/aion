@@ -1,5 +1,6 @@
 class V1::ActionLogsController < ApplicationController
   before_action :authenticate_user!
+  before_action :require_admin!
 
   def index
     logs = ActionLog.order(created_at: :desc).limit(100)

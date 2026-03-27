@@ -44,7 +44,20 @@ bundle exec rails db:create db:migrate
 bundle exec rails server -b 0.0.0.0
 ```
 
-### 6. Access the API documentation
+### 6. 管理者を設定
+
+アプリを開き、画面右上の「サインイン」を押します。表示された画面の「新規登録」から、管理者にしたいメールアドレスでアカウントを作成してください。確認メールに記載されたリンクを開いて登録を完了したあとで、同じメールアドレスを指定して管理者として設定します。
+
+```bash
+bundle exec rails console
+```
+
+```ruby
+user = User.find_by!(email: "admin@example.com") # 登録に使ったメールアドレスに置き換える
+user.update!(role: :admin)
+```
+
+### 7. Access the API documentation
 
 Open your browser and go to:
 
@@ -121,8 +134,22 @@ bundle exec rails db:create db:migrate
 bundle exec rails server -b 0.0.0.0
 ```
 
+### 7. 管理者を設定
+
+アプリを開き、画面右上の「サインイン」を押します。表示された画面の「新規登録」から、管理者にしたいメールアドレスでアカウントを作成してください。確認メールに記載されたリンクを開いて登録を完了したあとで、同じメールアドレスを指定して管理者として設定します。
+
+```bash
+bundle exec rails console
+```
+
+```ruby
+user = User.find_by!(email: "admin@example.com") # 登録に使ったメールアドレスに置き換える
+user.update!(role: :admin)
+```
+
+### 8. アクセス確認
+
 以下のURLでアクセスできます：
 
 - **SPA（フロントエンド）**: http://localhost:3000/
 - **Swagger UI（APIドキュメント）**: http://localhost:3000/openapi/index.html
-

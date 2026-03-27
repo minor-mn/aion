@@ -50,6 +50,7 @@ module Schedules
           pref = preferences[shift.staff_id]
           {
             staff_id:       shift.staff_id,
+            user_id:        shift.staff.user_id,
             name:           shift.staff.name,
             image_url:      shift.staff.image_url,
             site_url:       shift.staff.site_url,
@@ -64,6 +65,7 @@ module Schedules
         date_events = (events_by_date[date] || []).map do |event|
           {
             id:        event.id,
+            user_id:   event.user_id,
             title:     event.title,
             url:       event.url,
             shop_id:   event.shop_id,

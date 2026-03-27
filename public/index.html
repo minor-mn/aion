@@ -231,7 +231,7 @@
                   <span class="pref-value">{{ getModalPreference(staffScheduleStaff?.id) }}</span>
                 </div>
               </div>
-              <div v-if="currentUser" class="staff-detail-section">
+              <div v-if="canManageOwnedRecord(staffScheduleStaff)" class="staff-detail-section">
                 <div class="staff-detail-actions">
                   <button class="btn btn-outline btn-sm" @click="editStaff(staffScheduleStaff)">キャスト編集</button>
                   <button class="btn btn-danger btn-sm" @click="confirmDeleteStaff(staffScheduleStaff)">キャスト削除</button>
@@ -260,7 +260,7 @@
                     </div>
                     <div class="staff-schedule-shop">{{ shift._shop_name }}</div>
                   </div>
-                  <div v-if="currentUser" class="staff-schedule-actions">
+                  <div v-if="canManageOwnedRecord(shift)" class="staff-schedule-actions">
                     <button class="btn btn-outline btn-sm" @click="editShift(shift)">編集</button>
                     <button class="btn btn-danger btn-sm" @click="confirmDeleteShift(shift)">削除</button>
                   </div>

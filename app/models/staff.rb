@@ -1,5 +1,6 @@
 class Staff < ApplicationRecord
   belongs_to :shop
+  belongs_to :user, optional: true
   has_many :staff_shifts
   has_many :staff_preferences
 

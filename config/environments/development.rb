@@ -29,8 +29,8 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = false
+  # Surface SMTP failures during development so mail issues are visible.
+  config.action_mailer.raise_delivery_errors = ENV.fetch("MAILER_RAISE_DELIVERY_ERRORS", "true") == "true"
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
@@ -46,15 +46,30 @@ Rails.application.configure do
     domain: ENV.fetch("SMTP_DOMAIN", "localhost"),
     enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "false") == "true"
   }
-  # When using POP before SMTP, skip SMTP authentication entirely.
-  unless ENV["POP_ADDRESS"].present?
-    if ENV["SMTP_USERNAME"].present?
-      smtp_settings[:user_name] = ENV["SMTP_USERNAME"]
-      smtp_settings[:password] = ENV["SMTP_PASSWORD"]
-      smtp_settings[:authentication] = :plain
-    end
+  # Some providers require POP-before-SMTP in addition to SMTP AUTH.
+  if ENV["SMTP_USERNAME"].present?
+    smtp_settings[:user_name] = ENV["SMTP_USERNAME"]
+    smtp_settings[:password] = ENV["SMTP_PASSWORD"]
+    smtp_settings[:authentication] = :plain
   end
   config.action_mailer.smtp_settings = smtp_settings
+  config.action_mailer.perform_deliveries = true
+
+  config.after_initialize do
+    masked_user = if ENV["SMTP_USERNAME"].present?
+      "#{ENV['SMTP_USERNAME'][0, 2]}***"
+    end
+
+    Rails.logger.info(
+      "[ActionMailer] SMTP settings " \
+      "address=#{smtp_settings[:address]} " \
+      "port=#{smtp_settings[:port]} " \
+      "domain=#{smtp_settings[:domain]} " \
+      "starttls=#{smtp_settings[:enable_starttls_auto]} " \
+      "user=#{masked_user || '(none)'} " \
+      "pop_before_smtp=#{ENV['POP_ADDRESS'].present?}"
+    )
+  end
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

@@ -12,7 +12,7 @@ class V1::User::ProfileController < ApplicationController
 
     if current_user.update(profile_params)
       new_token = Warden::JWTAuth::UserEncoder.new.call(current_user, :user, nil).first
-      render json: { message: "プロフィールを更新しました", user: current_user, token: new_token }, status: :ok
+      render json: { message: "プロフィールを更新しました", user: current_user.as_json(only: %i[id email nickname role]), token: new_token }, status: :ok
     else
       render json: { error: current_user.errors.full_messages.join(", ") }, status: :unprocessable_entity
     end

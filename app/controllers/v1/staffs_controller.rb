@@ -1,6 +1,7 @@
 class V1::StaffsController < ApplicationController
   before_action :authenticate_user!, only: %i[create update destroy]
   before_action :validate_shop_id, only: %i[create]
+  before_action :authorize_staff_management!, only: %i[update destroy]
 
   def index
     staffs = shop_id.present? ? Staff.where(shop_id: shop_id) : Staff.all
@@ -24,6 +25,7 @@ class V1::StaffsController < ApplicationController
       {
         id: shift.id,
         staff_id: shift.staff_id,
+        user_id: shift.user_id,
         shop_id: shift.shop_id,
         start_at: shift.start_at.iso8601,
         end_at: shift.end_at.iso8601,
@@ -69,6 +71,7 @@ class V1::StaffsController < ApplicationController
     events_result = events.map do |event|
       {
         id: event.id,
+        user_id: event.user_id,
         title: event.title,
         start_at: event.start_at.iso8601,
         end_at: event.end_at.iso8601
@@ -79,8 +82,8 @@ class V1::StaffsController < ApplicationController
   end
 
   def create
-    pp staff_params
     new_staff = Staff.new(staff_params)
+    new_staff.user = current_user
     if new_staff.save
       render json: new_staff, status: :created
     else
@@ -124,5 +127,11 @@ class V1::StaffsController < ApplicationController
 
   def staff_params
     params.permit(:name, :shop_id, :image_url, :site_url)
+  end
+
+  def authorize_staff_management!
+    return unless staff
+
+    authorize_owner_or_operator_or_admin!(staff)
   end
 end

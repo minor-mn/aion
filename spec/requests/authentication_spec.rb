@@ -18,12 +18,13 @@ RSpec.describe "User authentication", type: :request do
     post "/users", params: user_params.to_json, headers: headers
 
     expect(response).to have_http_status(:ok)
-    expect(JSON.parse(response.body)["message"]).to eq("Registered.")
+    json = JSON.parse(response.body)
+    expect(json["message"]).to include("確認メール")
   end
 
   # ログイン
   it "logs in and returns a JWT" do
-    User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+    User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
 
     post "/users/sign_in", params: { user: { email: "test@example.com", password: "password" } }, headers: headers, as: :json
 
@@ -34,7 +35,7 @@ RSpec.describe "User authentication", type: :request do
 
   # ログイン失敗
   it "fails to log in with incorrect credentials" do
-    User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+    User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
 
     post "/users/sign_in", params: { user: { email: "test@example.com", password: "wrongpassword" } }.to_json, headers: headers
 
@@ -45,7 +46,7 @@ RSpec.describe "User authentication", type: :request do
 
   # ユーザ情報
   it "fetches current user info with valid token" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
 
     post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
     token = response.headers["Authorization"]
@@ -55,11 +56,12 @@ RSpec.describe "User authentication", type: :request do
 
     json = JSON.parse(response.body)
     expect(json["user"]["email"]).to eq(user.email)
+    expect(json["user"]["role"]).to eq("user")
   end
 
   # ログアウト
   it "logs out a user by revoking the token" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
 
     post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
     token = response.headers["Authorization"]
@@ -70,7 +72,7 @@ RSpec.describe "User authentication", type: :request do
 
   # 更新
   it "updates user email and password" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
 
     # ログインしてトークン取得
     post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
@@ -89,12 +91,13 @@ RSpec.describe "User authentication", type: :request do
     expect(response).to have_http_status(:ok)
     json = JSON.parse(response.body)
     expect(json["message"]).to eq("Updated.")
-    expect(json["user"]["email"]).to eq("updated@example.com")
+    expect(json["user"]["email"]).to eq("test@example.com")
+    expect(user.reload.unconfirmed_email).to eq("updated@example.com")
   end
 
   # 削除
   it "deletes a user" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password")
+    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
 
     post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
     token = response.headers["Authorization"]

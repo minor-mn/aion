@@ -2,6 +2,7 @@ class V1::StaffShiftsController < ApplicationController
   before_action :authenticate_user!, only: %i[create update destroy]
   before_action :require_shop_id, only: %i[index show create update destroy]
   before_action :set_staff_shift, only: %i[show update destroy]
+  before_action :authorize_staff_shift_management!, only: %i[update destroy]
 
   def index
     render json: { staff_shifts: StaffShift.where(shop_id: params[:shop_id]) }
@@ -14,6 +15,7 @@ class V1::StaffShiftsController < ApplicationController
   def create
     shift = StaffShift.new(staff_shift_params)
     shift.shop_id = params[:shop_id]
+    shift.user = current_user
     if shift.save
       # Schedule notifications for same-day shifts
       if shift.start_at.to_date == Date.current
@@ -59,5 +61,11 @@ class V1::StaffShiftsController < ApplicationController
 
   def staff_shift_params
     params.permit(:staff_id, :start_at, :end_at)
+  end
+
+  def authorize_staff_shift_management!
+    return unless staff_shift
+
+    authorize_owner_or_operator_or_admin!(staff_shift)
   end
 end

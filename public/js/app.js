@@ -67,7 +67,8 @@ const app = createApp({
         currentUser.value = {
           id: payload.sub,
           nickname: payload.nickname || '',
-          email: payload.email || ''
+          email: payload.email || '',
+          role: payload.role || 'user'
         };
       } else {
         API.setToken(null);
@@ -86,7 +87,8 @@ const app = createApp({
           currentUser.value = {
             id: payload.sub,
             nickname: payload.nickname || '',
-            email: payload.email || ''
+            email: payload.email || '',
+            role: payload.role || 'user'
           };
         }
         currentView.value = 'home';
@@ -318,6 +320,7 @@ const app = createApp({
       const fullStaff = staffs.value.find(st => st.id === staffId || st.id == staffId);
       staffScheduleStaff.value = {
         id: staffId, name: staffName, shop_id: shopId,
+        user_id: fullStaff?.user_id ?? null,
         image_url: imageUrl || fullStaff?.image_url || '',
         site_url: siteUrl || fullStaff?.site_url || ''
       };
@@ -354,6 +357,12 @@ const app = createApp({
       modalOpen.value = false;
       document.body.classList.remove('modal-open');
       currentView.value = 'shiftEdit';
+    }
+
+    function canManageOwnedRecord(record) {
+      if (!currentUser.value) return false;
+      if (currentUser.value.role === 'admin' || currentUser.value.role === 'operator') return true;
+      return record?.user_id === currentUser.value.id;
     }
 
     function editStaff(staffInfo) {
@@ -729,7 +738,7 @@ const app = createApp({
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
-      openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift,
+      openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord,
       editStaff, confirmDeleteStaff, editShop,
       getStaffName, navigate, loadShops, loadStaffs, loadHomeData,
       loadScheduleData, loadTodayData,
@@ -977,7 +986,7 @@ app.component('shop-form-page', {
                   <div class="shop-block-name">{{ shop.name }}</div>
                   <div v-if="shop.site_url" style="font-size:0.8rem;color:#a0a0b8">{{ shop.site_url }}</div>
           </div>
-          <div style="display:flex;gap:6px">
+          <div v-if="$root.canManageOwnedRecord(shop)" style="display:flex;gap:6px">
             <button class="btn btn-secondary btn-sm" @click="editExistingShop(shop)">編集</button>
             <button class="btn btn-danger btn-sm" @click="deleteShop(shop)">削除</button>
           </div>
@@ -1890,7 +1899,7 @@ app.component('my-page', {
           API.setToken(data.token);
           const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
           const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
-          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '' };
+          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
         }
       } catch (e) {
         this.nicknameMsg = e.data?.error || '保存に失敗しました';
@@ -1919,7 +1928,7 @@ app.component('my-page', {
           API.setToken(data.token);
           const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
           const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
-          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '' };
+          this.$root.currentUser = { id: payload.sub, nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
         }
       } catch (e) {
         this.emailMsg = e.data?.error || '変更に失敗しました';

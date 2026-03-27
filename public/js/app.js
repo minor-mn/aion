@@ -28,6 +28,8 @@ const app = createApp({
     const shops = ref([]);
     const staffs = ref([]);
     const users = ref([]);
+    const shopHomeShop = ref(null);
+    const shopHomeLoading = ref(false);
 
     // Staff schedule modal state
     const staffScheduleOpen = ref(false);
@@ -193,6 +195,19 @@ const app = createApp({
       } catch (e) {
         users.value = [];
       }
+    }
+
+    async function loadShopHome(shopId) {
+      shopHomeLoading.value = true;
+      shopHomeShop.value = null;
+      try {
+        const data = await API.getShops();
+        const allShops = data.shops || [];
+        shopHomeShop.value = allShops.find(shop => shop.id == shopId) || null;
+      } catch (e) {
+        shopHomeShop.value = null;
+      }
+      shopHomeLoading.value = false;
     }
 
     async function loadHomeData() {
@@ -661,6 +676,18 @@ const app = createApp({
 
     function handleHashChange() {
       const hash = window.location.hash.replace('#', '');
+      const shopMatch = hash.match(/^shop-(\d+)$/);
+      if (shopMatch) {
+        const shopId = Number(shopMatch[1]);
+        if (currentView.value !== 'shopHome' || shopHomeShop.value?.id !== shopId) {
+          currentView.value = 'shopHome';
+          menuOpen.value = false;
+          error.value = '';
+          success.value = '';
+          loadShopHome(shopId);
+        }
+        return;
+      }
       const view = hashToView[hash];
       if (view && view !== currentView.value) {
         navigate(view, false);
@@ -750,7 +777,11 @@ const app = createApp({
 
       // Handle initial hash route (e.g. #map)
       const initialHash = window.location.hash.replace('#', '');
-      if (initialHash && hashToView[initialHash]) {
+      const initialShopMatch = initialHash.match(/^shop-(\d+)$/);
+      if (initialShopMatch) {
+        currentView.value = 'shopHome';
+        await loadShopHome(Number(initialShopMatch[1]));
+      } else if (initialHash && hashToView[initialHash]) {
         navigate(hashToView[initialHash], false);
       } else {
         await loadHomeData();
@@ -768,7 +799,7 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
-      todayShops, todayShifts, todayEvents, shops, staffs, users,
+      todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeLoading,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
       staffSchedulePage, staffSchedulePageSize,
       editingShift, editingStaff, editingShop,
@@ -778,7 +809,7 @@ const app = createApp({
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord,
       goStaffSchedulePrev, goStaffScheduleNext,
       editStaff, confirmDeleteStaff, editShop,
-      getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadHomeData,
+      getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
@@ -788,6 +819,18 @@ const app = createApp({
       openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown
     };
   }
+});
+
+app.component('shop-home-page', {
+  template: `
+    <div class="register-container">
+      <div v-if="$root.shopHomeLoading" class="loading">読み込み中</div>
+      <div v-else-if="!$root.shopHomeShop" class="no-data">店舗が見つかりません</div>
+      <template v-else>
+        <h2>{{ $root.shopHomeShop.name }}</h2>
+      </template>
+    </div>
+  `
 });
 
 // ========== Login Component ==========

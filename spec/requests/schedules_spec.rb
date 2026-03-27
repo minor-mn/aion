@@ -59,8 +59,8 @@ RSpec.describe "Schedules", type: :request do
       expect(body["days"].size).to eq(3)
       expect(body["days"].first["total_score"]).to eq(5)
       expect(body["days"].first["staffs"].size).to eq(2)
-      expect(body["days"].map { |day| day["date"] }).to eq(["2024-05-01", "2024-05-02", "2024-05-03"])
-      expect(body["days"].map { |day| day["events"].map { |event| event["id"] } }).to eq([[multi_day_event.id], [multi_day_event.id], [multi_day_event.id]])
+      expect(body["days"].map { |day| day["date"] }).to eq([ "2024-05-01", "2024-05-02", "2024-05-03" ])
+      expect(body["days"].map { |day| day["events"].map { |event| event["id"] } }).to eq([ [ multi_day_event.id ], [ multi_day_event.id ], [ multi_day_event.id ] ])
     end
   end
 end

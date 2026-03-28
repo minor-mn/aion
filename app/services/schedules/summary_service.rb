@@ -15,7 +15,7 @@ module Schedules
       end
 
       if @user
-        preferences = @user.staff_preferences.index_by(&:staff_id)
+        preferences = @user.staff_preferences.where.not(score: 0).index_by(&:staff_id)
         staff_ids = preferences.keys
 
         shifts = StaffShift

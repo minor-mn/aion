@@ -1,13 +1,15 @@
 class V1::EventsController < ApplicationController
+  include Paginatable
+
   before_action :authenticate_user!, only: %i[create update destroy]
   before_action :set_event, only: %i[show update destroy]
   before_action :authorize_event_management!, only: %i[update destroy]
 
   def index
     events = Event.includes(:shop).order(:start_at)
-    if params[:shop_id].present?
-      events = events.where(shop_id: params[:shop_id])
-    end
+    events = events.where(shop_id: params[:shop_id]) if params[:shop_id].present?
+    events = events.where("end_at >= ?", Time.current) if future_only?
+    events = events.limit(pagination_limit).offset(pagination_offset)
     render json: { events: events.as_json(include: { shop: { only: %i[id name user_id] } }) }
   end
 
@@ -46,7 +48,11 @@ class V1::EventsController < ApplicationController
   end
 
   def event_params
-    params.permit(:shop_id, :title, :url, :start_at, :end_at)
+    params.require(:event).permit(:shop_id, :title, :url, :start_at, :end_at)
+  end
+
+  def future_only?
+    ActiveModel::Type::Boolean.new.cast(params[:future_only])
   end
 
   def authorize_event_management!

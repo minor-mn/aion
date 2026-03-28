@@ -921,12 +921,12 @@ app.component('shop-home-page', {
             <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
           </div>
           <div v-if="calendarLoading" class="loading">読み込み中</div>
-          <div v-else class="calendar-grid">
+          <div v-else class="calendar-grid shop-home-calendar-grid">
             <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
             <div
               v-for="(cell, idx) in calendarDays"
               :key="idx"
-              class="calendar-cell"
+              class="calendar-cell shop-home-calendar-cell"
               :class="{ empty: cell.empty }"
               style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px;cursor:default;text-align:center"
             >
@@ -1007,6 +1007,7 @@ app.component('shop-home-page', {
     return {
       map: null,
       marker: null,
+      currentLocationMarker: null,
       calendarYear: new Date().getFullYear(),
       calendarMonth: new Date().getMonth(),
       calendarDaysData: [],
@@ -1085,6 +1086,7 @@ app.component('shop-home-page', {
       this.map.remove();
       this.map = null;
       this.marker = null;
+      this.currentLocationMarker = null;
     }
   },
   methods: {
@@ -1136,6 +1138,7 @@ app.component('shop-home-page', {
           this.map.remove();
           this.map = null;
           this.marker = null;
+          this.currentLocationMarker = null;
         }
         return;
       }
@@ -1158,14 +1161,14 @@ app.component('shop-home-page', {
       }
 
       this.map = L.map('shop-home-map', {
-        zoomControl: false,
-        dragging: false,
-        scrollWheelZoom: false,
-        doubleClickZoom: false,
-        boxZoom: false,
-        keyboard: false,
-        tap: false,
-        touchZoom: false
+        zoomControl: true,
+        dragging: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        tap: true,
+        touchZoom: true
       }).setView([lat, lng], 16);
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -1175,6 +1178,35 @@ app.component('shop-home-page', {
       }).addTo(this.map);
 
       this.marker = L.marker([lat, lng]).addTo(this.map);
+      this.getCurrentLocation();
+    },
+    getCurrentLocation() {
+      if (!navigator.geolocation || !this.map) return;
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!this.map) return;
+
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const currentIcon = L.divIcon({
+            className: 'current-location-marker',
+            html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #7ab8ff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+          });
+
+          if (this.currentLocationMarker) {
+            this.currentLocationMarker.setLatLng([lat, lng]);
+          } else {
+            this.currentLocationMarker = L.marker([lat, lng], { icon: currentIcon, zIndexOffset: 1000 })
+              .addTo(this.map)
+              .bindPopup('現在地');
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
     }
   }
 });

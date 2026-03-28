@@ -31,6 +31,46 @@ RSpec.describe "StaffShifts API", type: :request do
     end
   end
 
+  describe "POST /v1/shops/:shop_id/staff_shifts/bulk_create" do
+    it "allows an operator to create multiple shifts" do
+      post "/v1/shops/#{shop.id}/staff_shifts/bulk_create", headers: headers, params: {
+        staff_id: staff.id,
+        shifts: [
+          { start_at: Time.zone.parse("2026-04-01 17:00"), end_at: Time.zone.parse("2026-04-01 23:00") },
+          { start_at: Time.zone.parse("2026-04-02 17:00"), end_at: Time.zone.parse("2026-04-02 23:00") }
+        ]
+      }
+
+      expect(response).to have_http_status(:created)
+      body = JSON.parse(response.body)
+      expect(body["staff_shifts"].size).to eq(2)
+    end
+
+    it "rejects a basic user" do
+      post "/v1/shops/#{shop.id}/staff_shifts/bulk_create", headers: basic_headers, params: {
+        staff_id: staff.id,
+        shifts: [
+          { start_at: Time.zone.parse("2026-04-01 17:00"), end_at: Time.zone.parse("2026-04-01 23:00") }
+        ]
+      }
+
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it "rolls back all shifts when one row is invalid" do
+      post "/v1/shops/#{shop.id}/staff_shifts/bulk_create", headers: headers, params: {
+        staff_id: staff.id,
+        shifts: [
+          { start_at: Time.zone.parse("2026-04-01 17:00"), end_at: Time.zone.parse("2026-04-01 23:00") },
+          { start_at: Time.zone.parse("2026-04-01 22:00"), end_at: Time.zone.parse("2026-04-02 01:00") }
+        ]
+      }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(StaffShift.count).to eq(0)
+    end
+  end
+
   describe "PATCH /v1/shops/:shop_id/staff_shifts/:id" do
     let!(:shift) { StaffShift.create!(shop_id: shop.id, staff_id: staff.id, start_at: Time.current, end_at: 1.hour.from_now, user: basic_user) }
 

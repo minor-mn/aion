@@ -132,6 +132,10 @@ const API = {
     return this.request('POST', `/v1/shops/${shopId}/staff_shifts`, data);
   },
 
+  bulkCreateStaffShifts(shopId, data) {
+    return this.request('POST', `/v1/shops/${shopId}/staff_shifts/bulk_create`, data);
+  },
+
   updateStaffShift(shopId, id, data) {
     return this.request('PATCH', `/v1/shops/${shopId}/staff_shifts/${id}`, data);
   },

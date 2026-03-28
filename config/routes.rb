@@ -35,7 +35,11 @@ Rails.application.routes.draw do
 
     # staff_shifts
     resources :shops do
-      resources :staff_shifts, only: %i[index create show update destroy]
+      resources :staff_shifts, only: %i[index create show update destroy] do
+        collection do
+          post :bulk_create
+        end
+      end
     end
 
     # preferences

@@ -5,7 +5,7 @@ const app = createApp({
   setup() {
     // ========== State ==========
     const currentUser = ref(null);
-    const currentView = ref('home'); // home, login, register, forgotPassword, resetPassword, shopForm, staffForm, shiftForm, shiftEdit
+    const currentView = ref('home'); // home, login, register, forgotPassword, resetPassword, shopForm, staffForm, shiftForm, shiftBulkForm, shiftEdit
     const resetPasswordToken = ref(null);
     const menuOpen = ref(false);
     const loading = ref(true);
@@ -432,6 +432,10 @@ const app = createApp({
       return record?.user_id === currentUser.value.id;
     }
 
+    function isOperatorOrAdmin() {
+      return currentUser.value?.role === 'admin' || currentUser.value?.role === 'operator';
+    }
+
     function editStaff(staffInfo) {
       // Look up full staff data from already-loaded staffs array
       const full = staffs.value.find(st => st.id === staffInfo.id || st.id == staffInfo.id);
@@ -671,20 +675,21 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
+    const operatorOnlyViews = ['shiftBulkForm'];
 
     // Mapping between hash fragments and view names
     const hashToView = {
       '': 'home', 'home': 'home',
       'map': 'mapView', 'login': 'login', 'register': 'register',
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
-      'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm',
+      'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-bulk': 'shiftBulkForm',
       'events': 'eventForm'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
-      'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts',
+      'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftBulkForm': 'shift-bulk',
       'eventForm': 'events'
     };
 
@@ -695,6 +700,13 @@ const app = createApp({
         menuOpen.value = false;
         error.value = 'この機能を使うにはサインインが必要です';
         if (updateHash) window.location.hash = 'login';
+        return;
+      }
+      if (operatorOnlyViews.includes(view) && !isOperatorOrAdmin()) {
+        currentView.value = 'home';
+        menuOpen.value = false;
+        error.value = 'この機能は利用できません';
+        if (updateHash) history.replaceState(null, '', window.location.pathname + window.location.search);
         return;
       }
       currentView.value = view;
@@ -714,6 +726,7 @@ const app = createApp({
       if (view === 'shiftEdit') { loadShops(); }
       if (view === 'mapView') { loadShops(); }
       if (view === 'eventForm') { loadShops(); }
+      if (view === 'shiftBulkForm') { loadShops(); loadStaffs(); }
     }
 
     function handleHashChange() {
@@ -848,7 +861,7 @@ const app = createApp({
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
-      openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord,
+      openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord, isOperatorOrAdmin,
       goStaffSchedulePrev, goStaffScheduleNext,
       editStaff, confirmDeleteStaff, editShop, openShopHome,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
@@ -2402,6 +2415,166 @@ app.component('shift-edit-page', {
         this.localSuccess = 'シフトを更新しました';
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
+      }
+      this.submitting = false;
+    }
+  }
+});
+
+app.component('shift-bulk-form-page', {
+  template: `
+    <div class="register-container">
+      <h2>シフト一括登録</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+
+      <div class="form-group">
+        <label>店舗 *</label>
+        <select v-model="selectedShopId" @change="onShopChange">
+          <option value="">選択してください</option>
+          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>キャスト *</label>
+        <select v-model="selectedStaffId" :disabled="!selectedShopId">
+          <option value="">選択してください</option>
+          <option v-for="staff in filteredStaffs" :key="staff.id" :value="staff.id">{{ staff.name }}</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>シフトテキスト *</label>
+        <textarea
+          v-model="bulkText"
+          rows="8"
+          placeholder="2026.4.1 17:00 - 23:00&#10;2026.4.2 17:00 - 23:00&#10;2026.4.3 17:00 - 23:00"
+        ></textarea>
+      </div>
+
+      <div class="form-actions" style="margin-bottom:20px">
+        <button class="btn btn-primary" @click="submitBulkShifts" :disabled="submitting">
+          {{ submitting ? '登録中...' : '一括登録' }}
+        </button>
+      </div>
+
+      <div v-if="parsedRows.length > 0">
+        <h3 style="margin-bottom:12px">プレビュー</h3>
+        <div v-for="(row, index) in parsedRows" :key="index" class="staff-schedule-item">
+          <div class="staff-schedule-info">
+            <div class="staff-schedule-date">{{ row.dateLabel }}</div>
+            <div class="staff-schedule-time">{{ row.timeLabel }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  data() {
+    return {
+      selectedShopId: '',
+      selectedStaffId: '',
+      bulkText: '',
+      submitting: false,
+      localError: '',
+      localSuccess: ''
+    };
+  },
+  computed: {
+    filteredStaffs() {
+      if (!this.selectedShopId) return [];
+      return this.$root.staffs.filter(s => s.shop_id == this.selectedShopId);
+    },
+    parsedRows() {
+      const rows = [];
+      for (const line of this.normalizedLines()) {
+        const parsed = this.parseLine(line);
+        if (parsed.error) return [];
+        rows.push(parsed);
+      }
+      return rows;
+    }
+  },
+  async mounted() {
+    if (!this.$root.isOperatorOrAdmin()) {
+      this.$root.navigate('home');
+      return;
+    }
+
+    await this.$root.loadShops();
+    await this.$root.loadStaffs();
+  },
+  methods: {
+    onShopChange() {
+      this.selectedStaffId = '';
+      this.localError = '';
+      this.localSuccess = '';
+    },
+    normalizedLines() {
+      return this.bulkText
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
+    },
+    parseLine(line) {
+      const match = line.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})\s+(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/);
+      if (!match) {
+        return { error: `解釈できない行です: ${line}` };
+      }
+
+      const [, year, month, day, startTime, endTime] = match;
+      const datePrefix = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const startAt = new Date(`${datePrefix}T${startTime}:00`);
+      const endAt = new Date(`${datePrefix}T${endTime}:00`);
+      if (endAt <= startAt) {
+        endAt.setDate(endAt.getDate() + 1);
+      }
+
+      const sameDate = startAt.toDateString() === endAt.toDateString();
+      return {
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+        dateLabel: startAt.toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' }),
+        timeLabel: sameDate
+          ? `${startAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} 〜 ${endAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
+          : `${startAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} 〜 ${endAt.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })} ${endAt.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`
+      };
+    },
+    async submitBulkShifts() {
+      this.localError = '';
+      this.localSuccess = '';
+
+      if (!this.selectedShopId || !this.selectedStaffId) {
+        this.localError = '店舗とキャストを選択してください';
+        return;
+      }
+
+      const lines = this.normalizedLines();
+      if (lines.length === 0) {
+        this.localError = 'シフトテキストを入力してください';
+        return;
+      }
+
+      const shifts = [];
+      for (const line of lines) {
+        const parsed = this.parseLine(line);
+        if (parsed.error) {
+          this.localError = parsed.error;
+          return;
+        }
+        shifts.push({ start_at: parsed.startAt, end_at: parsed.endAt });
+      }
+
+      this.submitting = true;
+      try {
+        const data = await API.bulkCreateStaffShifts(this.selectedShopId, {
+          staff_id: this.selectedStaffId,
+          shifts
+        });
+        this.localSuccess = `${(data.staff_shifts || []).length}件のシフトを登録しました`;
+        this.bulkText = '';
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || e.data?.error || '一括登録に失敗しました';
       }
       this.submitting = false;
     }

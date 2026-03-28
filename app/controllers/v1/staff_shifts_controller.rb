@@ -1,6 +1,7 @@
 class V1::StaffShiftsController < ApplicationController
-  before_action :authenticate_user!, only: %i[create update destroy]
-  before_action :require_shop_id, only: %i[index show create update destroy]
+  before_action :authenticate_user!, only: %i[create bulk_create update destroy]
+  before_action :require_operator!, only: %i[bulk_create]
+  before_action :require_shop_id, only: %i[index show create bulk_create update destroy]
   before_action :set_staff_shift, only: %i[show update destroy]
   before_action :authorize_staff_shift_management!, only: %i[update destroy]
 
@@ -25,6 +26,46 @@ class V1::StaffShiftsController < ApplicationController
     else
       render json: { errors: shift.errors.full_messages }, status: :unprocessable_entity
     end
+  end
+
+  def bulk_create
+    staff = Staff.find_by(id: params[:staff_id], shop_id: params[:shop_id])
+    return render json: { error: "staff not found for shop" }, status: :unprocessable_entity unless staff
+
+    shifts_payload = params[:shifts]
+    return render json: { error: "shifts must be a non-empty array" }, status: :bad_request unless shifts_payload.is_a?(Array) && shifts_payload.any?
+
+    created_shifts = []
+    errors = []
+
+    ActiveRecord::Base.transaction do
+      shifts_payload.each_with_index do |shift_params, index|
+        shift = StaffShift.new(
+          shop_id: params[:shop_id],
+          staff_id: staff.id,
+          start_at: shift_params[:start_at],
+          end_at: shift_params[:end_at],
+          user: current_user
+        )
+
+        if shift.save
+          created_shifts << shift
+        else
+          errors.concat(shift.errors.full_messages.map { |message| "#{index + 1}行目: #{message}" })
+          raise ActiveRecord::Rollback
+        end
+      end
+    end
+
+    return render json: { errors: errors }, status: :unprocessable_entity if errors.any?
+
+    created_shifts.each do |shift|
+      next unless shift.start_at.to_date == Date.current
+
+      ScheduleShiftNotificationsJob.perform_later(shift.id)
+    end
+
+    render json: { staff_shifts: created_shifts }, status: :created
   end
 
   def update

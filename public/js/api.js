@@ -196,9 +196,14 @@ const API = {
   },
 
   // Events
-  getEvents(shopId = null) {
-    const query = shopId ? `?shop_id=${shopId}` : '';
-    return this.request('GET', `/v1/events${query}`);
+  getEvents(shopId = null, futureOnly = false, page = 1, size = 10) {
+    const params = new URLSearchParams();
+    if (shopId) params.set('shop_id', shopId);
+    if (futureOnly) params.set('future_only', '1');
+    params.set('p', page);
+    params.set('s', size);
+    const query = params.toString();
+    return this.request('GET', `/v1/events${query ? '?' + query : ''}`);
   },
 
   createEvent(data) {

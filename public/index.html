@@ -167,7 +167,7 @@
               </div>
               <!-- Events for this day -->
               <div v-if="selectedDayEvents && selectedDayEvents.length > 0" style="margin-bottom:16px">
-                <div class="section-title" style="font-size:0.95rem;margin-bottom:8px">{{ selectedDate }} のイベント</div>
+                <div class="section-title" style="font-size:0.95rem;margin-bottom:8px">イベント</div>
                 <div v-for="ev in selectedDayEvents" :key="ev.id" class="shop-block" style="background:#2a1a3e">
                   <div class="shop-block-name">
                     <template v-if="ev.url"><a :href="ev.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe;text-decoration:none">{{ ev.title }}</a></template>
@@ -178,7 +178,7 @@
                 </div>
               </div>
               <!-- Shifts for this day -->
-              <div v-if="selectedDayShopGroups.length > 0" class="section-title" style="font-size:0.95rem;margin-bottom:8px">{{ selectedDate }} のシフト</div>
+              <div v-if="selectedDayShopGroups.length > 0" class="section-title" style="font-size:0.95rem;margin-bottom:8px">シフト</div>
               <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                    class="shop-block"
                    :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)' }">

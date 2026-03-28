@@ -1410,7 +1410,7 @@ app.component('shop-form-page', {
       <div v-for="shop in $root.shops" :key="shop.id"       class="shop-block" style="background:#1e1e38">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <div>
-                  <div class="shop-block-name">{{ shop.name }}</div>
+                  <div class="shop-block-name cast-name-link" @click="$root.openShopHome(shop.id)">{{ shop.name }}</div>
                   <div v-if="shop.site_url" style="font-size:0.8rem;color:#a0a0b8">{{ shop.site_url }}</div>
           </div>
           <div v-if="$root.canManageOwnedRecord(shop)" style="display:flex;gap:6px">
@@ -2706,23 +2706,34 @@ app.component('event-form-page', {
           <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>表示範囲</label>
+        <select v-model="eventRangeFilter">
+          <option value="future_only">未来のイベントのみ</option>
+          <option value="all">全て</option>
+        </select>
+      </div>
       <div v-if="filteredEvents.length === 0" class="no-data">イベントがありません</div>
       <div v-for="event in filteredEvents" :key="event.id" class="shop-block" style="background:#1e1e38">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <div style="min-width:0;flex:1;overflow:hidden">
-            <div class="shop-block-name">{{ event.title }}</div>
-            <div style="font-size:0.8rem;color:#a0a0b8">{{ event.shop ? event.shop.name : '' }}</div>
-            <div v-if="event.start_at" style="font-size:0.8rem;color:#a0a0b8">
-              {{ formatDatetime(event.start_at) }}
-              <template v-if="event.end_at"> 〜 {{ formatDatetime(event.end_at) }}</template>
+            <div class="shop-block-name">
+              <a v-if="event.url" :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#f3f3ff;text-decoration:none">{{ event.title }}</a>
+              <template v-else>{{ event.title }}</template>
             </div>
-            <div v-if="event.url" style="font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#a29bfe">{{ event.url }}</a></div>
+            <div v-if="event.shop" class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click="$root.openShopHome(event.shop.id)">{{ event.shop.name }}</div>
+            <div v-if="event.start_at" style="font-size:0.8rem;color:#a0a0b8">{{ formatEventListRange(event.start_at, event.end_at) }}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
             <button class="btn btn-secondary btn-sm" @click="editExisting(event)">編集</button>
             <button class="btn btn-danger btn-sm" @click="deleteEvent(event)">削除</button>
           </div>
         </div>
+      </div>
+      <div v-if="showPrev || showNext" style="display:flex;justify-content:space-between;margin-top:16px">
+        <button v-if="showPrev" class="btn btn-secondary btn-sm" @click="goPrev">prev</button>
+        <div v-else></div>
+        <button v-if="showNext" class="btn btn-secondary btn-sm" @click="goNext">next</button>
       </div>
     </div>
   `,
@@ -2735,13 +2746,41 @@ app.component('event-form-page', {
       localError: '',
       localSuccess: '',
       filterShopId: '',
+      eventRangeFilter: 'future_only',
+      currentPage: 1,
+      pageSize: DEFAULT_PAGE_SIZE,
       events: []
     };
   },
   computed: {
     filteredEvents() {
-      if (!this.filterShopId) return this.events;
-      return this.events.filter(e => e.shop_id == this.filterShopId);
+      return this.events;
+    },
+    showPrev() {
+      return this.currentPage > 1;
+    },
+    showNext() {
+      return this.events.length === this.pageSize;
+    }
+  },
+  watch: {
+    'form.startDate'(value) {
+      if (value && !this.form.endDate) {
+        this.form.endDate = value;
+      }
+    },
+    'form.endDate'(value) {
+      if (value && !this.form.startDate) {
+        this.form.startDate = value;
+      }
+    },
+    filterShopId() {
+      this.currentPage = 1;
+      this.loadEvents();
+    },
+    eventRangeFilter() {
+      this.currentPage = 1;
+      this.loadEvents();
     }
   },
   async mounted() {
@@ -2755,13 +2794,40 @@ app.component('event-form-page', {
       return d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' }) +
         ' ' + d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
     },
+    formatEventListRange(startAt, endAt) {
+      if (!startAt) return '';
+      const start = new Date(startAt);
+      if (!endAt) return this.formatDatetime(startAt);
+
+      const end = new Date(endAt);
+      const durationMs = end.getTime() - start.getTime();
+      if (durationMs > 24 * 60 * 60 * 1000) {
+        return `${this.formatDatetime(startAt)} 〜 ${this.formatDatetime(endAt)}`;
+      }
+
+      return `${this.formatDatetime(startAt)} 〜 ${end.toLocaleTimeString('ja-JP', { hour: 'numeric', minute: '2-digit' })}`;
+    },
     async loadEvents() {
       try {
-        const data = await API.getEvents();
+        const data = await API.getEvents(
+          this.filterShopId || null,
+          this.eventRangeFilter === 'future_only',
+          this.currentPage,
+          this.pageSize
+        );
         this.events = data.events || [];
       } catch (e) {
         // ignore
       }
+    },
+    async goPrev() {
+      if (this.currentPage <= 1) return;
+      this.currentPage -= 1;
+      await this.loadEvents();
+    },
+    async goNext() {
+      this.currentPage += 1;
+      await this.loadEvents();
     },
     editExisting(event) {
       this.form.title = event.title || '';
@@ -2820,9 +2886,32 @@ app.component('event-form-page', {
       }
       return payload;
     },
-    async createEvent() {
+    validateEventForm() {
       if (!this.form.title || !this.form.shop_id) {
         this.localError = 'イベント名と店舗は必須です';
+        return false;
+      }
+      if (!this.form.startDate || !this.form.startTime || !this.form.endDate || !this.form.endTime) {
+        this.localError = '開始日時と終了日時は必須です';
+        return false;
+      }
+
+      const startAt = new Date(`${this.form.startDate}T${this.form.startTime}:00`);
+      const endAt = new Date(`${this.form.endDate}T${this.form.endTime}:00`);
+
+      if (endAt < startAt) {
+        this.localError = '終了日時は開始日時以降にしてください';
+        return false;
+      }
+      if (endAt.getTime() - startAt.getTime() >= 32 * 24 * 60 * 60 * 1000) {
+        this.localError = '終了日時は開始日時から31日以内にしてください';
+        return false;
+      }
+
+      return true;
+    },
+    async createEvent() {
+      if (!this.validateEventForm()) {
         return;
       }
       this.submitting = true;
@@ -2839,8 +2928,7 @@ app.component('event-form-page', {
       this.submitting = false;
     },
     async updateEvent() {
-      if (!this.form.title || !this.form.shop_id) {
-        this.localError = 'イベント名と店舗は必須です';
+      if (!this.validateEventForm()) {
         return;
       }
       this.submitting = true;
@@ -2996,7 +3084,7 @@ app.component('map-view-page', {
             const score = this.$root.currentUser ? this.shopScore(shop.shop_id) : null;
             const icon = this.createMarkerIcon(score);
             const marker = L.marker([lat, lng], { icon: icon }).addTo(this.map);
-            let popupHtml = '<strong>' + this.escapeHtml(shop.shop_name) + '</strong>';
+            let popupHtml = '<strong><a href="#shop-' + shop.shop_id + '" style="color:#000;text-decoration:none">' + this.escapeHtml(shop.shop_name) + '</a></strong>';
             if (shop.address) {
               popupHtml += '<br><span style="font-size:0.85rem;color:#a0a0b8">' + this.escapeHtml(shop.address) + '</span>';
             }

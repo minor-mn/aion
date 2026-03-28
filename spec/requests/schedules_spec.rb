@@ -6,8 +6,10 @@ RSpec.describe "Schedules", type: :request do
   let!(:shop) { Shop.create!(name: "Test Shop") }
   let!(:staff1) { Staff.create!(name: "Alice", shop_id: shop.id) }
   let!(:staff2) { Staff.create!(name: "Bob", shop_id: shop.id) }
+  let!(:staff3) { Staff.create!(name: "Carol", shop_id: shop.id) }
   let!(:preference1) { StaffPreference.create!(user: user, staff: staff1, score: 3) }
   let!(:preference2) { StaffPreference.create!(user: user, staff: staff2, score: 2) }
+  let!(:preference3) { StaffPreference.create!(user: user, staff: staff3, score: 0) }
 
   let!(:shift1) do
     StaffShift.create!(
@@ -24,6 +26,14 @@ RSpec.describe "Schedules", type: :request do
       shop_id: shop.id,
       start_at: Time.zone.parse("2024-05-01 17:00"),
       end_at: Time.zone.parse("2024-05-01 23:00")
+    )
+  end
+  let!(:shift3) do
+    StaffShift.create!(
+      staff: staff3,
+      shop_id: shop.id,
+      start_at: Time.zone.parse("2024-05-01 18:00"),
+      end_at: Time.zone.parse("2024-05-01 22:00")
     )
   end
   let!(:multi_day_event) do
@@ -59,6 +69,7 @@ RSpec.describe "Schedules", type: :request do
       expect(body["days"].size).to eq(3)
       expect(body["days"].first["total_score"]).to eq(5)
       expect(body["days"].first["staffs"].size).to eq(2)
+      expect(body["days"].first["staffs"].map { |staff| staff["name"] }).to eq([ "Alice", "Bob" ])
       expect(body["days"].map { |day| day["date"] }).to eq([ "2024-05-01", "2024-05-02", "2024-05-03" ])
       expect(body["days"].map { |day| day["events"].map { |event| event["id"] } }).to eq([ [ multi_day_event.id ], [ multi_day_event.id ], [ multi_day_event.id ] ])
     end

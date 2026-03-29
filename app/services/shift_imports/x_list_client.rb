@@ -57,7 +57,7 @@ module ShiftImports
 
     def default_params
       {
-        "tweet.fields" => "created_at,author_id,attachments",
+        "tweet.fields" => "created_at,author_id,attachments,referenced_tweets",
         "expansions" => "author_id,attachments.media_keys",
         "user.fields" => "username",
         "media.fields" => "type,url,preview_image_url"

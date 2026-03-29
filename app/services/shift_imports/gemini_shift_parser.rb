@@ -91,6 +91,15 @@ module ShiftImports
         - Resolve words like "today", "tomorrow", "本日", "明日", "次回13日" using the post date context.
         - If the post mentions multiple relative days such as "今日明日", "本日明日", "今日と明日", or "明日明後日", return one action per day.
         - For example, "今日明日いません" should return two delete actions for today and tomorrow.
+        - If the post uses these keyword-based shift labels, convert them to add actions with these exact times:
+          - "おひさま" => 12:00 to 17:00
+          - "おつきさま" => 17:00 to 22:00
+          - "おーらす" => 12:00 to 22:00
+        - For posts like "3.30 おひさま" or "3/30 おひさま", treat that as a shift announcement for that date using the mapped time range.
+        - If a date is explicitly written, always use that written date.
+        - If no date is written for a keyword-based announcement, use the post timestamp to infer the date:
+          - if the post time is 17:00 or earlier, use the same calendar day as the post
+          - if the post time is later than 17:00, use the next calendar day
         - The post timestamp is #{posted_at&.iso8601 || 'unknown'}.
         - If only a day-of-month is mentioned, infer the year/month from the post timestamp unless the content clearly indicates otherwise.
         - Preserve date and time exactly if present.

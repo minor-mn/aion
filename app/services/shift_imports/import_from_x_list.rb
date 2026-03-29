@@ -85,6 +85,11 @@ module ShiftImports
 
       TwitterStreamLogger.info("tweet_process_start post_id=#{post_id} username=#{username || '-'}")
 
+      if retweet?(tweet)
+        TwitterStreamLogger.info("tweet_process_skip post_id=#{post_id} reason=retweet username=#{username || '-'}")
+        return { imported_count: 0, had_errors: false }
+      end
+
       unless @matcher.target_username?(username)
         TwitterStreamLogger.info("tweet_process_skip post_id=#{post_id} reason=untracked_username username=#{username || '-'}")
         return { imported_count: 0, had_errors: false }
@@ -216,6 +221,10 @@ module ShiftImports
         source_posted_at: posted_at,
         raw_text: raw_text
       )
+    end
+
+    def retweet?(tweet)
+      Array(tweet["referenced_tweets"]).any? { |reference| reference["type"] == "retweeted" }
     end
   end
 end

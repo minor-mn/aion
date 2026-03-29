@@ -173,7 +173,7 @@ module ShiftImports
         parsed_end_at += 1.day if parsed_end_at <= start_at
         parsed_end_at
       end
-      [start_at, end_at]
+      [ start_at, end_at ]
     end
 
     def normalize_action(value)
@@ -217,6 +217,5 @@ module ShiftImports
         raw_text: raw_text
       )
     end
-
   end
 end

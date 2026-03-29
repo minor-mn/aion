@@ -27,7 +27,7 @@ module ShiftImports
     private
 
     def tracked_usernames
-      @tracked_usernames ||= Staff.where.not(site_url: [nil, ""]).pluck(:site_url).filter_map do |site_url|
+      @tracked_usernames ||= Staff.where.not(site_url: [ nil, "" ]).pluck(:site_url).filter_map do |site_url|
         normalized = normalize_username(extract_username_from_url(site_url))
         normalized.presence
       end.to_set

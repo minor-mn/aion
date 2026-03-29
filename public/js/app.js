@@ -5,7 +5,7 @@ const app = createApp({
   setup() {
     // ========== State ==========
     const currentUser = ref(null);
-    const currentView = ref('home'); // home, login, register, forgotPassword, resetPassword, shopForm, staffForm, shiftForm, shiftBulkForm, shiftEdit
+    const currentView = ref('home'); // home, login, register, forgotPassword, resetPassword, shopForm, staffForm, shiftForm, shiftImportPage, shiftBulkForm, shiftEdit
     const resetPasswordToken = ref(null);
     const menuOpen = ref(false);
     const loading = ref(true);
@@ -675,21 +675,21 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
-    const operatorOnlyViews = ['shiftBulkForm'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftImportPage', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
+    const operatorOnlyViews = ['shiftImportPage', 'shiftBulkForm'];
 
     // Mapping between hash fragments and view names
     const hashToView = {
       '': 'home', 'home': 'home',
       'map': 'mapView', 'login': 'login', 'register': 'register',
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
-      'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-bulk': 'shiftBulkForm',
+      'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-import': 'shiftImportPage', 'shift-bulk': 'shiftBulkForm',
       'events': 'eventForm'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
-      'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftBulkForm': 'shift-bulk',
+      'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftImportPage': 'shift-import', 'shiftBulkForm': 'shift-bulk',
       'eventForm': 'events'
     };
 
@@ -727,6 +727,7 @@ const app = createApp({
       if (view === 'mapView') { loadShops(); }
       if (view === 'eventForm') { loadShops(); }
       if (view === 'shiftBulkForm') { loadShops(); loadStaffs(); }
+      if (view === 'shiftImportPage') { loadShops(); loadStaffs(); }
     }
 
     function handleHashChange() {
@@ -2577,6 +2578,127 @@ app.component('shift-bulk-form-page', {
         this.localError = e.data?.errors?.join(', ') || e.data?.error || '一括登録に失敗しました';
       }
       this.submitting = false;
+    }
+  }
+});
+
+app.component('shift-import-page', {
+  template: `
+    <div class="register-container">
+      <h2>シフト管理(自動登録)</h2>
+      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
+      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
+      <div class="shop-block" style="margin-bottom:16px">
+        登録済みのキャストに紐づくX投稿だけを自動反映します。未解決の投稿や適用不能な変更がある場合はログに記録され、その回のカーソルは進みません。
+      </div>
+
+      <div class="form-actions" style="margin-bottom:16px">
+        <button class="btn btn-primary" @click="runImport" :disabled="importing">
+          {{ importing ? '取り込み中...' : 'Xから取り込む(手動)' }}
+        </button>
+      </div>
+
+      <div class="shop-block">
+        <h3 style="margin-bottom:12px">取り込みログ</h3>
+        <div v-if="loadingLogs">読み込み中...</div>
+        <div v-else-if="!posts.length">ログはまだありません。</div>
+        <div v-else style="display:flex; flex-direction:column; gap:16px">
+          <div v-for="post in posts" :key="post.source_post_id" class="shop-block">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:8px">
+              <div>
+                <div><strong>投稿ID:</strong> <a :href="post.source_post_url" target="_blank" rel="noopener">{{ post.source_post_id }}</a></div>
+                <div v-if="post.source_username"><strong>発信者:</strong> @{{ post.source_username }}</div>
+                <div v-if="post.source_posted_at"><strong>投稿日時:</strong> {{ formatDateTime(post.source_posted_at) }}</div>
+              </div>
+              <div><strong>{{ post.entries.length }}件</strong></div>
+            </div>
+            <div style="white-space:pre-wrap; background:#f7f7f7; padding:10px; border-radius:8px; margin-bottom:12px">{{ post.raw_text }}</div>
+            <div style="display:flex; flex-direction:column; gap:8px">
+              <div v-for="entry in post.entries" :key="entry.id" style="border:1px solid #e5e5e5; border-radius:8px; padding:10px">
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start">
+                  <div>
+                    <div><strong>{{ entry.action }}</strong> / {{ formatRange(entry.start_at, entry.end_at) }}</div>
+                    <div>
+                      {{ entry.shop_name || entry.parsed_shop_name || '店舗未解決' }} / {{ entry.staff_name || entry.parsed_staff_name || 'キャスト未解決' }}
+                    </div>
+                  </div>
+                  <div :style="{ color: entry.applied ? '#0a7a33' : '#b42318' }">
+                    {{ entry.applied ? '反映済み' : '未反映' }}
+                  </div>
+                </div>
+                <div v-if="entry.result_message" style="margin-top:6px; color:#666">{{ entry.result_message }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  data() {
+    return {
+      importing: false,
+      loadingLogs: false,
+      posts: [],
+      localError: '',
+      localSuccess: ''
+    };
+  },
+  async mounted() {
+    if (!this.$root.isOperatorOrAdmin()) {
+      this.$root.navigate('home');
+      return;
+    }
+    await this.loadLogs();
+  },
+  methods: {
+    async loadLogs() {
+      this.loadingLogs = true;
+      try {
+        const data = await API.getShiftImportCandidates(1, 20);
+        this.posts = data.shift_import_posts || [];
+      } catch (e) {
+        this.localError = e.data?.error || 'ログの取得に失敗しました';
+      }
+      this.loadingLogs = false;
+    },
+    formatDateTime(value) {
+      const date = new Date(value);
+      return date.toLocaleString('ja-JP');
+    },
+    formatRange(startAt, endAt) {
+      const start = new Date(startAt);
+      const startText = start.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      if (!endAt) return startText;
+      const end = new Date(endAt);
+      const endText = end.toLocaleString('ja-JP', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      return `${startText} - ${endText}`;
+    },
+    async runImport() {
+      this.importing = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        const data = await API.importShiftCandidatesFromX();
+        const count = Number(data.imported_count || 0);
+        this.localSuccess = data.bootstrapped
+          ? '初回同期を実行し、最新投稿を基準点として記録しました'
+          : `${count}件のシフト変更を自動反映しました`;
+        await this.loadLogs();
+      } catch (e) {
+        this.localError = e.data?.error || 'Xからの取り込みに失敗しました';
+      }
+      this.importing = false;
     }
   }
 });

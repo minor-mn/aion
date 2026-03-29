@@ -45,6 +45,16 @@ Rails.application.routes.draw do
     # preferences
     resources :staff_preferences, only: %i[index create show update destroy ]
 
+    resources :shift_import_candidates, only: %i[index destroy] do
+      collection do
+        post :import_from_x
+      end
+
+      member do
+        patch :approve
+      end
+    end
+
     # schedules
     resources :schedules, only: %i[index] do
       collection do

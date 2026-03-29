@@ -39,6 +39,7 @@
           <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
           <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
           <button class="menu-item" @click="navigate('shiftForm')">シフト管理</button>
+          <button v-if="currentUser.role === 'admin' || currentUser.role === 'operator'" class="menu-item" @click="navigate('shiftImportPage')">シフト管理(自動登録)</button>
           <button v-if="currentUser.role === 'admin' || currentUser.role === 'operator'" class="menu-item" @click="navigate('shiftBulkForm')">シフト一括登録</button>
           <button class="menu-item" @click="navigate('eventForm')">イベント管理</button>
         </template>
@@ -78,6 +79,9 @@
 
       <!-- Shift Bulk Form -->
       <shift-bulk-form-page v-if="currentView === 'shiftBulkForm'"></shift-bulk-form-page>
+
+      <!-- Shift Import Page -->
+      <shift-import-page v-if="currentView === 'shiftImportPage'"></shift-import-page>
 
       <!-- Shift Edit -->
       <shift-edit-page v-if="currentView === 'shiftEdit'"></shift-edit-page>

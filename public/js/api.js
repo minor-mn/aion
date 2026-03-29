@@ -136,6 +136,22 @@ const API = {
     return this.request('POST', `/v1/shops/${shopId}/staff_shifts/bulk_create`, data);
   },
 
+  getShiftImportCandidates(page = 1, size = 20) {
+    return this.request('GET', `/v1/shift_import_candidates?p=${page}&s=${size}`);
+  },
+
+  importShiftCandidatesFromX() {
+    return this.request('POST', '/v1/shift_import_candidates/import_from_x');
+  },
+
+  approveShiftImportCandidate(id) {
+    return this.request('PATCH', `/v1/shift_import_candidates/${id}/approve`);
+  },
+
+  deleteShiftImportCandidate(id) {
+    return this.request('DELETE', `/v1/shift_import_candidates/${id}`);
+  },
+
   updateStaffShift(shopId, id, data) {
     return this.request('PATCH', `/v1/shops/${shopId}/staff_shifts/${id}`, data);
   },

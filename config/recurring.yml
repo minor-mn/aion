@@ -2,10 +2,18 @@ production:
   daily_notification_scheduler:
     class: DailyNotificationSchedulerJob
     queue: default
-    schedule: "every day at 5:00 JST"
+    schedule: "every week on sun,mon,tue,wed,thu,fri,sat at 5:00"
+  import_shifts_from_x_list:
+    class: ImportShiftsFromXListJob
+    queue: default
+    schedule: "every 30 minutes"
 
 development:
   daily_notification_scheduler:
     class: DailyNotificationSchedulerJob
     queue: default
-    schedule: "every day at 5:00 JST"
+    schedule: "every week on sun,mon,tue,wed,thu,fri,sat at 5:00"
+  import_shifts_from_x_list:
+    class: ImportShiftsFromXListJob
+    queue: default
+    schedule: "every 30 minutes"

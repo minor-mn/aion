@@ -206,6 +206,10 @@ const API = {
     return this.request('PATCH', '/v1/user/notification_settings', data);
   },
 
+  sendTestNotification() {
+    return this.request('POST', '/v1/user/notification_settings/test');
+  },
+
   // Push Subscriptions
   savePushSubscription(subscription) {
     return this.request('POST', '/v1/user/push_subscriptions', subscription);

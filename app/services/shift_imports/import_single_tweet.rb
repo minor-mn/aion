@@ -16,9 +16,19 @@ module ShiftImports
       includes = response.fetch("includes", {})
       users_by_id = includes.fetch("users", []).index_by { |user| user.fetch("id") }
       media_by_key = includes.fetch("media", []).index_by { |media| media.fetch("media_key") }
+      username = users_by_id[tweet["author_id"]]&.fetch("username", nil)
+      staff = @matcher.match_staff(shop: nil, username: username)
+      shop = staff&.shop
 
       importer = ShiftImports::ImportFromXList.new(client: @client, parser: @parser, matcher: @matcher)
-      result = importer.send(:import_tweet, tweet, users_by_id: users_by_id, media_by_key: media_by_key)
+      result = importer.send(
+        :import_tweet,
+        tweet,
+        media_by_key: media_by_key,
+        username: username,
+        staff: staff,
+        shop: shop
+      )
 
       result = { tweet_id: @tweet_id, imported_count: result.fetch(:imported_count), had_errors: result.fetch(:had_errors) }
       TwitterStreamLogger.info("single_import_finish tweet_id=#{@tweet_id} imported_count=#{result[:imported_count]} had_errors=#{result[:had_errors]}")

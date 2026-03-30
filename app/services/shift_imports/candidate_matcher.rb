@@ -3,6 +3,8 @@ require "set"
 
 module ShiftImports
   class CandidateMatcher
+    X_HOSTS = %w[x.com www.x.com twitter.com www.twitter.com mobile.twitter.com mobile.x.com].freeze
+
     def match_shop(name)
       return nil if name.blank?
 
@@ -24,12 +26,19 @@ module ShiftImports
       tracked_usernames.include?(normalize_username(username))
     end
 
+    def username_from_site_url(value)
+      username = normalize_username(extract_username_from_url(value))
+      return nil if username.blank?
+      return nil unless x_site_url?(value)
+
+      username
+    end
+
     private
 
     def tracked_usernames
       @tracked_usernames ||= Staff.where.not(site_url: [ nil, "" ]).pluck(:site_url).filter_map do |site_url|
-        normalized = normalize_username(extract_username_from_url(site_url))
-        normalized.presence
+        username_from_site_url(site_url)
       end.to_set
     end
 
@@ -66,6 +75,17 @@ module ShiftImports
 
     def normalize_username(value)
       value.to_s.strip.downcase.sub(/\A@/, "")
+    end
+
+    def x_site_url?(value)
+      stripped = value.to_s.strip
+      return true if stripped.start_with?("@")
+      return false unless stripped.include?("/")
+
+      uri = URI.parse(stripped)
+      X_HOSTS.include?(uri.host.to_s.downcase)
+    rescue URI::InvalidURIError
+      false
     end
   end
 end

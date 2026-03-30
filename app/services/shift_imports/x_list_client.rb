@@ -33,6 +33,52 @@ module ShiftImports
       JSON.parse(response.body)
     end
 
+    def fetch_user_by_username(username:)
+      raise "X_BEARER_TOKEN is not configured" if @bearer_token.blank?
+
+      uri = URI("#{API_BASE}/2/users/by/username/#{username}")
+      uri.query = URI.encode_www_form("user.fields" => "id,username")
+
+      TwitterStreamLogger.info("x_user_lookup_start username=#{username}")
+      request = Net::HTTP::Get.new(uri)
+      request["Authorization"] = "Bearer #{@bearer_token}"
+
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 30, open_timeout: 10) do |http|
+        http.request(request)
+      end
+
+      TwitterStreamLogger.info("x_user_lookup_finish username=#{username} status=#{response.code}")
+      raise "X API request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+      JSON.parse(response.body)
+    end
+
+    def fetch_user_tweets(user_id:, since_id: nil, max_results: 100)
+      raise "X_BEARER_TOKEN is not configured" if @bearer_token.blank?
+
+      params = default_params.merge(
+        "max_results" => max_results.to_s,
+        "exclude" => "retweets,replies"
+      )
+      params["since_id"] = since_id if since_id.present?
+
+      uri = URI("#{API_BASE}/2/users/#{user_id}/tweets")
+      uri.query = URI.encode_www_form(params)
+
+      TwitterStreamLogger.info("x_user_tweets_start user_id=#{user_id} since_id=#{since_id || '-'} max_results=#{max_results}")
+      request = Net::HTTP::Get.new(uri)
+      request["Authorization"] = "Bearer #{@bearer_token}"
+
+      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 30, open_timeout: 10) do |http|
+        http.request(request)
+      end
+
+      TwitterStreamLogger.info("x_user_tweets_finish user_id=#{user_id} status=#{response.code}")
+      raise "X API request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+      JSON.parse(response.body)
+    end
+
     def fetch_tweet(tweet_id:)
       raise "X_BEARER_TOKEN is not configured" if @bearer_token.blank?
 

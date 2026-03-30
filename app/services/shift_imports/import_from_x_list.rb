@@ -1,87 +1,110 @@
 module ShiftImports
   class ImportFromXList
-    SOURCE_KEY = "x_list_shifts".freeze
-
-    def initialize(list_id: ENV["X_LIST_ID"], client: XListClient.new, parser: GeminiShiftParser.new, matcher: CandidateMatcher.new)
-      @list_id = list_id
+    def initialize(client: XListClient.new, parser: GeminiShiftParser.new, matcher: CandidateMatcher.new)
       @client = client
       @parser = parser
       @matcher = matcher
     end
 
     def call
-      raise "X_LIST_ID is not configured" if @list_id.blank?
+      staffs = tracked_staffs
+      TwitterStreamLogger.info("import_start tracked_staff_count=#{staffs.size}")
 
-      TwitterStreamLogger.info("import_start list_id=#{@list_id}")
-      cursor = ImportCursor.find_or_initialize_by(source_key: SOURCE_KEY)
+      imported_count = 0
+      had_errors = false
 
-      if cursor.last_post_id.blank?
-        bootstrap!(cursor)
-      else
-        import_since!(cursor)
+      staffs.each do |staff|
+        result = import_staff_timeline(staff)
+        imported_count += result.fetch(:imported_count)
+        had_errors ||= result.fetch(:had_errors)
       end
+
+      { imported_count: imported_count, had_errors: had_errors, tracked_staff_count: staffs.count }
     rescue StandardError => e
       TwitterStreamLogger.error("import_error #{e.class}: #{e.message}")
       TwitterStreamLogger.error(e.backtrace.join("\n")) if e.backtrace
       raise
     ensure
-      TwitterStreamLogger.info("import_finish list_id=#{@list_id}")
+      TwitterStreamLogger.info("import_finish")
     end
 
     private
 
-    def bootstrap!(cursor)
-      TwitterStreamLogger.info("bootstrap_start")
-      response = @client.fetch_list_posts(list_id: @list_id, max_results: 1)
-      latest_tweet = response.fetch("data", []).first
-
-      if latest_tweet.blank?
-        TwitterStreamLogger.info("bootstrap_no_posts")
-        return { bootstrapped: false, imported_count: 0 }
-      end
-
-      cursor.update!(last_post_id: latest_tweet.fetch("id"))
-      TwitterStreamLogger.info("bootstrap_set_cursor post_id=#{latest_tweet.fetch('id')}")
-      { bootstrapped: true, imported_count: 0, last_post_id: cursor.last_post_id }
+    def tracked_staffs
+      Staff.where.not(site_url: [ nil, "" ]).to_a
+        .select { |staff| @matcher.username_from_site_url(staff.site_url).present? }
     end
 
-    def import_since!(cursor)
-      TwitterStreamLogger.info("import_since_start last_post_id=#{cursor.last_post_id}")
-      response = @client.fetch_list_posts(list_id: @list_id, since_id: cursor.last_post_id)
+    def import_staff_timeline(staff)
+      username = @matcher.username_from_site_url(staff.site_url)
+      return { imported_count: 0, had_errors: false } if username.blank?
+
+      TwitterStreamLogger.info("staff_import_start staff_id=#{staff.id} username=#{username}")
+      ensure_twitter_user_id!(staff, username)
+
+      response = fetch_staff_tweets(staff, username)
       tweets = response.fetch("data", [])
+      meta = response.fetch("meta", {})
+      includes = response.fetch("includes", {})
+      media_by_key = includes.fetch("media", []).index_by { |media| media.fetch("media_key") }
 
       if tweets.empty?
-        TwitterStreamLogger.info("import_no_new_posts")
-        return { bootstrapped: false, imported_count: 0, last_post_id: cursor.last_post_id }
+        TwitterStreamLogger.info("staff_import_no_new_posts staff_id=#{staff.id} username=#{username} since_id=#{staff.twitter_since_id}")
+        return { imported_count: 0, had_errors: false }
       end
 
       imported_count = 0
       had_errors = false
-      latest_post_id = tweets.map { |tweet| tweet.fetch("id") }.max_by(&:to_i)
-      includes = response.fetch("includes", {})
-      users_by_id = includes.fetch("users", []).index_by { |user| user.fetch("id") }
-      media_by_key = includes.fetch("media", []).index_by { |media| media.fetch("media_key") }
-
+      latest_post_id = meta["newest_id"] || tweets.map { |tweet| tweet.fetch("id") }.max_by(&:to_i)
       tweets.sort_by { |tweet| tweet.fetch("id").to_i }.each do |tweet|
-        result = import_tweet(tweet, users_by_id: users_by_id, media_by_key: media_by_key)
+        result = import_tweet(
+          tweet,
+          media_by_key: media_by_key,
+          username: username,
+          staff: staff,
+          shop: staff.shop
+        )
         imported_count += result.fetch(:imported_count)
         had_errors ||= result.fetch(:had_errors)
       end
 
-      cursor.update!(last_post_id: latest_post_id)
-
+      staff.update!(twitter_since_id: latest_post_id)
       TwitterStreamLogger.info(
-        "import_since_finish imported_count=#{imported_count} had_errors=#{had_errors} new_last_post_id=#{latest_post_id}"
+        "staff_import_finish staff_id=#{staff.id} username=#{username} imported_count=#{imported_count} had_errors=#{had_errors} new_since_id=#{latest_post_id}"
       )
-      { bootstrapped: false, imported_count: imported_count, had_errors: had_errors, last_post_id: latest_post_id }
+      { imported_count: imported_count, had_errors: had_errors }
     end
 
-    def import_tweet(tweet, users_by_id:, media_by_key: {})
+    def ensure_twitter_user_id!(staff, username)
+      return if staff.twitter_user_id.present?
+
+      response = @client.fetch_user_by_username(username: username)
+      twitter_user_id = response.dig("data", "id")
+      raise "X user lookup returned no data for @#{username}" if twitter_user_id.blank?
+
+      staff.update!(twitter_user_id: twitter_user_id)
+      TwitterStreamLogger.info("staff_import_set_user_id staff_id=#{staff.id} username=#{username} twitter_user_id=#{twitter_user_id}")
+    end
+
+    def fetch_staff_tweets(staff, username)
+      if staff.twitter_since_id.present?
+        TwitterStreamLogger.info(
+          "staff_import_fetch_since_id staff_id=#{staff.id} username=#{username} since_id=#{staff.twitter_since_id}"
+        )
+        @client.fetch_user_tweets(user_id: staff.twitter_user_id, since_id: staff.twitter_since_id)
+      else
+        TwitterStreamLogger.info(
+          "staff_import_fetch_latest staff_id=#{staff.id} username=#{username} max_results=5"
+        )
+        @client.fetch_user_tweets(user_id: staff.twitter_user_id, max_results: 5)
+      end
+    end
+
+    def import_tweet(tweet, media_by_key:, username:, staff: nil, shop: nil)
       post_id = tweet.fetch("id")
       raw_text = tweet.fetch("text")
       posted_at = Time.zone.parse(tweet["created_at"].to_s) if tweet["created_at"].present?
       post_url = "https://x.com/i/web/status/#{post_id}"
-      username = users_by_id[tweet["author_id"]]&.fetch("username", nil)
 
       TwitterStreamLogger.info("tweet_process_start post_id=#{post_id} username=#{username || '-'}")
 
@@ -90,20 +113,8 @@ module ShiftImports
         return { imported_count: 0, had_errors: false }
       end
 
-      unless @matcher.target_username?(username)
-        TwitterStreamLogger.info("tweet_process_skip post_id=#{post_id} reason=untracked_username username=#{username || '-'}")
-        return { imported_count: 0, had_errors: false }
-      end
-
       image_urls = extract_image_urls(tweet, media_by_key)
       TwitterStreamLogger.info("tweet_process_tracked_username post_id=#{post_id} username=#{username || '-'} image_count=#{image_urls.size}")
-      staff = @matcher.match_staff(shop: nil, username: username)
-      shop = staff&.shop
-
-      if staff.blank? || shop.blank?
-        TwitterStreamLogger.warn("tweet_process_skip post_id=#{post_id} reason=tracked_username_without_staff username=#{username || '-'}")
-        return { imported_count: 0, had_errors: false }
-      end
 
       parsed = @parser.parse_post(raw_text, image_urls: image_urls, posted_at: posted_at)
       actions = Array(parsed["actions"])

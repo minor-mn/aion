@@ -1,5 +1,6 @@
 class V1::User::NotificationSettingsController < ApplicationController
   before_action :authenticate_user!
+  before_action :require_admin!, only: :test
 
   # GET /v1/user/notification_settings
   def show

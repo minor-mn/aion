@@ -2806,7 +2806,7 @@ app.component('my-page', {
           <button class="btn btn-primary btn-block" @click="saveNotification" :disabled="savingNotif">
             {{ savingNotif ? '保存中...' : '通知設定を保存' }}
           </button>
-          <button class="btn btn-secondary btn-block" @click="sendTestNotification" :disabled="sendingTestNotification" style="margin-top:8px">
+          <button v-if="$root.currentUser && $root.currentUser.role === 'admin'" class="btn btn-secondary btn-block" @click="sendTestNotification" :disabled="sendingTestNotification" style="margin-top:8px">
             {{ sendingTestNotification ? '送信中...' : 'テスト通知を送る' }}
           </button>
         </div>

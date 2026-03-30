@@ -2806,6 +2806,9 @@ app.component('my-page', {
           <button class="btn btn-primary btn-block" @click="saveNotification" :disabled="savingNotif">
             {{ savingNotif ? '保存中...' : '通知設定を保存' }}
           </button>
+          <button class="btn btn-secondary btn-block" @click="sendTestNotification" :disabled="sendingTestNotification" style="margin-top:8px">
+            {{ sendingTestNotification ? '送信中...' : 'テスト通知を送る' }}
+          </button>
         </div>
 
       </div>
@@ -2837,6 +2840,7 @@ app.component('my-page', {
       scoreThresholdStaff: 0,
       notifyMinutesBefore: 0,
       savingNotif: false,
+      sendingTestNotification: false,
       notifMsg: '',
       notifMsgType: ''
     };
@@ -2966,6 +2970,19 @@ app.component('my-page', {
         this.notifMsgType = 'error';
       }
       this.savingNotif = false;
+    },
+    async sendTestNotification() {
+      this.sendingTestNotification = true;
+      this.notifMsg = '';
+      try {
+        const data = await API.sendTestNotification();
+        this.notifMsg = `${data.message} (${data.sent_count}/${data.total_count})`;
+        this.notifMsgType = 'success';
+      } catch (e) {
+        this.notifMsg = e.data?.error || 'テスト通知の送信に失敗しました';
+        this.notifMsgType = 'error';
+      }
+      this.sendingTestNotification = false;
     }
   }
 });

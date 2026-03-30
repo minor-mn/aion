@@ -5,8 +5,10 @@ const SW_VERSION = 'v11-webpush';
 self.addEventListener('push', (event) => {
   let title = 'シフト通知';
   let body = '';
+  let payload = null;
 
   if (!event.data) {
+    console.log('[SW] push received without payload');
     event.waitUntil(
       self.registration.showNotification(title, { body: '新しい通知があります' })
     );
@@ -14,11 +16,13 @@ self.addEventListener('push', (event) => {
   }
 
   try {
-    const payload = event.data.json();
+    payload = event.data.json();
+    console.log('[SW] push payload', payload);
     title = payload.title || title;
     body = payload.body || body;
   } catch (e) {
     body = event.data.text();
+    console.log('[SW] push text payload', body);
   }
 
   event.waitUntil(
@@ -28,6 +32,11 @@ self.addEventListener('push', (event) => {
       badge: '/icons/icon-192x192.png'
     })
   );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] notification click', event.notification?.title);
+  event.notification.close();
 });
 
 // Respond with SW version when asked

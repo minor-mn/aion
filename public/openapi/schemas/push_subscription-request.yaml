@@ -1,0 +1,15 @@
+required:
+  - endpoint
+  - p256dh
+  - auth
+type: object
+properties:
+  endpoint:
+    type: string
+    example: "https://fcm.googleapis.com/fcm/send/example"
+  p256dh:
+    type: string
+    example: "BExampleP256dhKey"
+  auth:
+    type: string
+    example: "exampleAuthKey"

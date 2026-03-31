@@ -1,0 +1,22 @@
+type: object
+properties:
+  notifications_enabled:
+    type: boolean
+    example: true
+  score_threshold_shop:
+    type: integer
+    minimum: -10
+    maximum: 10
+    example: 3
+  score_threshold_staff:
+    type: integer
+    minimum: -10
+    maximum: 10
+    example: 5
+  notify_morning:
+    type: boolean
+    example: true
+  notify_minutes_before:
+    type: integer
+    minimum: 0
+    example: 30

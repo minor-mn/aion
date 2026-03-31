@@ -4,6 +4,11 @@ required:
   - end_at
 type: object
 properties:
+  shop_id:
+    type: integer
+    nullable: true
+    description: 任意。指定時はパスのshop_idよりこちらを優先してシフトの所属店舗を設定します
+    example: 3
   staff_id:
     type: integer
     example: 1
@@ -15,4 +20,3 @@ properties:
     type: string
     format: date-time
     example: "2025-07-26T17:00:00Z"
-

@@ -143,6 +143,18 @@ module ShiftImports
           end_at: end_at
         )
 
+        unless candidate.valid?
+          candidate.applied = false
+          candidate.result_message = candidate.errors.full_messages.join(", ")
+          candidate.save!(validate: false)
+          had_errors = true
+          TwitterStreamLogger.warn(
+            "tweet_process_candidate_skipped post_id=#{post_id} " \
+            "action=#{normalized_action.inspect} payload=#{action_data.to_json} errors=#{candidate.result_message}"
+          )
+          next
+        end
+
         begin
           result = ActionApplier.new(
             shop: shop,
@@ -157,7 +169,7 @@ module ShiftImports
         rescue StandardError => e
           candidate.applied = false
           candidate.result_message = "#{e.class}: #{e.message}"
-          candidate.save!
+          candidate.save!(validate: false)
           had_errors = true
           TwitterStreamLogger.warn(
             "tweet_process_action_skipped post_id=#{post_id} " \

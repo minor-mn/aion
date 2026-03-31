@@ -1403,8 +1403,8 @@ app.component('shop-form-page', {
         <input v-model="form.name" type="text" placeholder="店舗名">
       </div>
       <div class="form-group">
-        <label>サイトURL</label>
-        <input v-model="form.site_url" type="url" placeholder="https://...">
+        <label>サイトURL (𝕏)</label>
+        <input v-model="form.site_url" type="url" placeholder="https://x.com/xxx">
       </div>
       <div class="form-group">
         <label>画像URL</label>
@@ -1701,30 +1701,31 @@ app.component('user-list-page', {
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 
-      <h3 style="margin-bottom:12px">{{ editMode ? 'ユーザー編集' : 'ユーザー管理' }}</h3>
-      <div class="form-group" v-if="editMode">
-        <label>メールアドレス</label>
-        <input v-model="form.email" type="email" disabled>
-      </div>
-      <div class="form-group">
-        <label>ニックネーム</label>
-        <input v-model="form.nickname" type="text" placeholder="ニックネーム">
-      </div>
-      <div class="form-group">
-        <label>ロール</label>
-        <select v-model="form.role">
-          <option value="admin">admin</option>
-          <option value="operator">operator</option>
-          <option value="user">user</option>
-        </select>
-      </div>
-      <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
-        <template v-if="editMode">
+      <template v-if="editMode">
+        <h3 style="margin-bottom:12px">ユーザー編集</h3>
+        <div class="form-group">
+          <label>メールアドレス</label>
+          <input v-model="form.email" type="email" disabled>
+        </div>
+        <div class="form-group">
+          <label>ニックネーム</label>
+          <input v-model="form.nickname" type="text" placeholder="ニックネーム">
+        </div>
+        <div class="form-group">
+          <label>ロール</label>
+          <select v-model="form.role">
+            <option value="admin">admin</option>
+            <option value="operator">operator</option>
+            <option value="user">user</option>
+          </select>
+        </div>
+        <div class="form-actions" style="display:flex;gap:8px;margin-bottom:16px">
           <button class="btn btn-primary" @click="updateUser" :disabled="submitting">
             {{ submitting ? '更新中...' : '更新' }}
           </button>
-        </template>
-      </div>
+        </div>
+      </template>
+      <div v-else class="no-data" style="margin-bottom:16px">登録済みユーザーから編集対象を選択してください</div>
 
       <h3 style="margin-bottom:12px">登録済みユーザー</h3>
       <div v-if="$root.users.length === 0" class="no-data">ユーザーがありません</div>
@@ -1873,7 +1874,6 @@ app.component('staff-form-page', {
       <div class="form-group">
         <label>店舗で絞り込み</label>
         <select v-model="filterShopId" @change="loadFilteredStaffs">
-          <option value="">全て</option>
           <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
         </select>
       </div>
@@ -1927,6 +1927,7 @@ app.component('staff-form-page', {
   async mounted() {
     await this.$root.loadShops();
     await this.$root.loadStaffs();
+    this.resetFilterShopId();
     await this.loadPreferences();
     const es = this.$root.editingStaff;
     if (es) {
@@ -1942,6 +1943,17 @@ app.component('staff-form-page', {
     }
   },
   methods: {
+    resetFilterShopId() {
+      if (this.$root.shops.length === 0) {
+        this.filterShopId = '';
+        return;
+      }
+      const shopIds = this.$root.shops
+        .map(shop => Number(shop.id))
+        .filter(id => !Number.isNaN(id))
+        .sort((a, b) => a - b);
+      this.filterShopId = shopIds.length > 0 ? String(shopIds[0]) : '';
+    },
     getShopName(shopId) {
       const shop = this.$root.shops.find(s => s.id === shopId);
       return shop ? shop.name : '';
@@ -2013,6 +2025,7 @@ app.component('staff-form-page', {
         this.localSuccess = 'キャストを登録しました';
         this.form = { name: '', shop_id: '', site_url: '', image_url: '' };
         await this.$root.loadStaffs();
+        this.resetFilterShopId();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '登録に失敗しました';
       }
@@ -2033,6 +2046,7 @@ app.component('staff-form-page', {
         this.editStaffId = null;
         this.form = { name: '', shop_id: '', site_url: '', image_url: '' };
         await this.$root.loadStaffs();
+        this.resetFilterShopId();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }
@@ -2044,6 +2058,9 @@ app.component('staff-form-page', {
         await API.deleteStaff(staff.id);
         this.localSuccess = '削除しました';
         await this.$root.loadStaffs();
+        if (!this.$root.staffs.some(s => String(s.shop_id) === String(this.filterShopId))) {
+          this.resetFilterShopId();
+        }
       } catch (e) {
         this.localError = '削除に失敗しました';
       }
@@ -2614,7 +2631,7 @@ app.component('shift-import-page', {
               </div>
               <div><strong>{{ post.entries.length }}件</strong></div>
             </div>
-            <div style="white-space:pre-wrap; background:#f7f7f7; padding:10px; border-radius:8px; margin-bottom:12px">{{ post.raw_text }}</div>
+            <div style="white-space:pre-wrap; background:#f7f7f7; color:#333; padding:10px; border-radius:8px; margin-bottom:12px">{{ post.raw_text }}</div>
             <div style="display:flex; flex-direction:column; gap:8px">
               <div v-for="entry in post.entries" :key="entry.id" style="border:1px solid #e5e5e5; border-radius:8px; padding:10px">
                 <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start">
@@ -2765,7 +2782,7 @@ app.component('my-page', {
         <!-- Notification Settings -->
         <div class="mypage-card">
           <h3 class="mypage-card-title">通知の設定</h3>
-          <div v-if="notifMsg" class="alert" :class="notifMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ notifMsg }}</div>
+          <div v-if="notifMsg" ref="notifMessage" class="alert" :class="notifMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ notifMsg }}</div>
 
           <div class="notif-instruction-box">
             iPhoneのホーム画面に追加すると、指定の条件でアプリに通知が届きます。ホーム画面に追加するには、Safariでこのページを開き、メニュー (おそらく画面下のアドレスバーの横の&hellip;) から 共有 &rarr; もっと見る &rarr; ホーム画面に追加 を選択します。その後、ホーム画面に追加されたアイコンをタップして、この画面で「通知を許可する」をOFF&rarr;ONすると、そのiPhoneに通知が届きます。
@@ -2868,6 +2885,13 @@ app.component('my-page', {
     }
   },
   methods: {
+    async scrollToNotificationMessage() {
+      await nextTick();
+      const el = this.$refs.notifMessage;
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
     async saveNickname() {
       this.savingNickname = true;
       this.nicknameMsg = '';
@@ -2967,9 +2991,11 @@ app.component('my-page', {
         } else {
           await this.$root.unregisterPushSubscription();
         }
+        await this.scrollToNotificationMessage();
       } catch (e) {
         this.notifMsg = e.data?.error || '保存に失敗しました';
         this.notifMsgType = 'error';
+        await this.scrollToNotificationMessage();
       }
       this.savingNotif = false;
     },
@@ -2980,9 +3006,11 @@ app.component('my-page', {
         const data = await API.sendTestNotification();
         this.notifMsg = `${data.message} (${data.sent_count}/${data.total_count})`;
         this.notifMsgType = 'success';
+        await this.scrollToNotificationMessage();
       } catch (e) {
         this.notifMsg = e.data?.error || 'テスト通知の送信に失敗しました';
         this.notifMsgType = 'error';
+        await this.scrollToNotificationMessage();
       }
       this.sendingTestNotification = false;
     }

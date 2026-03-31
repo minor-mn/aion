@@ -6,7 +6,9 @@ class V1::ShiftImportCandidatesController < ApplicationController
   before_action :set_candidate, only: %i[approve destroy]
 
   def index
+    cutoff = 1.week.ago
     grouped_candidates = ShiftImportCandidate.includes(:shop, :staff)
+      .where("COALESCE(source_posted_at, created_at) >= ?", cutoff)
       .order(source_posted_at: :desc, source_post_id: :desc, start_at: :asc, id: :asc)
       .group_by(&:source_post_id)
       .map do |post_id, candidates|

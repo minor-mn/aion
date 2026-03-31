@@ -774,21 +774,13 @@ const app = createApp({
         if (permission !== 'granted') return;
 
         const swReg = await navigator.serviceWorker.ready;
-
-        // Unsubscribe old subscription if exists
         const existingSub = await swReg.pushManager.getSubscription();
-        if (existingSub) {
-          await existingSub.unsubscribe();
-        }
-
-        // Create new push subscription with VAPID key
-        const subscription = await swReg.pushManager.subscribe({
+        const subscription = existingSub || await swReg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
 
         const subJson = subscription.toJSON();
-        await API.deleteAllPushSubscriptions();
         await API.savePushSubscription({
           endpoint: subJson.endpoint,
           p256dh: subJson.keys.p256dh,
@@ -843,11 +835,6 @@ const app = createApp({
         await loadHomeData();
       }
 
-      // Auto-refresh push subscription on every page load for logged-in users
-      // This ensures old Firebase SDK subscriptions get replaced with VAPID ones
-      if (currentUser.value && 'Notification' in window && Notification.permission === 'granted' && 'PushManager' in window) {
-        registerPushSubscription();
-      }
     });
 
     return {

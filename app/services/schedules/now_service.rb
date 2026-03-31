@@ -9,7 +9,7 @@ module Schedules
 
       shifts = StaffShift
         .where("start_at <= ? AND end_at >= ?", now, now)
-        .includes(staff: :shop)
+        .includes(:shop, staff: :shop)
 
       # Filter out orphaned shifts (staff or shop deleted)
       shifts = shifts.select { |sh| sh.staff.present? && sh.staff.shop.present? }
@@ -21,7 +21,7 @@ module Schedules
       end
 
       # Group current shifts by shop
-      shift_by_shop = shifts.group_by { |sh| sh.staff.shop.id }
+      shift_by_shop = shifts.group_by(&:shop_id)
 
       # Load current events (happening now or today)
       today_begin = Time.current.beginning_of_day

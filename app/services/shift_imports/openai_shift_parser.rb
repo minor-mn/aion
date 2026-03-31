@@ -1,68 +1,124 @@
 require "net/http"
 require "json"
-require "base64"
 
 module ShiftImports
-  class GeminiShiftParser
-    API_BASE = "https://generativelanguage.googleapis.com/v1beta".freeze
-    MODEL = ENV.fetch("GEMINI_MODEL", "gemini-2.0-flash")
+  class OpenaiShiftParser
+    API_BASE = "https://api.openai.com/v1".freeze
+    MODEL = ENV.fetch("OPENAI_MODEL", "gpt-4.1-mini")
 
-    def initialize(api_key: ENV["GEMINI_API_KEY"])
+    def initialize(api_key: ENV["OPENAI_API_KEY"])
       @api_key = api_key
     end
 
     def parse_post(text, image_urls: [], posted_at: nil)
-      raise "GEMINI_API_KEY is not configured" if @api_key.blank?
+      raise "OPENAI_API_KEY is not configured" if @api_key.blank?
 
-      TwitterStreamLogger.info("gemini_request_start length=#{text.to_s.length} image_count=#{image_urls.size}")
-      uri = URI("#{API_BASE}/models/#{MODEL}:generateContent?key=#{@api_key}")
+      TwitterStreamLogger.info("openai_request_start length=#{text.to_s.length} image_count=#{image_urls.size}")
+      uri = URI("#{API_BASE}/chat/completions")
       request = Net::HTTP::Post.new(uri)
       request["Content-Type"] = "application/json"
+      request["Authorization"] = "Bearer #{@api_key}"
       request.body = JSON.generate(
-        contents: [
+        model: MODEL,
+        messages: [
           {
-            parts: build_parts(text, image_urls, posted_at: posted_at)
+            role: "user",
+            content: build_content(text, image_urls, posted_at: posted_at)
           }
         ],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
+        response_format: response_format_schema
       )
 
       response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 60, open_timeout: 10) do |http|
         http.request(request)
       end
 
-      TwitterStreamLogger.info("gemini_request_finish status=#{response.code}")
-      raise "Gemini request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+      TwitterStreamLogger.info("openai_request_finish status=#{response.code}")
+      raise "OpenAI request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
 
       body = JSON.parse(response.body)
-      text_response = body.dig("candidates", 0, "content", "parts", 0, "text").to_s
-      parsed = JSON.parse(extract_json(text_response))
-      TwitterStreamLogger.info("gemini_parse_success actions=#{parsed.fetch('actions', []).size}")
+      text_response = body.dig("choices", 0, "message", "content").to_s
+      parsed = JSON.parse(text_response)
+      TwitterStreamLogger.info("openai_parse_success actions=#{parsed.fetch('actions', []).size}")
       parsed
     rescue JSON::ParserError => e
-      TwitterStreamLogger.error("gemini_parse_error #{e.message}")
+      TwitterStreamLogger.error("openai_parse_error #{e.message}")
       raise
     end
 
     private
 
-    def build_parts(text, image_urls, posted_at:)
-      parts = [
+    def build_content(text, image_urls, posted_at:)
+      content = [
         {
+          type: "text",
           text: prompt_for(text, posted_at: posted_at)
         }
       ]
 
       image_urls.each do |url|
-        inline_data = fetch_image_inline_data(url)
-        next unless inline_data
-
-        parts << { inlineData: inline_data }
+        content << {
+          type: "image_url",
+          image_url: {
+            url: url,
+            detail: "high"
+          }
+        }
       end
 
-      parts
+      content
+    end
+
+    def response_format_schema
+      {
+        type: "json_schema",
+        json_schema: {
+          name: "shift_actions",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              shop_name: {
+                anyOf: [
+                  { type: "string" },
+                  { type: "null" }
+                ]
+              },
+              actions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  properties: {
+                    action: {
+                      type: "string",
+                      enum: %w[add delete change]
+                    },
+                    date: {
+                      type: "string"
+                    },
+                    start_time: {
+                      anyOf: [
+                        { type: "string" },
+                        { type: "null" }
+                      ]
+                    },
+                    end_time: {
+                      anyOf: [
+                        { type: "string" },
+                        { type: "null" }
+                      ]
+                    }
+                  },
+                  required: %w[action date start_time end_time]
+                }
+              }
+            },
+            required: %w[shop_name actions]
+          }
+        }
+      }
     end
 
     def prompt_for(text, posted_at:)
@@ -108,44 +164,6 @@ module ShiftImports
         Post:
         #{text}
       PROMPT
-    end
-
-    def fetch_image_inline_data(url)
-      uri = URI.parse(url)
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", read_timeout: 30, open_timeout: 10) do |http|
-        http.request(Net::HTTP::Get.new(uri))
-      end
-
-      unless response.is_a?(Net::HTTPSuccess)
-        TwitterStreamLogger.warn("gemini_image_fetch_failed url=#{url} status=#{response.code}")
-        return nil
-      end
-
-      mime_type = response["content-type"].to_s.split(";").first.presence || infer_mime_type(url)
-      {
-        mimeType: mime_type,
-        data: Base64.strict_encode64(response.body)
-      }
-    rescue StandardError => e
-      TwitterStreamLogger.warn("gemini_image_fetch_error url=#{url} #{e.class}: #{e.message}")
-      nil
-    end
-
-    def infer_mime_type(url)
-      case File.extname(URI.parse(url).path).downcase
-      when ".png" then "image/png"
-      when ".webp" then "image/webp"
-      else "image/jpeg"
-      end
-    rescue URI::InvalidURIError
-      "image/jpeg"
-    end
-
-    def extract_json(text)
-      stripped = text.strip
-      return stripped unless stripped.start_with?("```")
-
-      stripped.sub(/\A```json\s*/i, "").sub(/\A```\s*/i, "").sub(/```\z/, "").strip
     end
   end
 end

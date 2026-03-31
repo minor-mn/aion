@@ -1,6 +1,6 @@
 module ShiftImports
   class ImportFromXList
-    def initialize(client: XListClient.new, parser: GeminiShiftParser.new, matcher: CandidateMatcher.new)
+    def initialize(client: XListClient.new, parser: ShiftImports::OpenaiShiftParser.new, matcher: CandidateMatcher.new)
       @client = client
       @parser = parser
       @matcher = matcher

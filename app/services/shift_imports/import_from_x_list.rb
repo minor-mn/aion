@@ -1,5 +1,7 @@
 module ShiftImports
   class ImportFromXList
+    TWITTER_NOT_FOUND_DELETE_THRESHOLD = 25
+
     def initialize(client: XListClient.new, parser: ShiftImports::OpenaiShiftParser.new, matcher: CandidateMatcher.new)
       @client = client
       @parser = parser
@@ -73,6 +75,10 @@ module ShiftImports
         "staff_import_finish staff_id=#{staff.id} username=#{username} imported_count=#{imported_count} had_errors=#{had_errors} new_since_id=#{latest_post_id}"
       )
       { imported_count: imported_count, had_errors: had_errors }
+    rescue XListClient::RequestError => e
+      return { imported_count: 0, had_errors: false } if e.status == 404
+
+      raise
     end
 
     def ensure_twitter_user_id!(staff, username)
@@ -82,12 +88,22 @@ module ShiftImports
       twitter_user_id = response.dig("data", "id")
       raise "X user lookup returned no data for @#{username}" if twitter_user_id.blank?
 
-      staff.update!(twitter_user_id: twitter_user_id)
+      attributes = { twitter_user_id: twitter_user_id }
+      profile_image_url = response.dig("data", "profile_image_url")
+      attributes[:image_url] = profile_image_url if staff.image_url.blank? && profile_image_url.present?
+      attributes[:twitter_not_found_count] = 0 if staff.twitter_not_found_count.to_i.positive?
+
+      staff.update!(attributes)
       TwitterStreamLogger.info("staff_import_set_user_id staff_id=#{staff.id} username=#{username} twitter_user_id=#{twitter_user_id}")
+    rescue XListClient::RequestError => e
+      raise unless e.status == 404
+
+      handle_twitter_not_found!(staff, username)
+      raise
     end
 
     def fetch_staff_tweets(staff, username)
-      if staff.twitter_since_id.present?
+      response = if staff.twitter_since_id.present?
         TwitterStreamLogger.info(
           "staff_import_fetch_since_id staff_id=#{staff.id} username=#{username} since_id=#{staff.twitter_since_id}"
         )
@@ -98,6 +114,14 @@ module ShiftImports
         )
         @client.fetch_user_tweets(user_id: staff.twitter_user_id, max_results: 5)
       end
+
+      reset_twitter_not_found_count!(staff, username)
+      response
+    rescue XListClient::RequestError => e
+      raise unless e.status == 404
+
+      handle_twitter_not_found!(staff, username)
+      raise
     end
 
     def import_tweet(tweet, media_by_key:, username:, staff: nil, shop: nil)
@@ -248,6 +272,31 @@ module ShiftImports
 
     def retweet?(tweet)
       Array(tweet["referenced_tweets"]).any? { |reference| reference["type"] == "retweeted" }
+    end
+
+    def reset_twitter_not_found_count!(staff, username)
+      return unless staff.twitter_not_found_count.to_i.positive?
+
+      staff.update!(twitter_not_found_count: 0)
+      TwitterStreamLogger.info("staff_import_reset_not_found_count staff_id=#{staff.id} username=#{username}")
+    end
+
+    def handle_twitter_not_found!(staff, username)
+      next_count = staff.twitter_not_found_count.to_i + 1
+      staff.update!(twitter_not_found_count: next_count)
+      TwitterStreamLogger.warn(
+        "staff_import_twitter_not_found staff_id=#{staff.id} username=#{username} count=#{next_count}"
+      )
+
+      return unless next_count >= TWITTER_NOT_FOUND_DELETE_THRESHOLD
+
+      Staff.transaction do
+        staff.staff_shifts.delete_all
+        staff.destroy!
+      end
+      TwitterStreamLogger.warn(
+        "staff_import_deleted_staff staff_id=#{staff.id} username=#{username} reason=twitter_not_found_threshold"
+      )
     end
   end
 end

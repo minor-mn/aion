@@ -101,7 +101,8 @@ class V1::StaffShiftsController < ApplicationController
   end
 
   def staff_shift_params
-    params.permit(:staff_id, :start_at, :end_at)
+    payload = params[:staff_shift].is_a?(ActionController::Parameters) ? params[:staff_shift] : params.except(:controller, :action, :format)
+    payload.permit(:staff_id, :shop_id, :start_at, :end_at)
   end
 
   def authorize_staff_shift_management!

@@ -65,8 +65,8 @@ module Schedules
             name:           shift.staff.name,
             image_url:      shift.staff.image_url,
             site_url:       shift.staff.site_url,
-            shop_id:        shift.staff.shop.id,
-            shop_name:      shift.staff.shop.name,
+            shop_id:        shift.shop_id,
+            shop_name:      shift.shop.name,
             datetime_begin: shift.start_at.iso8601,
             datetime_end:   shift.end_at.iso8601,
             score:          pref&.score || 0
@@ -86,9 +86,14 @@ module Schedules
           }
         end
 
+        total_score = staffs.group_by { |staff| staff[:shop_id] }
+          .values
+          .map { |shop_staffs| shop_staffs.sum { |staff| staff[:score] } }
+          .max || 0
+
         {
           date:         date.to_s,
-          total_score:  staffs.sum { |s| s[:score] },
+          total_score:  total_score,
           staffs:       staffs.sort_by { |s| s[:name].to_s },
           events:       date_events
         }

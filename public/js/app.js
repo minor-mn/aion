@@ -2092,6 +2092,14 @@ app.component('shift-form-page', {
         </select>
       </div>
 
+      <div class="form-group">
+        <label>シフト先店舗</label>
+        <select v-model="shiftTargetShopId">
+          <option value="">選択しない</option>
+          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
+      </div>
+
       <template v-if="selectedShopId && selectedStaffId">
         <h3 style="margin-top:16px;margin-bottom:12px">シフト日時</h3>
         <div v-for="(entry, index) in entries" :key="index" class="shift-entry">
@@ -2162,6 +2170,7 @@ app.component('shift-form-page', {
     return {
       selectedShopId: '',
       selectedStaffId: '',
+      shiftTargetShopId: '',
       entries: [{ date: dateStr, startTime: '17:00', endTime: '23:00' }],
       existingShifts: [],
       existingShiftsLoading: false,
@@ -2241,6 +2250,7 @@ app.component('shift-form-page', {
       this.submitting = true;
       let successCount = 0;
       const errors = [];
+      const targetShopId = this.shiftTargetShopId || this.selectedShopId;
 
       for (let i = 0; i < this.entries.length; i++) {
         const e = this.entries[i];
@@ -2249,7 +2259,7 @@ app.component('shift-form-page', {
         const endAt = this.buildDatetime(e.date, e.endTime, isNextDay);
 
         try {
-          await API.createStaffShift(this.selectedShopId, {
+          await API.createStaffShift(targetShopId, {
             staff_id: this.selectedStaffId,
             start_at: startAt,
             end_at: endAt
@@ -2322,7 +2332,10 @@ app.component('shift-edit-page', {
 
       <div class="form-group">
         <label>店舗</label>
-        <input type="text" :value="shopName" disabled>
+        <select v-model="form.shopId">
+          <option value="">選択してください</option>
+          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
       </div>
       <div class="form-group">
         <label>キャスト</label>
@@ -2361,7 +2374,7 @@ app.component('shift-edit-page', {
   `,
   data() {
     return {
-      form: { startDate: '', startTime: '', endDate: '', endTime: '' },
+      form: { shopId: '', startDate: '', startTime: '', endDate: '', endTime: '' },
       submitting: false,
       localError: '',
       localSuccess: ''
@@ -2379,17 +2392,19 @@ app.component('shift-edit-page', {
       return this.$root.getStaffName(this.shift.staff_id);
     }
   },
-  mounted() {
-    if (!this.shift) {
-      this.$root.navigate('home');
-      return;
-    }
-    const start = new Date(this.shift.start_at);
-    const end = new Date(this.shift.end_at);
-    this.form.startDate = this.toDateStr(start);
-    this.form.startTime = this.toTimeStr(start);
-    this.form.endDate = this.toDateStr(end);
-    this.form.endTime = this.toTimeStr(end);
+    mounted() {
+      if (!this.shift) {
+        this.$root.navigate('home');
+        return;
+      }
+      this.$root.loadShops();
+      const start = new Date(this.shift.start_at);
+      const end = new Date(this.shift.end_at);
+      this.form.shopId = this.shift._shop_id || '';
+      this.form.startDate = this.toDateStr(start);
+      this.form.startTime = this.toTimeStr(start);
+      this.form.endDate = this.toDateStr(end);
+      this.form.endTime = this.toTimeStr(end);
   },
   methods: {
     toDateStr(d) {
@@ -2410,6 +2425,7 @@ app.component('shift-edit-page', {
         const startAt = new Date(`${this.form.startDate}T${this.form.startTime}:00`).toISOString();
         const endAt = new Date(`${this.form.endDate}T${this.form.endTime}:00`).toISOString();
         await API.updateStaffShift(this.shift._shop_id, this.shift.id, {
+          shop_id: this.form.shopId,
           start_at: startAt,
           end_at: endAt
         });

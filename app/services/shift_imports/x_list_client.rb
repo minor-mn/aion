@@ -6,6 +6,16 @@ module ShiftImports
   class XListClient
     API_BASE = "https://api.x.com".freeze
 
+    class RequestError < StandardError
+      attr_reader :status, :body
+
+      def initialize(status:, body:)
+        @status = status.to_i
+        @body = body
+        super("X API request failed: #{status} #{body}")
+      end
+    end
+
     def initialize(bearer_token: ENV["X_BEARER_TOKEN"])
       @bearer_token = bearer_token
     end
@@ -28,7 +38,7 @@ module ShiftImports
       end
 
       TwitterStreamLogger.info("x_request_finish status=#{response.code}")
-      raise "X API request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+      raise RequestError.new(status: response.code, body: response.body) unless response.is_a?(Net::HTTPSuccess)
 
       JSON.parse(response.body)
     end
@@ -37,7 +47,7 @@ module ShiftImports
       raise "X_BEARER_TOKEN is not configured" if @bearer_token.blank?
 
       uri = URI("#{API_BASE}/2/users/by/username/#{username}")
-      uri.query = URI.encode_www_form("user.fields" => "id,username")
+      uri.query = URI.encode_www_form("user.fields" => "id,username,profile_image_url")
 
       TwitterStreamLogger.info("x_user_lookup_start username=#{username}")
       request = Net::HTTP::Get.new(uri)
@@ -48,7 +58,7 @@ module ShiftImports
       end
 
       TwitterStreamLogger.info("x_user_lookup_finish username=#{username} status=#{response.code}")
-      raise "X API request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+      raise RequestError.new(status: response.code, body: response.body) unless response.is_a?(Net::HTTPSuccess)
 
       JSON.parse(response.body)
     end
@@ -74,7 +84,7 @@ module ShiftImports
       end
 
       TwitterStreamLogger.info("x_user_tweets_finish user_id=#{user_id} status=#{response.code}")
-      raise "X API request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+      raise RequestError.new(status: response.code, body: response.body) unless response.is_a?(Net::HTTPSuccess)
 
       JSON.parse(response.body)
     end
@@ -94,7 +104,7 @@ module ShiftImports
       end
 
       TwitterStreamLogger.info("x_single_request_finish status=#{response.code}")
-      raise "X API request failed: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+      raise RequestError.new(status: response.code, body: response.body) unless response.is_a?(Net::HTTPSuccess)
 
       JSON.parse(response.body)
     end

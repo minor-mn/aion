@@ -1891,28 +1891,27 @@ app.component('staff-form-page', {
         </select>
       </div>
       <div v-if="filteredStaffs.length === 0" class="no-data">キャストがいません</div>
-      <div v-for="staff in filteredStaffs" :key="staff.id"       class="shop-block" style="background:#1e1e38">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <div>
-                  <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id)">{{ staff.name }}</div>
-                  <div style="font-size:0.8rem;color:#a0a0b8">{{ getShopName(staff.shop_id) }}</div>
+      <div v-for="staff in filteredStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div style="min-width:0;flex:1">
+            <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id, staff.image_url, staff.site_url)">{{ staff.name }}</div>
+            <div style="font-size:0.8rem;color:#a0a0b8">{{ getShopName(staff.shop_id) }}</div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <div v-if="$root.currentUser" class="pref-slider-container">
-              <span style="font-size:0.75rem;color:#74b9ff">-10</span>
-              <span class="pref-tooltip" :class="{ visible: draggingStaffId === staff.id }" :style="tooltipStyle">{{ draggingValue }}</span>
-              <input type="range" class="pref-slider" min="-10" max="10" step="1"
-                :value="getPreference(staff.id)"
-                @input="onSliderInput(staff.id, $event)"
-                @change="onSliderCommit(staff.id, $event.target.value)"
-                @mousedown="draggingStaffId = staff.id"
-                @touchstart="draggingStaffId = staff.id">
-              <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
-              <span class="pref-value">{{ getPreference(staff.id) }}</span>
-            </div>
-            <button class="btn btn-danger btn-sm" @click="deleteStaff(staff)">削除</button>
-          </div>
+          <button class="btn btn-danger btn-sm" style="white-space:nowrap;flex-shrink:0" @click="deleteStaff(staff)">削除</button>
         </div>
+        <div v-if="$root.currentUser" class="pref-slider-container" style="margin-top:12px">
+          <span style="font-size:0.75rem;color:#74b9ff">-10</span>
+          <span class="pref-tooltip" :class="{ visible: draggingStaffId === staff.id }" :style="tooltipStyle">{{ draggingValue }}</span>
+          <input type="range" class="pref-slider" min="-10" max="10" step="1"
+            :value="getPreference(staff.id)"
+            @input="onSliderInput(staff.id, $event)"
+            @change="onSliderCommit(staff.id, $event.target.value)"
+            @mousedown="draggingStaffId = staff.id"
+            @touchstart="draggingStaffId = staff.id">
+          <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
+          <span class="pref-value">{{ getPreference(staff.id) }}</span>
+        </div>
+          </div>
       </div>
     </div>
   `,

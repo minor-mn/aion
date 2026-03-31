@@ -90,7 +90,9 @@ module ShiftImports
 
       attributes = { twitter_user_id: twitter_user_id }
       profile_image_url = response.dig("data", "profile_image_url")
-      attributes[:image_url] = profile_image_url if staff.image_url.blank? && profile_image_url.present?
+      if staff.image_url.blank? && profile_image_url.present?
+        attributes[:image_url] = normalize_profile_image_url(profile_image_url)
+      end
       attributes[:twitter_not_found_count] = 0 if staff.twitter_not_found_count.to_i.positive?
 
       staff.update!(attributes)
@@ -297,6 +299,10 @@ module ShiftImports
       TwitterStreamLogger.warn(
         "staff_import_deleted_staff staff_id=#{staff.id} username=#{username} reason=twitter_not_found_threshold"
       )
+    end
+
+    def normalize_profile_image_url(url)
+      url.sub("_normal.", ".")
     end
   end
 end

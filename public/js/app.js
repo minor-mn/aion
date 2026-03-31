@@ -1895,7 +1895,7 @@ app.component('staff-form-page', {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="min-width:0;flex:1">
             <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id, staff.image_url, staff.site_url)">{{ staff.name }}</div>
-            <div style="font-size:0.8rem;color:#a0a0b8">{{ getShopName(staff.shop_id) }}</div>
+            <div class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click="$root.openShopHome(staff.shop_id)">{{ getShopName(staff.shop_id) }}</div>
           </div>
           <button class="btn btn-danger btn-sm" style="white-space:nowrap;flex-shrink:0" @click="deleteStaff(staff)">削除</button>
         </div>

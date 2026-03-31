@@ -1,0 +1,36 @@
+post:
+  summary: テスト通知送信
+  description: admin のみ実行可能です
+  tags:
+    - NotificationSettings
+  security:
+    - bearerAuth: []
+  responses:
+    "200":
+      description: 送信成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "テスト通知を送信しました"
+              sent_count:
+                type: integer
+                example: 1
+              total_count:
+                type: integer
+                example: 1
+    "403":
+      description: 管理者権限が必要
+      content:
+        application/json:
+          example:
+            error: "Forbidden"
+    "422":
+      description: Push subscription 未登録
+      content:
+        application/json:
+          example:
+            error: "push subscription がありません"

@@ -1,0 +1,45 @@
+post:
+  summary: Push subscription 登録
+  tags:
+    - PushSubscriptions
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/push_subscription-request.yaml"
+  responses:
+    "200":
+      description: 更新成功
+      content:
+        application/json:
+          example:
+            message: "Push subscriptionを更新しました"
+    "201":
+      description: 登録成功
+      content:
+        application/json:
+          example:
+            message: "Push subscriptionを登録しました"
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            error: "endpoint, p256dh, auth are required"
+
+delete:
+  summary: Push subscription 全削除
+  tags:
+    - PushSubscriptions
+  security:
+    - bearerAuth: []
+  responses:
+    "200":
+      description: 削除成功
+      content:
+        application/json:
+          example:
+            message: "Push subscriptionを削除しました"

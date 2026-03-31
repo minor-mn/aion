@@ -1,0 +1,67 @@
+type: object
+properties:
+  id:
+    type: integer
+    example: 12
+  action:
+    type: string
+    enum: [add, delete, change]
+    example: add
+  applied:
+    type: boolean
+    example: true
+  result_message:
+    type: string
+    nullable: true
+    example: "作成しました"
+  shop_id:
+    type: integer
+    nullable: true
+    example: 1
+  shop_name:
+    type: string
+    nullable: true
+    example: "スターライトノベル"
+  parsed_shop_name:
+    type: string
+    nullable: true
+    example: null
+  staff_id:
+    type: integer
+    nullable: true
+    example: 5
+  staff_name:
+    type: string
+    nullable: true
+    example: "りりあ"
+  parsed_staff_name:
+    type: string
+    nullable: true
+    example: null
+  source_username:
+    type: string
+    nullable: true
+    example: "riria_sln"
+  start_at:
+    type: string
+    format: date-time
+    example: "2026-03-30T08:00:00Z"
+  end_at:
+    type: string
+    format: date-time
+    nullable: true
+    example: "2026-03-30T14:00:00Z"
+  source_post_id:
+    type: string
+    example: "2038573364063973613"
+  source_post_url:
+    type: string
+    example: "https://x.com/i/web/status/2038573364063973613"
+  source_posted_at:
+    type: string
+    format: date-time
+    nullable: true
+    example: "2026-03-30T16:00:00Z"
+  raw_text:
+    type: string
+    example: "3.30 おひさま"

@@ -1,0 +1,15 @@
+delete:
+  summary: 取り込みログ削除
+  tags:
+    - ShiftImportCandidates
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "204":
+      description: 削除成功

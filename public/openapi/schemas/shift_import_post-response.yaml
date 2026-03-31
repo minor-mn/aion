@@ -1,0 +1,32 @@
+type: object
+properties:
+  source_post_id:
+    type: string
+    example: "2038573364063973613"
+  source_post_url:
+    type: string
+    example: "https://x.com/i/web/status/2038573364063973613"
+  source_posted_at:
+    type: string
+    format: date-time
+    nullable: true
+    example: "2026-03-30T16:00:00Z"
+  source_username:
+    type: string
+    nullable: true
+    example: "riria_sln"
+  raw_text:
+    type: string
+    example: "3.30 おひさま"
+  parsed_shop_name:
+    type: string
+    nullable: true
+    example: null
+  parsed_staff_name:
+    type: string
+    nullable: true
+    example: null
+  entries:
+    type: array
+    items:
+      $ref: "./shift_import_candidate-entry-response.yaml"

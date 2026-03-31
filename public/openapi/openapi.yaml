@@ -25,6 +25,14 @@ paths:
     $ref: "./paths/v1/staff_shifts.yaml"
   /v1/shops/{shop_id}/staff_shifts/{id}:
     $ref: "./paths/v1/staff_shift.yaml"
+  /v1/shift_import_candidates:
+    $ref: "./paths/v1/shift_import_candidates.yaml"
+  /v1/shift_import_candidates/import_from_x:
+    $ref: "./paths/v1/shift_import_candidates_import_from_x.yaml"
+  /v1/shift_import_candidates/{id}:
+    $ref: "./paths/v1/shift_import_candidate.yaml"
+  /v1/shift_import_candidates/{id}/approve:
+    $ref: "./paths/v1/shift_import_candidate_approve.yaml"
   /v1/staff_preferences:
     $ref: "./paths/v1/staff_preferences.yaml"
   /v1/staff_preferences/{id}:
@@ -35,5 +43,11 @@ paths:
     $ref: "./paths/users/sign_out.yaml"
   /v1/user/me:
     $ref: "./paths/v1/user.yaml"
+  /v1/user/notification_settings:
+    $ref: "./paths/v1/notification_settings.yaml"
+  /v1/user/notification_settings/test:
+    $ref: "./paths/v1/notification_settings_test.yaml"
+  /v1/user/push_subscriptions:
+    $ref: "./paths/v1/push_subscriptions.yaml"
   /users:
     $ref: "./paths/users.yaml"

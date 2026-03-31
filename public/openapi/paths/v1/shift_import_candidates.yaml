@@ -1,0 +1,32 @@
+get:
+  summary: X自動取り込みログ一覧取得
+  tags:
+    - ShiftImportCandidates
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: p
+      in: query
+      schema:
+        type: integer
+        example: 1
+    - name: s
+      in: query
+      schema:
+        type: integer
+        example: 20
+  responses:
+    "200":
+      description: 投稿単位にグルーピングされた取り込みログ
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              shift_import_posts:
+                type: array
+                items:
+                  $ref: "../../schemas/shift_import_post-response.yaml"
+              total_posts:
+                type: integer
+                example: 12

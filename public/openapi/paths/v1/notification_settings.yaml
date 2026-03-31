@@ -1,0 +1,48 @@
+get:
+  summary: 通知設定取得
+  tags:
+    - NotificationSettings
+  security:
+    - bearerAuth: []
+  responses:
+    "200":
+      description: 現在の通知設定
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              notification_setting:
+                $ref: "../../schemas/notification_setting-response.yaml"
+
+patch:
+  summary: 通知設定更新
+  tags:
+    - NotificationSettings
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: "../../schemas/notification_setting-request.yaml"
+  responses:
+    "200":
+      description: 更新成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "通知設定を更新しました"
+              notification_setting:
+                $ref: "../../schemas/notification_setting-response.yaml"
+    "422":
+      description: バリデーションエラー
+      content:
+        application/json:
+          example:
+            error: "Notify minutes before is invalid"

@@ -1,0 +1,33 @@
+patch:
+  summary: 取り込み候補承認
+  description: 旧フロー互換のため残っています
+  tags:
+    - ShiftImportCandidates
+  security:
+    - bearerAuth: []
+  parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+  responses:
+    "200":
+      description: 承認成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              applied:
+                type: boolean
+                example: true
+              message:
+                type: string
+                example: "作成しました"
+    "422":
+      description: 承認不可
+      content:
+        application/json:
+          example:
+            error: "candidate is missing matched shop or staff"

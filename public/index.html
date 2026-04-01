@@ -123,8 +123,7 @@
 
         <!-- Today's Shop & Cast List -->
         <div class="today-section">
-          <div class="section-title">本日のシフト</div>
-          <div v-if="todayShops.length === 0" class="no-data">店舗が登録されていません</div>
+          <div class="section-title">本日のシフト <button class="timeline-open-btn" title="今日のタイムライン" aria-label="今日のタイムラインを開く" @click="openTodayTimelineModal">🕒</button></div>
           <template v-for="shop in todayShops" :key="shop.id">
             <div v-if="todayShifts[shop.id] && todayShifts[shop.id].length > 0" class="shop-block" style="background:#1e1e38">
               <div class="shop-block-name cast-name-link" @click="openShopHome(shop.id)">{{ shop.name }}</div>

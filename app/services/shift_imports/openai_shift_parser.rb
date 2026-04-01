@@ -151,11 +151,25 @@ module ShiftImports
           - "おひさま" => 12:00 to 17:00
           - "おつきさま" => 17:00 to 22:00
           - "おーらす" => 12:00 to 22:00
+        - If a short, abstract, or otherwise meaningless word contains one of these labels, treat it as that shift label.
+        - In other words, if the post is essentially just a compact variant of one of these labels, interpret it as a shift announcement even when extra suffixes or surrounding characters are attached.
+        - However, do not treat every mention of these words as a shift announcement. First determine whether the post is announcing a future or current shift, rather than reporting after the fact.
+        - If the post is a past-tense report, post-shift greeting, thanks message, or reflection, return no actions.
+        - Examples that SHOULD be treated as shift announcements:
+          - "おーらすbot"
+          - "明日おつきさま"
+          - "本日おひさま"
+          - "4/3 おーらす"
+        - Examples that SHOULD NOT be treated as shift announcements:
+          - "本日おーらすでした"
+          - "おつきさまありがとう"
+          - "おーらす楽しかった"
+          - "昨日はおひさまでした"
         - For posts like "3.30 おひさま" or "3/30 おひさま", treat that as a shift announcement for that date using the mapped time range.
         - If a date is explicitly written, always use that written date.
         - If no date is written for a keyword-based announcement, use the post timestamp to infer the date:
-          - if the post time is 17:00 or earlier, use the same calendar day as the post
-          - if the post time is later than 17:00, use the next calendar day
+          - if the post time is earlier than 23:00, use the same calendar day as the post
+          - if the post time is 23:00 or later, use the next calendar day
         - The post timestamp is #{posted_at&.iso8601 || 'unknown'}.
         - If only a day-of-month is mentioned, infer the year/month from the post timestamp unless the content clearly indicates otherwise.
         - Preserve date and time exactly if present.

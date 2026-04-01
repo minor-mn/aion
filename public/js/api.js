@@ -234,6 +234,10 @@ const API = {
     return this.request('POST', '/v1/events', data);
   },
 
+  parseEventsFromUrl(url) {
+    return this.request('POST', '/v1/events/parse_from_url', { url });
+  },
+
   updateEvent(id, data) {
     return this.request('PUT', `/v1/events/${id}`, data);
   },

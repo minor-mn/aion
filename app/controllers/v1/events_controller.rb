@@ -1,9 +1,10 @@
 class V1::EventsController < ApplicationController
   include Paginatable
 
-  before_action :authenticate_user!, only: %i[create update destroy]
+  before_action :authenticate_user!, only: %i[create update destroy parse_from_url]
   before_action :set_event, only: %i[show update destroy]
   before_action :authorize_event_management!, only: %i[update destroy]
+  before_action :require_operator!, only: %i[parse_from_url]
 
   def index
     events = Event.includes(:shop).order(:start_at)
@@ -38,6 +39,11 @@ class V1::EventsController < ApplicationController
   def destroy
     @event.destroy
     head :no_content
+  end
+
+  def parse_from_url
+    result = EventImports::ParseFromUrl.new(url: params[:url]).call
+    render json: result, status: :ok
   end
 
   private

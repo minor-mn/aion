@@ -509,6 +509,26 @@ body.modal-open {
   color: #fff;
 }
 
+.modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timeline-open-btn {
+  background: none;
+  border: none;
+  color: #d8d8ea;
+  font-size: 1.05rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.timeline-open-btn:hover {
+  color: #fff;
+}
+
 .modal-close {
   background: none;
   border: none;
@@ -522,6 +542,158 @@ body.modal-open {
   overflow-y: auto;
   flex: 1;
   -webkit-overflow-scrolling: touch;
+}
+
+.timeline-modal-content {
+  height: 80vh;
+  max-height: 80vh;
+  background: #161629;
+}
+
+.timeline-modal-body {
+  position: relative;
+  padding: 0;
+  overflow: auto;
+}
+
+.timeline-scroll {
+  min-width: min-content;
+}
+
+.timeline-layout {
+  display: flex;
+  height: 100%;
+  min-width: min-content;
+}
+
+.timeline-axis {
+  width: 72px;
+  height: 100%;
+  padding: 20px;
+  flex-shrink: 0;
+}
+
+.timeline-axis-row {
+  position: relative;
+  height: calc(100% / 24);
+  min-height: 24px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.timeline-axis-row:last-child {
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.timeline-axis-label {
+  position: absolute;
+  top: -11px;
+  left: 0;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.08);
+  background: #161629;
+  padding-right: 10px;
+}
+
+.timeline-axis-terminal-label {
+  position: relative;
+  top: -11px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.08);
+  background: #161629;
+  padding-right: 10px;
+}
+
+.timeline-axis-row-current .timeline-axis-label {
+  color: #eee;
+}
+
+.timeline-shop-columns {
+  display: flex;
+  gap: 0;
+  height: 100%;
+  min-width: min-content;
+  padding: 20px 20px 20px 0;
+}
+
+.timeline-shop-columns-even {
+  min-width: 100%;
+}
+
+.timeline-shop-column {
+  width: 64px;
+  flex: 0 0 64px;
+  display: flex;
+}
+
+.timeline-shop-column-even {
+  width: auto;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.timeline-shop-track {
+  position: relative;
+  flex: 1;
+}
+
+.timeline-shop-row {
+  height: calc(100% / 24);
+  min-height: 24px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.timeline-shop-row:last-child {
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.timeline-shift-bar {
+  position: absolute;
+  width: 8px;
+  border-radius: 0;
+  opacity: 0.95;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.12);
+  cursor: pointer;
+}
+
+.timeline-popup {
+  position: absolute;
+  z-index: 20;
+  width: 260px;
+  max-width: calc(100% - 32px);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  color: #222;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.28);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.timeline-popup-shop {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.timeline-popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  padding: 4px 0;
+}
+
+.timeline-popup-name {
+  color: #222;
+  font-weight: 600;
+}
+
+.timeline-popup-time {
+  color: #666;
+  white-space: nowrap;
 }
 
 /* ========== Shop Card (in modal & main list) ========== */
@@ -572,15 +744,15 @@ body.modal-open {
 }
 
 .cast-score.positive {
-  color: #ff6b6b;
+  color: var(--score-positive-color, #ff6b6b);
 }
 
 .cast-score.negative {
-  color: #74b9ff;
+  color: var(--score-negative-color, #74b9ff);
 }
 
 .cast-score.neutral {
-  color: #888;
+  color: var(--score-neutral-color, #888);
 }
 
 /* ========== Today Section ========== */
@@ -651,7 +823,7 @@ body.modal-open {
   appearance: none;
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(to right, #74b9ff, #ff6b6b) !important;
+  background: linear-gradient(to right, var(--score-negative-color, #74b9ff), var(--score-positive-color, #ff6b6b)) !important;
   outline: none;
 }
 
@@ -678,7 +850,7 @@ body.modal-open {
 .pref-slider::-moz-range-track {
   height: 6px;
   border-radius: 3px;
-  background: linear-gradient(to right, #74b9ff, #ff6b6b);
+  background: linear-gradient(to right, var(--score-negative-color, #74b9ff), var(--score-positive-color, #ff6b6b));
 }
 
 .pref-tooltip {

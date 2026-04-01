@@ -18,6 +18,8 @@ const app = createApp({
     const scheduleData = ref([]);
     const selectedDate = ref(null);
     const modalOpen = ref(false);
+    const timelineModalOpen = ref(false);
+    const timelinePopup = ref(null);
 
     // Today's data (for unauthenticated + bottom section)
     const todayShops = ref([]);
@@ -353,8 +355,133 @@ const app = createApp({
     function closeModal() {
       modalOpen.value = false;
       selectedDate.value = null;
-      if (!staffScheduleOpen.value) document.body.classList.remove('modal-open');
+      if (!staffScheduleOpen.value && !timelineModalOpen.value) document.body.classList.remove('modal-open');
     }
+
+    function openTimelineModal() {
+      if (!selectedDate.value) return;
+      timelineModalOpen.value = true;
+      document.body.classList.add('modal-open');
+    }
+
+    function closeTimelineModal() {
+      timelineModalOpen.value = false;
+      timelinePopup.value = null;
+      if (!modalOpen.value && !staffScheduleOpen.value) document.body.classList.remove('modal-open');
+    }
+
+    function formatTimelineTime(dateTime) {
+      const date = new Date(dateTime);
+      return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function openTimelinePopup(shop, bar) {
+      timelinePopup.value = {
+        shopName: shop.shop_name,
+        staffs: bar.activeStaffs
+      };
+    }
+
+    function closeTimelinePopup() {
+      timelinePopup.value = null;
+    }
+
+    const timelineHourLabels = computed(() => {
+      const labels = [];
+      for (let hour = 0; hour <= 24; hour++) {
+        labels.push(`${String(hour).padStart(2, '0')}:00`);
+      }
+      return labels;
+    });
+
+    const timelineHourSlots = computed(() => timelineHourLabels.value.slice(0, 24));
+
+    const currentTimelineHourLabel = computed(() => {
+      const now = new Date();
+      return `${String(now.getHours()).padStart(2, '0')}:00`;
+    });
+
+    const timelineShopColumns = computed(() => {
+      if (!selectedDate.value) return [];
+
+      const dayStart = new Date(`${selectedDate.value}T00:00:00+09:00`);
+      const dayEnd = new Date(`${selectedDate.value}T24:00:00+09:00`);
+      const dayStartMs = dayStart.getTime();
+      const dayEndMs = dayEnd.getTime();
+
+      return selectedDayShopGroups.value.map(group => {
+        const clippedShifts = group.staffs.map(staff => {
+          const startMs = new Date(staff.datetime_begin).getTime();
+          const endMs = new Date(staff.datetime_end).getTime();
+          const clippedStart = Math.max(startMs, dayStartMs);
+          const clippedEnd = Math.min(endMs, dayEndMs);
+          return {
+            name: staff.name,
+            score: Number(staff.score || 0),
+            startMs: clippedStart,
+            endMs: clippedEnd,
+            timeLabel: `${formatTimelineTime(clippedStart)}-${formatTimelineTime(clippedEnd)}`
+          };
+        }).filter(shift => shift.endMs > shift.startMs);
+
+        const boundaries = new Set();
+        for (const shift of clippedShifts) {
+          boundaries.add(shift.startMs);
+          boundaries.add(shift.endMs);
+        }
+
+        const sortedBoundaries = [...boundaries].sort((a, b) => a - b);
+
+        const totalMinutes = 24 * 60;
+        const bars = [];
+
+        for (let i = 0; i < sortedBoundaries.length - 1; i++) {
+          const segmentStart = sortedBoundaries[i];
+          const segmentEnd = sortedBoundaries[i + 1];
+          if (segmentEnd <= segmentStart) continue;
+
+          const activeShifts = clippedShifts.filter(shift => shift.startMs < segmentEnd && shift.endMs > segmentStart);
+          if (activeShifts.length === 0) continue;
+
+          const segmentScore = activeShifts.reduce((sum, shift) => sum + shift.score, 0);
+          const activeSignature = activeShifts
+            .map(shift => `${shift.name}:${shift.startMs}:${shift.endMs}`)
+            .sort()
+            .join('|');
+          const startMinutes = (segmentStart - dayStartMs) / 60000;
+          const endMinutes = (segmentEnd - dayStartMs) / 60000;
+          const color = currentUser.value ? scoreToRgb(segmentScore) : 'rgba(238,238,238,0.9)';
+          const rawHeightPercent = ((endMinutes - startMinutes) / totalMinutes) * 100;
+          const topPercent = (startMinutes / totalMinutes) * 100;
+          const heightPercent = Math.min(Math.max(rawHeightPercent, 0.6), 100 - topPercent);
+          const lastBar = bars[bars.length - 1];
+
+          if (lastBar && lastBar.segmentEnd === segmentStart && lastBar.color === color && lastBar.activeSignature === activeSignature) {
+            lastBar.segmentEnd = segmentEnd;
+            const mergedRawHeightPercent = ((((segmentEnd - dayStartMs) / 60000) - lastBar.startMinutes) / totalMinutes) * 100;
+            lastBar.heightPercent = Math.min(Math.max(mergedRawHeightPercent, 0.6), 100 - lastBar.topPercent);
+          } else {
+            bars.push({
+              activeSignature,
+              activeStaffs: activeShifts
+                .map(shift => ({ name: shift.name, timeLabel: shift.timeLabel }))
+                .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
+              color,
+              segmentEnd,
+              startMinutes,
+              topPercent,
+              heightPercent
+            });
+          }
+        }
+
+        return {
+          shop_id: group.shop_id,
+          shop_name: group.shop_name,
+          bars
+        };
+      });
+    });
 
     // ========== Staff Schedule Modal ==========
     async function loadStaffScheduleShifts(page = 1) {
@@ -841,7 +968,7 @@ const app = createApp({
       registerPushSubscription, unregisterPushSubscription,
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
-      calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen,
+      calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen, timelineModalOpen,
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
       staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
       staffSchedulePage, staffSchedulePageSize,
@@ -849,12 +976,15 @@ const app = createApp({
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
+      openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord, isOperatorOrAdmin,
       goStaffSchedulePrev, goStaffScheduleNext,
       editStaff, confirmDeleteStaff, editShop, openShopHome,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient, formatEventTimeRange,
+      negativeScoreColor: SCORE_NEGATIVE_COLOR,
+      positiveScoreColor: SCORE_POSITIVE_COLOR,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
       modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle,
       monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
@@ -1887,7 +2017,7 @@ app.component('staff-form-page', {
           <button class="btn btn-danger btn-sm" style="white-space:nowrap;flex-shrink:0" @click="deleteStaff(staff)">削除</button>
         </div>
         <div v-if="$root.currentUser" class="pref-slider-container" style="margin-top:12px">
-          <span style="font-size:0.75rem;color:#74b9ff">-10</span>
+          <span :style="{ fontSize: '0.75rem', color: negativeScoreColor }">-10</span>
           <span class="pref-tooltip" :class="{ visible: draggingStaffId === staff.id }" :style="tooltipStyle">{{ draggingValue }}</span>
           <input type="range" class="pref-slider" min="-10" max="10" step="1"
             :value="getPreference(staff.id)"
@@ -1895,7 +2025,7 @@ app.component('staff-form-page', {
             @change="onSliderCommit(staff.id, $event.target.value)"
             @mousedown="draggingStaffId = staff.id"
             @touchstart="draggingStaffId = staff.id">
-          <span style="font-size:0.75rem;color:#ff6b6b">+10</span>
+          <span :style="{ fontSize: '0.75rem', color: positiveScoreColor }">+10</span>
           <span class="pref-value">{{ getPreference(staff.id) }}</span>
         </div>
           </div>

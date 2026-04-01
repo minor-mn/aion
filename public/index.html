@@ -166,7 +166,12 @@
         <div class="modal-overlay" @click="closeModal">
           <div class="modal-content" @click.stop>
             <div class="modal-header">
-              <h3>{{ selectedDate }}</h3>
+              <div class="modal-title-row">
+                <h3>{{ selectedDate }}</h3>
+                <button class="timeline-open-btn" title="タイムライン" aria-label="タイムラインを開く" @click.stop="openTimelineModal">
+                  🕒
+                </button>
+              </div>
               <button class="modal-close" @click="closeModal">&times;</button>
             </div>
             <div class="modal-body">
@@ -204,6 +209,71 @@
                     </span>
                   </li>
                 </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Day Timeline Modal -->
+      <template v-if="timelineModalOpen">
+        <div class="modal-overlay" @click="closeTimelineModal">
+          <div class="modal-content timeline-modal-content" @click.stop>
+            <div class="modal-header">
+              <h3>{{ selectedDate }} タイムライン</h3>
+              <button class="modal-close" @click="closeTimelineModal">&times;</button>
+            </div>
+            <div class="modal-body timeline-modal-body" @click="closeTimelinePopup">
+              <div v-if="timelineShopColumns.length === 0" class="no-data">表示できるシフトがありません</div>
+              <div v-else class="timeline-scroll">
+                <div class="timeline-layout">
+                  <div class="timeline-axis">
+                    <div
+                      v-for="label in timelineHourSlots"
+                      :key="label"
+                      class="timeline-axis-row"
+                      :class="{ 'timeline-axis-row-current': label === currentTimelineHourLabel }"
+                    >
+                      <span class="timeline-axis-label">{{ label }}</span>
+                    </div>
+                    <div class="timeline-axis-terminal-label">24:00</div>
+                  </div>
+                  <div class="timeline-shop-columns" :class="{ 'timeline-shop-columns-even': timelineShopColumns.length <= 6 }">
+                    <div v-for="shop in timelineShopColumns" :key="shop.shop_id" class="timeline-shop-column" :class="{ 'timeline-shop-column-even': timelineShopColumns.length <= 6 }">
+                      <div class="timeline-shop-track">
+                        <div
+                          v-for="label in timelineHourSlots"
+                          :key="shop.shop_id + '-' + label"
+                          class="timeline-shop-row"
+                          :class="{ 'timeline-shop-row-current': label === currentTimelineHourLabel }"
+                        ></div>
+                        <div
+                          v-for="bar in shop.bars"
+                          :key="shop.shop_id + '-' + bar.topPercent + '-' + bar.heightPercent"
+                          class="timeline-shift-bar"
+                          @click.stop="openTimelinePopup(shop, bar)"
+                          :style="{
+                            top: bar.topPercent + '%',
+                            height: bar.heightPercent + '%',
+                            left: 'calc(50% - 4px)',
+                            background: bar.color
+                          }"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div
+                v-if="timelinePopup"
+                class="timeline-popup"
+                @click.stop
+              >
+                <div class="timeline-popup-shop">{{ timelinePopup.shopName }}</div>
+                <div v-for="staff in timelinePopup.staffs" :key="staff.name + '-' + staff.timeLabel" class="timeline-popup-row">
+                  <span class="timeline-popup-name">{{ staff.name }}</span>
+                  <span class="timeline-popup-time">{{ staff.timeLabel }}</span>
+                </div>
               </div>
             </div>
           </div>

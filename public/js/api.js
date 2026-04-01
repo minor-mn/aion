@@ -1,3 +1,8 @@
+const SCORE_NEGATIVE_COLOR = '#3355ff';
+const SCORE_POSITIVE_COLOR = '#ff6b6b';
+const SCORE_NEUTRAL_COLOR = '#888888';
+const SCORE_GRADIENT_BASE_COLOR = '#252547';
+
 // API Client for Aion
 const API = {
   token: localStorage.getItem('aion_token'),
@@ -272,19 +277,42 @@ const API = {
 };
 
 // Color utility
+function hexToRgb(hex) {
+  const normalized = hex.replace('#', '');
+  const value = normalized.length === 3
+    ? normalized.split('').map(ch => ch + ch).join('')
+    : normalized;
+  const num = Number.parseInt(value, 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255
+  };
+}
+
 function scoreToColor(score) {
   const clamped = Math.max(-10, Math.min(10, score));
-  const r = Math.round((clamped + 10) / 20 * 255);
-  const b = Math.round((10 - clamped) / 20 * 255);
-  return { r, g: 0, b };
+  const ratio = (clamped + 10) / 20;
+  const negative = hexToRgb(SCORE_NEGATIVE_COLOR);
+  const positive = hexToRgb(SCORE_POSITIVE_COLOR);
+
+  return {
+    r: Math.round(negative.r + (positive.r - negative.r) * ratio),
+    g: Math.round(negative.g + (positive.g - negative.g) * ratio),
+    b: Math.round(negative.b + (positive.b - negative.b) * ratio)
+  };
 }
 
 function scoreToGradient(score) {
   const { r, g, b } = scoreToColor(score);
-  return `linear-gradient(135deg, #252547 0%, rgba(${r},${g},${b},0.35) 100%)`;
+  return `linear-gradient(135deg, ${SCORE_GRADIENT_BASE_COLOR} 0%, rgba(${r},${g},${b},0.35) 100%)`;
 }
 
 function scoreToRgb(score) {
   const { r, g, b } = scoreToColor(score);
   return `rgb(${r},${g},${b})`;
 }
+
+document.documentElement.style.setProperty('--score-negative-color', SCORE_NEGATIVE_COLOR);
+document.documentElement.style.setProperty('--score-positive-color', SCORE_POSITIVE_COLOR);
+document.documentElement.style.setProperty('--score-neutral-color', SCORE_NEUTRAL_COLOR);

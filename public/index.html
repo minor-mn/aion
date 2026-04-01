@@ -237,8 +237,14 @@
                     </div>
                     <div class="timeline-axis-terminal-label">24:00</div>
                   </div>
-                  <div class="timeline-shop-columns" :class="{ 'timeline-shop-columns-even': timelineShopColumns.length <= 6 }">
-                    <div v-for="shop in timelineShopColumns" :key="shop.shop_id" class="timeline-shop-column" :class="{ 'timeline-shop-column-even': timelineShopColumns.length <= 6 }">
+                  <div
+                    class="timeline-shop-columns"
+                    :style="{
+                      gridTemplateColumns: `repeat(${timelineShopColumns.length}, minmax(0, 1fr))`,
+                      minWidth: `${timelineShopColumns.length * 10}px`
+                    }"
+                  >
+                    <div v-for="shop in timelineShopColumns" :key="shop.shop_id" class="timeline-shop-column">
                       <div class="timeline-shop-track">
                         <div
                           v-for="label in timelineHourSlots"

@@ -342,11 +342,15 @@ const app = createApp({
             shop_id: staff.shop_id,
             shop_name: staff.shop_name,
             staffs: [],
-            totalScore: 0
+            totalScore: 0,
+            scoredStaffIds: new Set()
           };
         }
         groups[key].staffs.push(staff);
-        groups[key].totalScore += staff.score;
+        if (!groups[key].scoredStaffIds.has(staff.staff_id)) {
+          groups[key].totalScore += staff.score;
+          groups[key].scoredStaffIds.add(staff.staff_id);
+        }
       }
       // Sort staffs in each group by start time, then name
       const sortFn = (a, b) => {
@@ -360,6 +364,9 @@ const app = createApp({
       }
       // Sort shop groups by earliest start time, then shop name
       const result = Object.values(groups);
+      for (const group of result) {
+        delete group.scoredStaffIds;
+      }
       result.sort((a, b) => {
         const ta = new Date(a.staffs[0].datetime_begin).getTime();
         const tb = new Date(b.staffs[0].datetime_begin).getTime();

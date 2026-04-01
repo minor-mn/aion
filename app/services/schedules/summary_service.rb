@@ -97,7 +97,11 @@ module Schedules
 
         total_score = staffs.group_by { |staff| staff[:shop_id] }
           .values
-          .map { |shop_staffs| shop_staffs.sum { |staff| staff[:score] } }
+          .map do |shop_staffs|
+            shop_staffs
+              .uniq { |staff| staff[:staff_id] }
+              .sum { |staff| staff[:score] }
+          end
           .max || 0
 
         {

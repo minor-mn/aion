@@ -20,19 +20,28 @@ module Schedules
 
         shifts = StaffShift
           .where(staff_id: staff_ids)
-          .where(start_at: datetime_begin..datetime_end)
-          .includes(staff: :shop)
+          .where("start_at <= ? AND end_at >= ?", datetime_end, datetime_begin)
+          .includes(:shop, staff: :shop)
       else
         preferences = {}
         shifts = StaffShift
-          .where(start_at: datetime_begin..datetime_end)
-          .includes(staff: :shop)
+          .where("start_at <= ? AND end_at >= ?", datetime_end, datetime_begin)
+          .includes(:shop, staff: :shop)
       end
 
       # Filter out orphaned shifts (staff or shop deleted)
       shifts = shifts.select { |sh| sh.staff.present? && sh.staff.shop.present? }
 
-      group_by_date = shifts.group_by { |sh| sh.start_at.to_date }
+      shifts_by_date = Hash.new { |hash, key| hash[key] = [] }
+      shifts.each do |shift|
+        current_date = shift.start_at.in_time_zone.to_date
+        last_date = shift.end_at.in_time_zone.to_date
+
+        while current_date <= last_date
+          shifts_by_date[current_date] << shift
+          current_date += 1.day
+        end
+      end
 
       # Load events in the date range
       events = Event.where("(start_at BETWEEN ? AND ?) OR (end_at BETWEEN ? AND ?) OR (start_at <= ? AND end_at >= ?)",
@@ -53,10 +62,10 @@ module Schedules
       end
 
       # Collect all dates that have shifts or events
-      all_dates = (group_by_date.keys + events_by_date.keys).uniq
+      all_dates = (shifts_by_date.keys + events_by_date.keys).uniq
 
       result = all_dates.map do |date|
-        shifts_on_date = group_by_date[date] || []
+        shifts_on_date = shifts_by_date[date] || []
         staffs = shifts_on_date.map do |shift|
           pref = preferences[shift.staff_id]
           {

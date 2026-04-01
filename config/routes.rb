@@ -66,7 +66,11 @@ Rails.application.routes.draw do
     end
 
     # events
-    resources :events, only: %i[index create show update destroy]
+    resources :events, only: %i[index create show update destroy] do
+      collection do
+        post :parse_from_url
+      end
+    end
 
     # action_logs
     resources :action_logs, only: %i[index]

@@ -3025,6 +3025,77 @@ app.component('event-form-page', {
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 
+      <h3 style="margin-bottom:12px">イベント一括登録</h3>
+      <div class="form-group">
+        <label>店舗 *</label>
+        <select v-model="bulkForm.shop_id">
+          <option value="">選択してください</option>
+          <option v-for="shop in $root.shops" :key="'bulk-' + shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>URL *</label>
+        <input v-model="bulkForm.url" type="url" placeholder="https://...">
+      </div>
+      <div class="form-actions" style="margin-bottom:16px">
+        <button class="btn btn-secondary" @click="parseEventUrl" :disabled="parsingUrl">
+          {{ parsingUrl ? '解析中...' : 'URLを解析' }}
+        </button>
+      </div>
+
+      <div v-if="parsedEntries.length > 0" class="shop-block" style="margin-bottom:24px">
+        <div style="margin-bottom:12px">
+          <div v-if="parsedSourceTitle"><strong>取得タイトル:</strong> {{ parsedSourceTitle }}</div>
+          <div><strong>{{ parsedEntries.length }}件</strong> の候補を作成しました</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <div v-for="(entry, index) in parsedEntries" :key="'parsed-' + index" class="shop-block" style="background:#1e1e38">
+            <div class="form-group">
+              <label>タイトル *</label>
+              <input v-model="entry.title" type="text" placeholder="イベント名">
+            </div>
+            <div class="form-group">
+              <label>URL</label>
+              <input v-model="entry.url" type="url" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label>開始日時</label>
+              <div class="shift-entry-fields">
+                <div class="form-group" style="margin-bottom:0">
+                  <input type="date" v-model="entry.startDate">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <input type="time" v-model="entry.startTime" step="3600">
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>終了日時</label>
+              <div class="shift-entry-fields">
+                <div class="form-group" style="margin-bottom:0">
+                  <input type="date" v-model="entry.endDate">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                  <input type="time" v-model="entry.endTime" step="3600">
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>登録</label>
+              <select v-model="entry.shouldCreate">
+                <option :value="true">登録する</option>
+                <option :value="false">登録しない</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top:16px">
+          <button class="btn btn-primary" @click="createParsedEvents" :disabled="submittingParsed">
+            {{ submittingParsed ? '登録中...' : '候補を一括登録' }}
+          </button>
+        </div>
+      </div>
+
       <h3 style="margin-bottom:12px">{{ editMode ? 'イベント編集' : '新規イベント登録' }}</h3>
       <div class="form-group">
         <label>イベント名 *</label>
@@ -3114,11 +3185,16 @@ app.component('event-form-page', {
   data() {
     return {
       form: { title: '', shop_id: '', url: '', startDate: '', startTime: '17:00', endDate: '', endTime: '23:00' },
+      bulkForm: { shop_id: '', url: '' },
       editMode: false,
       editEventId: null,
       submitting: false,
+      parsingUrl: false,
+      submittingParsed: false,
       localError: '',
       localSuccess: '',
+      parsedSourceTitle: '',
+      parsedEntries: [],
       filterShopId: '',
       eventRangeFilter: 'future_only',
       currentPage: 1,
@@ -3162,6 +3238,112 @@ app.component('event-form-page', {
     await this.loadEvents();
   },
   methods: {
+    isoToFormParts(isoStr) {
+      if (!isoStr) {
+        return { date: '', time: '' };
+      }
+      const d = new Date(isoStr);
+      return {
+        date: this.toDateStr(d),
+        time: this.toTimeStr(d)
+      };
+    },
+    buildParsedEventPayload(entry) {
+      return {
+        event: {
+          title: entry.title,
+          shop_id: this.bulkForm.shop_id,
+          url: entry.url || this.bulkForm.url || null,
+          start_at: new Date(`${entry.startDate}T${entry.startTime}:00`).toISOString(),
+          end_at: new Date(`${entry.endDate}T${entry.endTime}:00`).toISOString()
+        }
+      };
+    },
+    validateParsedEntry(entry, index) {
+      if (!this.bulkForm.shop_id || !this.bulkForm.url) {
+        this.localError = '店舗とURLを入力してください';
+        return false;
+      }
+      if (!entry.title || !entry.startDate || !entry.startTime || !entry.endDate || !entry.endTime) {
+        this.localError = `${index + 1}件目: タイトル・開始日時・終了日時を入力してください`;
+        return false;
+      }
+      const startAt = new Date(`${entry.startDate}T${entry.startTime}:00`);
+      const endAt = new Date(`${entry.endDate}T${entry.endTime}:00`);
+      if (endAt < startAt) {
+        this.localError = `${index + 1}件目: 終了日時は開始日時以降にしてください`;
+        return false;
+      }
+      if (endAt.getTime() - startAt.getTime() >= 32 * 24 * 60 * 60 * 1000) {
+        this.localError = `${index + 1}件目: 終了日時は開始日時から31日以内にしてください`;
+        return false;
+      }
+      return true;
+    },
+    async parseEventUrl() {
+      if (!this.bulkForm.shop_id || !this.bulkForm.url) {
+        this.localError = '店舗とURLを入力してください';
+        return;
+      }
+      this.parsingUrl = true;
+      this.localError = '';
+      this.localSuccess = '';
+      this.parsedEntries = [];
+      this.parsedSourceTitle = '';
+      try {
+        const data = await API.parseEventsFromUrl(this.bulkForm.url);
+        this.parsedSourceTitle = data.source_title || '';
+        this.parsedEntries = (data.events || []).map(event => {
+          const start = this.isoToFormParts(event.start_at);
+          const finish = this.isoToFormParts(event.end_at);
+          return {
+            title: event.title || '',
+            url: event.url || this.bulkForm.url || '',
+            startDate: start.date,
+            startTime: start.time,
+            endDate: finish.date,
+            endTime: finish.time,
+            shouldCreate: true
+          };
+        });
+        this.localSuccess = this.parsedEntries.length > 0 ? `${this.parsedEntries.length}件の候補を作成しました` : '候補は見つかりませんでした';
+      } catch (e) {
+        this.localError = e.data?.error || e.data?.errors?.join(', ') || 'URL解析に失敗しました';
+      }
+      this.parsingUrl = false;
+    },
+    async createParsedEvents() {
+      if (this.parsedEntries.length === 0) {
+        this.localError = '登録候補がありません';
+        return;
+      }
+      const targetEntries = this.parsedEntries.filter(entry => entry.shouldCreate !== false);
+      if (targetEntries.length === 0) {
+        this.localError = '登録対象の候補がありません';
+        return;
+      }
+      for (let i = 0; i < targetEntries.length; i++) {
+        if (!this.validateParsedEntry(targetEntries[i], i)) {
+          return;
+        }
+      }
+      this.submittingParsed = true;
+      this.localError = '';
+      this.localSuccess = '';
+      try {
+        for (const entry of targetEntries) {
+          await API.createEvent(this.buildParsedEventPayload(entry));
+        }
+        this.localSuccess = `${targetEntries.length}件のイベントを登録しました`;
+        this.parsedEntries = [];
+        this.parsedSourceTitle = '';
+        this.bulkForm.url = '';
+        await this.loadEvents();
+      } catch (e) {
+        this.localError = e.data?.errors?.join(', ') || e.data?.error || '一括登録に失敗しました';
+      }
+      this.submittingParsed = false;
+    },
     formatDatetime(isoStr) {
       if (!isoStr) return '';
       const d = new Date(isoStr);

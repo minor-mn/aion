@@ -1,9 +1,5 @@
-const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
 const DEFAULT_PAGE_SIZE = 10;
-const TIMELINE_MIN_COLUMN_WIDTH = 10;
-const TIMELINE_MAX_COLUMN_WIDTH = 96;
-const TIMELINE_AXIS_WIDTH = 72;
-const TIMELINE_COLUMNS_RIGHT_PADDING = 20;
 
 const app = createApp({
   setup() {
@@ -24,8 +20,6 @@ const app = createApp({
     const modalOpen = ref(false);
     const timelineModalOpen = ref(false);
     const timelinePopup = ref(null);
-    const timelineViewportRef = ref(null);
-    const timelineViewportWidth = ref(0);
 
     // Today's data (for unauthenticated + bottom section)
     const todayShops = ref([]);
@@ -308,10 +302,6 @@ const app = createApp({
       document.body.classList.add('modal-open');
     }
 
-    function measureTimelineViewport() {
-      timelineViewportWidth.value = timelineViewportRef.value?.clientWidth || 0;
-    }
-
     async function openTodayTimelineModal() {
       const today = new Date();
       const todayYear = today.getFullYear();
@@ -327,8 +317,6 @@ const app = createApp({
       selectedDate.value = todayDateStr;
       timelineModalOpen.value = true;
       document.body.classList.add('modal-open');
-      await nextTick();
-      measureTimelineViewport();
     }
 
     const selectedDayData = computed(() => {
@@ -391,8 +379,6 @@ const app = createApp({
       if (!selectedDate.value) return;
       timelineModalOpen.value = true;
       document.body.classList.add('modal-open');
-      await nextTick();
-      measureTimelineViewport();
     }
 
     function closeTimelineModal() {
@@ -431,24 +417,6 @@ const app = createApp({
       const now = new Date();
       return `${String(now.getHours()).padStart(2, '0')}:00`;
     });
-
-    const timelineColumnWidth = computed(() => {
-      const count = timelineShopColumns.value.length;
-      if (count === 0) return TIMELINE_MAX_COLUMN_WIDTH;
-
-      const usableWidth = Math.max(
-        timelineViewportWidth.value - TIMELINE_AXIS_WIDTH - TIMELINE_COLUMNS_RIGHT_PADDING,
-        0
-      );
-      if (usableWidth === 0) return TIMELINE_MAX_COLUMN_WIDTH;
-
-      return Math.max(
-        TIMELINE_MIN_COLUMN_WIDTH,
-        Math.min(TIMELINE_MAX_COLUMN_WIDTH, Math.floor(usableWidth / count))
-      );
-    });
-
-    const timelineColumnsPixelWidth = computed(() => `${timelineColumnWidth.value * timelineShopColumns.value.length}px`);
 
     const timelineShopColumns = computed(() => {
       if (!selectedDate.value) return [];
@@ -981,7 +949,6 @@ const app = createApp({
 
     // ========== Init ==========
     onMounted(async () => {
-      window.addEventListener('resize', measureTimelineViewport);
       // Handle email confirmation redirect
       const params = new URLSearchParams(window.location.search);
       if (params.get('confirmed') === 'true') {
@@ -1014,10 +981,6 @@ const app = createApp({
 
     });
 
-    onBeforeUnmount(() => {
-      window.removeEventListener('resize', measureTimelineViewport);
-    });
-
     return {
       registerPushSubscription, unregisterPushSubscription,
       resetPasswordToken,
@@ -1030,7 +993,7 @@ const app = createApp({
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
-      openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineViewportRef, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns, timelineColumnWidth, timelineColumnsPixelWidth,
+      openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord, isOperatorOrAdmin,
       goStaffSchedulePrev, goStaffScheduleNext,
       editStaff, confirmDeleteStaff, editShop, openShopHome,

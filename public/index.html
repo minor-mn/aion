@@ -224,7 +224,7 @@
             </div>
             <div class="modal-body timeline-modal-body" @click="closeTimelinePopup">
               <div v-if="timelineShopColumns.length === 0" class="no-data">表示できるシフトがありません</div>
-              <div v-else ref="timelineViewportRef" class="timeline-scroll">
+              <div v-else class="timeline-scroll">
                 <div class="timeline-layout">
                   <div class="timeline-axis">
                     <div
@@ -240,8 +240,8 @@
                   <div
                     class="timeline-shop-columns"
                     :style="{
-                      gridTemplateColumns: `repeat(${timelineShopColumns.length}, ${timelineColumnWidth}px)`,
-                      width: timelineColumnsPixelWidth
+                      gridTemplateColumns: `repeat(${timelineShopColumns.length}, minmax(10px, 1fr))`,
+                      minWidth: `${timelineShopColumns.length * 10}px`
                     }"
                   >
                     <div v-for="shop in timelineShopColumns" :key="shop.shop_id" class="timeline-shop-column">

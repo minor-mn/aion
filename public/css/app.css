@@ -557,8 +557,6 @@ body.modal-open {
 }
 
 .timeline-scroll {
-  display: flex;
-  justify-content: center;
   min-width: 100%;
   width: 100%;
 }
@@ -566,6 +564,7 @@ body.modal-open {
 .timeline-layout {
   display: flex;
   height: 100%;
+  min-width: 100%;
 }
 
 .timeline-axis {
@@ -613,6 +612,7 @@ body.modal-open {
   display: grid;
   gap: 0;
   height: 100%;
+  flex: 1 1 auto;
   padding: 20px 20px 20px 0;
 }
 

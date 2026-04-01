@@ -193,7 +193,7 @@
               <div v-if="selectedDayShopGroups.length > 0" class="section-title" style="font-size:0.95rem;margin-bottom:8px">シフト</div>
               <div v-for="group in selectedDayShopGroups" :key="group.shop_id"
                    class="shop-block"
-                   :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)' }">
+                   :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, #2f335f 55%, #3b4378 100%)' }">
                 <div class="shop-block-name cast-name-link" @click.stop="openShopHome(group.shop_id)">{{ group.shop_name }}</div>
                 <div v-if="currentUser" class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
                 <ul class="cast-list">
@@ -237,8 +237,14 @@
                     </div>
                     <div class="timeline-axis-terminal-label">24:00</div>
                   </div>
-                  <div class="timeline-shop-columns" :class="{ 'timeline-shop-columns-even': timelineShopColumns.length <= 6 }">
-                    <div v-for="shop in timelineShopColumns" :key="shop.shop_id" class="timeline-shop-column" :class="{ 'timeline-shop-column-even': timelineShopColumns.length <= 6 }">
+                  <div
+                    class="timeline-shop-columns"
+                    :style="{
+                      gridTemplateColumns: `repeat(${timelineShopColumns.length}, minmax(20px, 1fr))`,
+                      minWidth: `${timelineShopColumns.length * 20}px`
+                    }"
+                  >
+                    <div v-for="shop in timelineShopColumns" :key="shop.shop_id" class="timeline-shop-column">
                       <div class="timeline-shop-track">
                         <div
                           v-for="label in timelineHourSlots"
@@ -254,7 +260,7 @@
                           :style="{
                             top: bar.topPercent + '%',
                             height: bar.heightPercent + '%',
-                            left: 'calc(50% - 4px)',
+                            left: 'calc(50% - 5px)',
                             background: bar.color
                           }"
                         ></div>

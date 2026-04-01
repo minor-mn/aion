@@ -375,7 +375,7 @@ const app = createApp({
       if (!staffScheduleOpen.value && !timelineModalOpen.value) document.body.classList.remove('modal-open');
     }
 
-    function openTimelineModal() {
+    async function openTimelineModal() {
       if (!selectedDate.value) return;
       timelineModalOpen.value = true;
       document.body.classList.add('modal-open');
@@ -1100,7 +1100,7 @@ app.component('shop-home-page', {
         </div>
         <div style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">キャスト</div>
-          <div v-if="$root.shopHomeStaffs.length === 0" class="no-data">キャストがありません</div>
+          <div v-if="$root.shopHomeStaffs.length === 0" class="no-data">キャストが未登録です</div>
           <div v-for="staff in $root.shopHomeStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
             <div style="display:flex;align-items:center;gap:16px">
               <a

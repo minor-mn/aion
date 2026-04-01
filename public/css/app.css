@@ -557,13 +557,14 @@ body.modal-open {
 }
 
 .timeline-scroll {
-  min-width: min-content;
+  min-width: 100%;
+  width: 100%;
 }
 
 .timeline-layout {
   display: flex;
   height: 100%;
-  min-width: min-content;
+  min-width: 100%;
 }
 
 .timeline-axis {
@@ -608,26 +609,15 @@ body.modal-open {
 }
 
 .timeline-shop-columns {
-  display: flex;
+  display: grid;
   gap: 0;
   height: 100%;
-  min-width: min-content;
+  flex: 1 1 auto;
   padding: 20px 20px 20px 0;
 }
 
-.timeline-shop-columns-even {
-  min-width: 100%;
-}
-
 .timeline-shop-column {
-  width: 64px;
-  flex: 0 0 64px;
   display: flex;
-}
-
-.timeline-shop-column-even {
-  width: auto;
-  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -648,7 +638,7 @@ body.modal-open {
 
 .timeline-shift-bar {
   position: absolute;
-  width: 8px;
+  width: 10px;
   border-radius: 0;
   opacity: 0.95;
   box-shadow: 0 0 0 1px rgba(255,255,255,0.12);

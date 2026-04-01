@@ -277,8 +277,8 @@ const app = createApp({
         const hasEvents = scheduleDay && scheduleDay.events && scheduleDay.events.length > 0;
         const hasStaffs = scheduleDay && scheduleDay.staffs && scheduleDay.staffs.length > 0;
 
-        const gradient = scheduleDay
-                    ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #252547 0%, rgba(204,204,102,0.35) 100%)')
+        const gradient = hasStaffs
+                    ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #252547 0%, #2f335f 55%, #3b4378 100%)')
                     : '#252547';
 
         cells.push({
@@ -299,6 +299,23 @@ const app = createApp({
       if (cell.empty) return;
       selectedDate.value = cell.dateStr;
       modalOpen.value = true;
+      document.body.classList.add('modal-open');
+    }
+
+    async function openTodayTimelineModal() {
+      const today = new Date();
+      const todayYear = today.getFullYear();
+      const todayMonth = today.getMonth();
+      const todayDateStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      if (calendarYear.value !== todayYear || calendarMonth.value !== todayMonth) {
+        calendarYear.value = todayYear;
+        calendarMonth.value = todayMonth;
+        await loadScheduleData();
+      }
+
+      selectedDate.value = todayDateStr;
+      timelineModalOpen.value = true;
       document.body.classList.add('modal-open');
     }
 
@@ -975,7 +992,7 @@ const app = createApp({
       editingShift, editingStaff, editingShop,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
-      openDayModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
+      openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord, isOperatorOrAdmin,
       goStaffSchedulePrev, goStaffScheduleNext,

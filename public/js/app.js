@@ -827,7 +827,7 @@ const app = createApp({
 
     function formatSeatGauge(score) {
       const normalized = Number(score) || 0;
-      return normalized > 0 ? '💺'.repeat(normalized) : '';
+      return normalized > 0 ? '🪑'.repeat(normalized) : '';
     }
 
     // ========== Navigation ==========

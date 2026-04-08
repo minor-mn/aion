@@ -825,6 +825,11 @@ const app = createApp({
       return `${start.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} 〜 ${end.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}`;
     }
 
+    function formatSeatGauge(score) {
+      const normalized = Number(score) || 0;
+      return normalized > 0 ? '💺'.repeat(normalized) : '';
+    }
+
     // ========== Navigation ==========
     const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftImportPage', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
     const operatorOnlyViews = ['shiftImportPage', 'shiftBulkForm'];
@@ -1006,7 +1011,7 @@ const app = createApp({
       editStaff, confirmDeleteStaff, editShop, openShopHome,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
       loadScheduleData, loadTodayData,
-      scoreToGradient, formatEventTimeRange,
+      scoreToGradient, formatEventTimeRange, formatSeatGauge,
       negativeScoreColor: SCORE_NEGATIVE_COLOR,
       positiveScoreColor: SCORE_POSITIVE_COLOR,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,

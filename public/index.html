@@ -201,6 +201,9 @@
                     <span class="cast-name cast-name-link" @click.stop="openStaffSchedule(staff.staff_id, staff.name, staff.shop_id, staff.image_url, staff.site_url)">{{ staff.name }}</span>
                     <span class="cast-shift-time">
                       {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                      <template v-if="staff.seat_score > 0">
+                        <br>{{ formatSeatGauge(staff.seat_score) }}
+                      </template>
                     </span>
                     <span v-if="currentUser" class="cast-score"
                           :class="{ positive: staff.score > 0, negative: staff.score < 0, neutral: staff.score === 0 }">

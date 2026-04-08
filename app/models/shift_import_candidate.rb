@@ -1,4 +1,6 @@
 class ShiftImportCandidate < ApplicationRecord
+  self.cleanup_before = 7.days
+
   belongs_to :shop, optional: true
   belongs_to :staff, optional: true
 

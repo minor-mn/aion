@@ -142,6 +142,16 @@ module ShiftImports
       image_urls = extract_image_urls(tweet, media_by_key)
       TwitterStreamLogger.info("tweet_process_tracked_username post_id=#{post_id} username=#{username || '-'} image_count=#{image_urls.size}")
 
+      seat_result = record_seat_availability(
+        shop: shop,
+        staff: staff,
+        raw_text: raw_text,
+        post_id: post_id,
+        post_url: post_url,
+        posted_at: posted_at
+      )
+      TwitterStreamLogger.info("tweet_process_seat post_id=#{post_id} applied=#{seat_result[:applied]} message=#{seat_result[:message]}")
+
       parsed = @parser.parse_post(raw_text, image_urls: image_urls, posted_at: posted_at)
       actions = Array(parsed["actions"])
 
@@ -270,6 +280,20 @@ module ShiftImports
         source_posted_at: posted_at,
         raw_text: raw_text
       )
+    end
+
+    def record_seat_availability(shop:, staff:, raw_text:, post_id:, post_url:, posted_at:)
+      ShiftImports::SeatAvailabilityRecorder.new(
+        shop: shop,
+        staff: staff,
+        raw_text: raw_text,
+        post_id: post_id,
+        post_url: post_url,
+        posted_at: posted_at
+      ).call
+    rescue StandardError => e
+      TwitterStreamLogger.warn("tweet_process_seat_failed post_id=#{post_id} message=#{e.class}: #{e.message}")
+      { applied: false, message: "#{e.class}: #{e.message}" }
     end
 
     def retweet?(tweet)

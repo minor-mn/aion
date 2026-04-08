@@ -1,4 +1,6 @@
 class SeatAvailability < ApplicationRecord
+  self.cleanup_before = 3.hours
+
   belongs_to :shop
   belongs_to :staff
   belongs_to :staff_shift

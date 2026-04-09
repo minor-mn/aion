@@ -1,6 +1,6 @@
 module ShiftImports
   class SeatAvailabilityRecorder
-    KEYWORDS = [ "おせき", "お席", "💺", "🪑", "救世主", "まったり", "停滞" ].freeze
+    KEYWORDS = [ "おせき", "お席", "💺", "🪑", "救世主", "停滞", "灰色", "まったり" ].freeze
 
     def initialize(shop:, staff:, raw_text:, post_id:, post_url:, posted_at:)
       @shop = shop

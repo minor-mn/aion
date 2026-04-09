@@ -1,5 +1,7 @@
-const { createApp, ref, reactive, computed, onMounted, watch, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } = Vue;
 const DEFAULT_PAGE_SIZE = 10;
+const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
+const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
 
 const app = createApp({
   setup() {
@@ -25,6 +27,10 @@ const app = createApp({
     const todayShops = ref([]);
     const todayShifts = ref({});
     const todayEvents = ref([]);
+    const lastHomeDataLoadedAt = ref(0);
+    const homeDataRefreshing = ref(false);
+    let refreshTimer = null;
+    let handleVisibilityChange = null;
 
     // Form data
     const shops = ref([]);
@@ -225,9 +231,28 @@ const app = createApp({
       shopHomeLoading.value = false;
     }
 
-    async function loadHomeData() {
-      await loadTodayData();
-      await loadScheduleData();
+    async function loadHomeData(force = false) {
+      if (homeDataRefreshing.value) return;
+      if (!force && Date.now() - lastHomeDataLoadedAt.value < HOME_DATA_STALE_AFTER_MS) return;
+
+      homeDataRefreshing.value = true;
+      try {
+        await Promise.all([loadTodayData(), loadScheduleData()]);
+        lastHomeDataLoadedAt.value = Date.now();
+      } finally {
+        homeDataRefreshing.value = false;
+      }
+    }
+
+    function shouldRefreshHomeData() {
+      if (currentView.value !== 'home') return false;
+      if (document.visibilityState !== 'visible') return false;
+      return Date.now() - lastHomeDataLoadedAt.value >= HOME_DATA_STALE_AFTER_MS;
+    }
+
+    async function refreshHomeDataIfStale() {
+      if (!shouldRefreshHomeData()) return;
+      await loadHomeData(true);
     }
 
     // ========== Calendar Helpers ==========
@@ -878,7 +903,7 @@ const app = createApp({
           history.replaceState(null, '', window.location.pathname + window.location.search);
         }
       }
-      if (view === 'home') loadHomeData();
+      if (view === 'home') loadHomeData(true);
       if (view === 'shiftEdit') { loadShops(); }
       if (view === 'mapView') { loadShops(); }
       if (view === 'eventForm') { loadShops(); }
@@ -988,9 +1013,24 @@ const app = createApp({
       } else if (initialHash && hashToView[initialHash]) {
         navigate(hashToView[initialHash], false);
       } else {
-        await loadHomeData();
+        await loadHomeData(true);
       }
 
+      refreshTimer = window.setInterval(() => {
+        refreshHomeDataIfStale();
+      }, HOME_DATA_REFRESH_INTERVAL_MS);
+
+      handleVisibilityChange = () => {
+        refreshHomeDataIfStale();
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    });
+
+    onBeforeUnmount(() => {
+      if (refreshTimer) window.clearInterval(refreshTimer);
+      if (handleVisibilityChange) {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
     });
 
     return {

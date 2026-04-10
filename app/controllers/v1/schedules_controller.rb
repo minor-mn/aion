@@ -1,4 +1,6 @@
 class V1::SchedulesController < ApplicationController
+  before_action :authenticate_user_if_present!
+
   def index
     service = Schedules::SummaryService.new(
       user: current_user,

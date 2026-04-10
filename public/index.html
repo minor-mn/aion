@@ -205,7 +205,15 @@
                     <span class="cast-shift-time">
                       {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
                       <template v-if="activeSeatScoreForStaff(staff) > 0">
-                        <br>{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}
+                        <br>
+                        <a
+                          v-if="staff.seat_score_url"
+                          :href="staff.seat_score_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style="color:inherit;text-decoration:none"
+                        >{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</a>
+                        <template v-else>{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</template>
                       </template>
                     </span>
                     <span v-if="currentUser" class="cast-score"

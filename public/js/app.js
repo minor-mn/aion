@@ -29,6 +29,7 @@ const app = createApp({
     const todayEvents = ref([]);
     const lastHomeDataLoadedAt = ref(0);
     const homeDataRefreshing = ref(false);
+    let homeDataRefreshPromise = null;
     let refreshTimer = null;
     let handleVisibilityChange = null;
 
@@ -237,14 +238,23 @@ const app = createApp({
     }
 
     async function loadHomeData(force = false) {
-      if (homeDataRefreshing.value) return;
+      if (homeDataRefreshing.value) {
+        if (homeDataRefreshPromise) {
+          await homeDataRefreshPromise;
+        }
+        if (!force) return;
+      }
       if (!force && Date.now() - lastHomeDataLoadedAt.value < HOME_DATA_STALE_AFTER_MS) return;
 
       homeDataRefreshing.value = true;
-      try {
+      homeDataRefreshPromise = (async () => {
         await Promise.all([loadTodayData(), loadScheduleData()]);
         lastHomeDataLoadedAt.value = Date.now();
+      })();
+      try {
+        await homeDataRefreshPromise;
       } finally {
+        homeDataRefreshPromise = null;
         homeDataRefreshing.value = false;
       }
     }

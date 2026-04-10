@@ -446,7 +446,10 @@ body {
   z-index: 1;
   font-size: 0.65rem;
   line-height: 1;
-  white-space: nowrap;
+  max-width: calc(100% - 8px);
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .calendar-cell .event-crown {

@@ -144,8 +144,8 @@ const app = createApp({
       scheduleData.value = [];
       currentView.value = 'home';
       history.replaceState(null, '', window.location.pathname + window.location.search);
-      await loadTodayData();
-      await loadScheduleData();
+      lastHomeDataLoadedAt.value = 0;
+      await loadHomeData(true);
     }
 
     // ========== Data Loading ==========

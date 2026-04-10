@@ -107,6 +107,11 @@ const app = createApp({
             role: payload.role || 'user'
           };
         }
+        todayShops.value = [];
+        todayShifts.value = {};
+        todayEvents.value = [];
+        scheduleData.value = [];
+        lastHomeDataLoadedAt.value = 0;
         currentView.value = 'home';
         history.replaceState(null, '', window.location.pathname + window.location.search);
         success.value = 'サインインしました';

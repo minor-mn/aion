@@ -26,6 +26,9 @@ const API = {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
     const opts = { method, headers };
+    if (method === 'GET' || method === 'HEAD') {
+      opts.cache = 'no-store';
+    }
     if (body) {
       opts.body = JSON.stringify(body);
     }

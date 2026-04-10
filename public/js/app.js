@@ -331,7 +331,7 @@ const app = createApp({
           hasData: !!scheduleDay,
           hasEvents,
           gradient,
-          seatGauge: formatSeatGauge(maxSeatScore)
+          seatGauge: formatCalendarSeatGauge(maxSeatScore)
         });
       }
       return cells;
@@ -891,6 +891,12 @@ const app = createApp({
     function formatSeatGauge(score) {
       const normalized = Number(score) || 0;
       return normalized > 0 ? '🪑'.repeat(normalized) : '';
+    }
+
+    function formatCalendarSeatGauge(score) {
+      const normalized = Number(score) || 0;
+      if (normalized <= 0) return '';
+      return window.innerWidth <= 768 ? '🪑' : '🪑'.repeat(normalized);
     }
 
     // ========== Navigation ==========

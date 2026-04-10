@@ -298,6 +298,7 @@ const app = createApp({
         const scheduleDay = scheduleData.value.find(s => s.date === dateStr);
         const totalScore = scheduleDay ? scheduleDay.total_score : null;
         const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+        const maxSeatScore = maxSeatScoreForDay(scheduleDay);
 
         const hasEvents = scheduleDay && scheduleDay.events && scheduleDay.events.length > 0;
         const hasStaffs = scheduleDay && scheduleDay.staffs && scheduleDay.staffs.length > 0;
@@ -314,11 +315,33 @@ const app = createApp({
           totalScore,
           hasData: !!scheduleDay,
           hasEvents,
-          gradient
+          gradient,
+          seatGauge: formatSeatGauge(maxSeatScore)
         });
       }
       return cells;
     });
+
+    function activeSeatScoreForStaff(staff, requirePositiveScore = false) {
+      const seatScore = Number(staff?.seat_score) || 0;
+      if (seatScore <= 0) return 0;
+      if (requirePositiveScore && currentUser.value && Number(staff?.score) <= 0) return 0;
+
+      const shiftEnd = new Date(staff.datetime_end || staff.end_at);
+      if (Number.isNaN(shiftEnd.getTime())) return 0;
+      if (Date.now() >= shiftEnd.getTime()) return 0;
+
+      return seatScore;
+    }
+
+    function maxSeatScoreForDay(scheduleDay) {
+      if (!scheduleDay?.staffs?.length) return 0;
+
+      return scheduleDay.staffs.reduce((maxScore, staff) => {
+        const score = activeSeatScoreForStaff(staff, !!currentUser.value);
+        return Math.max(maxScore, score);
+      }, 0);
+    }
 
     function openDayModal(cell) {
       if (cell.empty) return;
@@ -1051,7 +1074,7 @@ const app = createApp({
       editStaff, confirmDeleteStaff, editShop, openShopHome,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
       loadScheduleData, loadTodayData,
-      scoreToGradient, formatEventTimeRange, formatSeatGauge,
+      scoreToGradient, formatEventTimeRange, formatSeatGauge, activeSeatScoreForStaff,
       negativeScoreColor: SCORE_NEGATIVE_COLOR,
       positiveScoreColor: SCORE_POSITIVE_COLOR,
       modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,

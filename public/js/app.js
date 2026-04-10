@@ -110,7 +110,7 @@ const app = createApp({
         currentView.value = 'home';
         history.replaceState(null, '', window.location.pathname + window.location.search);
         success.value = 'サインインしました';
-        await loadHomeData();
+        await loadHomeData(true);
       } catch (e) {
         error.value = e.data?.error || 'サインインに失敗しました';
       }

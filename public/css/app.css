@@ -441,7 +441,7 @@ body {
 .calendar-seat-gauge {
   position: absolute;
   left: 50%;
-  bottom: 6px;
+  bottom: 0;
   transform: translateX(-50%);
   z-index: 1;
   font-size: 0.65rem;
@@ -450,6 +450,7 @@ body {
   text-align: center;
   white-space: normal;
   overflow-wrap: anywhere;
+  pointer-events: none;
 }
 
 .calendar-cell .event-crown {

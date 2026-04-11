@@ -27,6 +27,12 @@ class ApplicationController < ActionController::API
 
   private
 
+  def authenticate_user_if_present!
+    return if request.headers["Authorization"].blank?
+
+    authenticate_user!
+  end
+
   def require_operator!
     return if current_user&.operator_or_admin?
 

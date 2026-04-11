@@ -115,7 +115,10 @@
                  :class="{ empty: cell.empty, today: cell.isToday }"
                  :style="{ background: cell.empty ? 'transparent' : cell.gradient }"
                  @click="openDayModal(cell)">
-              <span v-if="!cell.empty" class="date-num">{{ cell.day }}</span>
+              <template v-if="!cell.empty">
+                <span class="date-num">{{ cell.day }}</span>
+                <span v-if="cell.seatGauge" class="calendar-seat-gauge">{{ cell.seatGauge }}</span>
+              </template>
               <span v-if="cell.hasEvents" class="event-crown">👑</span>
             </div>
           </div>
@@ -201,8 +204,16 @@
                     <span class="cast-name cast-name-link" @click.stop="openStaffSchedule(staff.staff_id, staff.name, staff.shop_id, staff.image_url, staff.site_url)">{{ staff.name }}</span>
                     <span class="cast-shift-time">
                       {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
-                      <template v-if="staff.seat_score > 0">
-                        <br>{{ formatSeatGauge(staff.seat_score) }}
+                      <template v-if="activeSeatScoreForStaff(staff) > 0">
+                        <br>
+                        <a
+                          v-if="staff.seat_score_url"
+                          :href="staff.seat_score_url"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style="color:inherit;text-decoration:none"
+                        >{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</a>
+                        <template v-else>{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</template>
                       </template>
                     </span>
                     <span v-if="currentUser" class="cast-score"

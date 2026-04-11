@@ -69,7 +69,8 @@ module Schedules
         shifts_on_date = shifts_by_date[date] || []
         staffs = shifts_on_date.map do |shift|
           pref = preferences[shift.staff_id]
-          seat_score = seat_availabilities_by_shift_id[shift.id]&.seat_score || 0
+          seat_availability = seat_availabilities_by_shift_id[shift.id]
+          seat_score = seat_availability&.seat_score || 0
           {
             staff_id:       shift.staff_id,
             user_id:        shift.staff.user_id,
@@ -81,7 +82,8 @@ module Schedules
             datetime_begin: shift.start_at.iso8601,
             datetime_end:   shift.end_at.iso8601,
             score:          pref&.score || 0,
-            seat_score:     seat_score
+            seat_score:     seat_score,
+            seat_score_url: seat_availability&.source_post_url
           }
         end
 

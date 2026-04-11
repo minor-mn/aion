@@ -438,6 +438,21 @@ body {
   z-index: 1;
 }
 
+.calendar-seat-gauge {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  z-index: 1;
+  font-size: 0.65rem;
+  line-height: 1;
+  max-width: calc(100% - 8px);
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
 .calendar-cell .event-crown {
   position: absolute;
   top: 1px;

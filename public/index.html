@@ -47,6 +47,7 @@
         <template v-else>
           <button v-if="currentView === 'mapView'" class="menu-item" @click="navigate('home')">カレンダーで見る</button>
           <button v-else class="menu-item" @click="navigate('mapView')">地図で見る</button>
+          <button class="menu-item" @click="navigate('introduction')">このサービスについて</button>
         </template>
       </div>
 
@@ -102,6 +103,9 @@
 
       <!-- Staff Home -->
       <staff-home-page v-if="currentView === 'staffHome'"></staff-home-page>
+
+      <!-- Introduction -->
+      <introduction-page v-if="currentView === 'introduction'"></introduction-page>
 
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">

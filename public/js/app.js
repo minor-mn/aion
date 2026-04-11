@@ -1,4 +1,4 @@
-const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } = Vue;
 const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
@@ -812,13 +812,15 @@ const app = createApp({
       'map': 'mapView', 'login': 'login', 'register': 'register',
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
       'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-import': 'shiftImportPage', 'shift-bulk': 'shiftBulkForm',
-      'events': 'eventForm'
+      'events': 'eventForm',
+      'introduction': 'introduction'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
       'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftImportPage': 'shift-import', 'shiftBulkForm': 'shift-bulk',
-      'eventForm': 'events'
+      'eventForm': 'events',
+      'introduction': 'introduction'
     };
 
     function navigate(view, updateHash = true) {
@@ -1719,6 +1721,11 @@ app.component('staff-home-page', {
     }
   }
 });
+
+// ========== Introduction Component (async) ==========
+app.component('introduction-page', defineAsyncComponent(() =>
+  fetch('/introduction.html').then(r => r.text()).then(html => ({ template: html }))
+));
 
 // ========== Login Component ==========
 app.component('login-page', {

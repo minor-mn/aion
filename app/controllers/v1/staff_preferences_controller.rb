@@ -37,7 +37,14 @@ class V1::StaffPreferencesController < ApplicationController
   private
 
   def preference_params
-    params.permit(:staff_id, :score)
+    if params[:staff_preference].is_a?(ActionController::Parameters)
+      params.require(:staff_preference).permit(:staff_id, :score)
+    else
+      ActionController::Parameters.new(
+        staff_id: params[:staff_id],
+        score: params[:score]
+      ).permit(:staff_id, :score)
+    end
   end
 
   def set_preference

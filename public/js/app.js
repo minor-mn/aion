@@ -1,4 +1,4 @@
-const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } = Vue;
 const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;

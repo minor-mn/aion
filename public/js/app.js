@@ -2533,7 +2533,7 @@ app.component('shift-form-page', {
 
       <div class="form-group">
         <label>キャスト *</label>
-        <select v-model="selectedStaffId" :disabled="!selectedShopId" @change="onStaffChange">
+        <select v-model="selectedStaffId" :disabled="!selectedShopId">
           <option value="">選択してください</option>
           <option v-for="staff in filteredStaffs" :key="staff.id" :value="staff.id">{{ staff.name }}</option>
         </select>
@@ -2646,8 +2646,6 @@ app.component('shift-form-page', {
     },
     onShopChange() {
       this.selectedStaffId = '';
-    },
-    onStaffChange() {
     },
     buildDatetime(date, time, isNextDay) {
       const dt = new Date(`${date}T${time}:00`);

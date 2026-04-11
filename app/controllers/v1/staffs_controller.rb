@@ -32,8 +32,7 @@ class V1::StaffsController < ApplicationController
         shop_id: shift.shop_id,
         start_at: shift.start_at.iso8601,
         end_at: shift.end_at.iso8601,
-        _shop_id: shift.shop_id,
-        _shop_name: shift.staff&.shop&.name
+        shop_name: shift.staff&.shop&.name
       }
     end
 
@@ -76,6 +75,7 @@ class V1::StaffsController < ApplicationController
         id: event.id,
         user_id: event.user_id,
         title: event.title,
+        url: event.url,
         start_at: event.start_at.iso8601,
         end_at: event.end_at.iso8601
       }

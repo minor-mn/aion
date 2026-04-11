@@ -223,20 +223,16 @@ const app = createApp({
       shopHomeStaffs.value = [];
       shopHomeEvents.value = [];
       try {
-        const now = new Date();
-        const [shopsData, staffsData, monthlyData] = await Promise.all([
+        const [shopsData, staffsData] = await Promise.all([
           API.getShops(),
-          API.getStaffs(shopId),
-          API.getShopMonthlyShifts(shopId, now.getFullYear(), now.getMonth() + 1)
+          API.getStaffs(shopId)
         ]);
         const allShops = shopsData.shops || [];
         shopHomeShop.value = allShops.find(shop => shop.id == shopId) || null;
         shopHomeStaffs.value = staffsData.staffs || [];
-        shopHomeEvents.value = monthlyData.events || [];
       } catch (e) {
         shopHomeShop.value = null;
         shopHomeStaffs.value = [];
-        shopHomeEvents.value = [];
       }
       shopHomeLoading.value = false;
     }
@@ -260,6 +256,7 @@ const app = createApp({
       error.value = '';
       success.value = '';
       window.location.hash = `staff-${staffId}`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function loadHomeData(force = false) {
@@ -643,7 +640,7 @@ const app = createApp({
     async function confirmDeleteShift(shift) {
       if (!confirm('このシフトを削除しますか？')) return;
       try {
-        await API.deleteStaffShift(shift._shop_id, shift.id);
+        await API.deleteStaffShift(shift.shop_id, shift.id);
         await loadStaffScheduleShifts(staffSchedulePage.value);
       } catch (e) { /* ignore */ }
     }
@@ -663,6 +660,8 @@ const app = createApp({
       modalOpen.value = false;
       document.body.classList.remove('modal-open');
       currentView.value = 'shiftEdit';
+      if (staffs.value.length === 0) loadStaffs();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function canManageOwnedRecord(record) {
@@ -1241,26 +1240,8 @@ app.component('shop-home-page', {
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">キャスト</div>
           <div v-if="$root.shopHomeStaffs.length === 0" class="no-data">キャストが未登録です</div>
           <div v-for="staff in $root.shopHomeStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:16px">
-              <a
-                v-if="staff.site_url"
-                :href="staff.site_url"
-                target="_blank"
-                rel="noopener noreferrer"
-                style="display:block;width:100px;height:100px;flex-shrink:0;text-decoration:none"
-              >
-                <img
-                  v-if="staff.image_url"
-                  :src="staff.image_url"
-                  :alt="staff.name"
-                  style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:block"
-                >
-                <div
-                  v-else
-                  style="width:100px;height:100px;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:flex;align-items:center;justify-content:center;color:#a0a0b8;font-size:0.8rem;text-align:center"
-                >no image</div>
-              </a>
-              <div v-else style="width:100px;height:100px;flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:16px;cursor:pointer" @click="$root.openStaffHome(staff.id)">
+              <div style="width:100px;height:100px;flex-shrink:0">
                 <img
                   v-if="staff.image_url"
                   :src="staff.image_url"
@@ -1275,7 +1256,6 @@ app.component('shop-home-page', {
               <div
                 class="cast-name-link"
                 style="font-size:1rem;font-weight:700;color:#f3f3ff"
-                @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id, staff.image_url, staff.site_url)"
               >{{ staff.name }}</div>
             </div>
           </div>
@@ -1525,7 +1505,7 @@ app.component('staff-home-page', {
           </div>
           <div>
             <h2 style="margin:0;color:#f3f3ff">{{ staff.name }}</h2>
-            <div v-if="staff.shop_name" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8">{{ staff.shop_name }}</div>
+            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
         </a>
         <div v-else style="display:flex;align-items:center;gap:20px">
@@ -1542,7 +1522,7 @@ app.component('staff-home-page', {
           </div>
           <div>
             <h2 style="margin:0">{{ staff.name }}</h2>
-            <div v-if="staff.shop_name" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8">{{ staff.shop_name }}</div>
+            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
         </div>
         <div v-if="$root.currentUser" style="margin-top:24px">
@@ -1580,9 +1560,22 @@ app.component('staff-home-page', {
                   class="date-num"
                   :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
                 >{{ cell.day }}</div>
-                <div v-if="cell.label" class="shop-home-calendar-label">{{ cell.label }}</div>
+                <div v-for="shift in cell.shifts" :key="shift.id"
+                  class="shop-home-calendar-label cast-name-link"
+                  @click="onShiftClick(shift)"
+                >{{ formatShiftTime(shift) }}</div>
               </template>
             </div>
+          </div>
+        </div>
+        <div v-if="calendarEvents.length > 0" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">イベント</div>
+          <div v-for="event in calendarEvents" :key="event.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
+            <div style="font-size:1rem;font-weight:700;color:#f3f3ff;margin-bottom:6px">
+              <a v-if="event.url" :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#f3f3ff;text-decoration:none">{{ event.title }}</a>
+              <template v-else>{{ event.title }}</template>
+            </div>
+            <div style="font-size:0.85rem;color:#d6d6e7;line-height:1.6">{{ formatEventRange(event.start_at, event.end_at) }}</div>
           </div>
         </div>
         <div style="margin-top:30px;text-align:left">
@@ -1647,6 +1640,7 @@ app.component('staff-home-page', {
           empty: false,
           day,
           label: dayMap[dateStr]?.label || '',
+          shifts: dayMap[dateStr]?.shifts || [],
           hasEvent: eventDates.has(dateStr)
         });
       }
@@ -1681,21 +1675,20 @@ app.component('staff-home-page', {
       try {
         const data = await API.getStaffMonthlyShifts(this.staff.id, this.calendarYear, this.calendarMonth + 1);
         const shifts = data.staff_shifts || [];
-        const dayLabels = {};
+        const dayEntries = {};
         for (const shift of shifts) {
           const start = new Date(shift.start_at);
           const end = new Date(shift.end_at);
           const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
           const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
           const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
-          const label = `${sh}-${eh}`;
-          if (dayLabels[dateStr]) {
-            dayLabels[dateStr] += '\n' + label;
-          } else {
-            dayLabels[dateStr] = label;
-          }
+          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+          dayEntries[dateStr].shifts.push(shift);
         }
-        this.calendarDaysData = Object.entries(dayLabels).map(([date, label]) => ({ date, label }));
+        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
+          date, label: entry.labels.join('\n'), shifts: entry.shifts
+        }));
         this.calendarEvents = data.events || [];
       } catch (e) {
         this.calendarDaysData = [];
@@ -1740,6 +1733,16 @@ app.component('staff-home-page', {
         await API.setPreference(this.staff.id, parseInt(score));
       } catch (e) { /* ignore */ }
     },
+    formatShiftTime(shift) {
+      const start = new Date(shift.start_at);
+      const end = new Date(shift.end_at);
+      const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+      const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+      return `${sh}-${eh}`;
+    },
+    onShiftClick(shift) {
+      this.$root.editShift(shift);
+    },
     async prevMonth() {
       if (this.calendarMonth === 0) {
         this.calendarMonth = 11;
@@ -1757,6 +1760,14 @@ app.component('staff-home-page', {
         this.calendarMonth += 1;
       }
       await this.loadCalendarData();
+    },
+    formatEventRange(startAt, endAt) {
+      const start = new Date(startAt);
+      const end = new Date(endAt);
+      const dow = ['日','月','火','水','木','金','土'];
+      const startLabel = `${start.getMonth() + 1}月${start.getDate()}日(${dow[start.getDay()]}) ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+      const endLabel = `${end.getMonth() + 1}月${end.getDate()}日(${dow[end.getDay()]}) ${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+      return `${startLabel} 〜 ${endLabel}`;
     }
   }
 });
@@ -2415,8 +2426,8 @@ app.component('staff-form-page', {
           {{ submitting ? (editMode ? '更新中...' : '登録中...') : (editMode ? 'キャストを更新' : 'キャストを登録') }}
         </button>
       </div>
-      <div v-if="editMode" style="margin-bottom:32px">
-        <button class="btn btn-outline" @click="cancelEdit">新規登録に切り替え</button>
+      <div v-if="editMode && editStaffId" style="margin-bottom:12px">
+        <button class="btn btn-outline" @click="$root.openStaffHome(editStaffId)">戻る</button>
       </div>
 
       <h3 style="margin-bottom:12px">登録済みキャスト</h3>
@@ -2430,7 +2441,7 @@ app.component('staff-form-page', {
       <div v-for="staff in filteredStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="min-width:0;flex:1">
-            <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id, staff.image_url, staff.site_url)">{{ staff.name }}</div>
+            <div class="shop-block-name cast-name-link" @click="$root.openStaffHome(staff.id)">{{ staff.name }}</div>
             <div class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click="$root.openShopHome(staff.shop_id)">{{ getShopName(staff.shop_id) }}</div>
           </div>
           <button class="btn btn-danger btn-sm" style="white-space:nowrap;flex-shrink:0" @click="deleteStaff(staff)">削除</button>
@@ -2700,7 +2711,7 @@ app.component('shift-form-page', {
                 〜
                 {{ new Date(shift.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
               </div>
-              <div class="staff-schedule-shop">{{ shift._shop_name }}</div>
+              <div class="staff-schedule-shop">{{ shift.shop_name }}</div>
             </div>
             <div v-if="$root.canManageOwnedRecord(shift)" class="staff-schedule-actions">
               <button class="btn btn-outline btn-sm" @click="$root.editShift(shift)">編集</button>
@@ -2858,7 +2869,7 @@ app.component('shift-form-page', {
     async deleteExistingShift(shift) {
       if (!confirm('このシフトを削除しますか？')) return;
       try {
-        await API.deleteStaffShift(shift._shop_id, shift.id);
+        await API.deleteStaffShift(shift.shop_id, shift.id);
         await this.loadExistingShifts(this.existingShiftsPage);
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || e.data?.error || '削除に失敗しました';
@@ -2921,7 +2932,10 @@ app.component('shift-edit-page', {
           {{ submitting ? '保存中...' : '保存' }}
         </button>
       </div>
-      <button class="btn btn-outline" @click="$root.navigate('home')">戻る</button>
+      <div class="form-actions" style="margin-bottom:16px">
+        <button class="btn btn-danger" @click="deleteShift" :disabled="submitting">削除</button>
+      </div>
+      <button class="btn btn-outline" @click="goBack">戻る</button>
     </div>
   `,
   data() {
@@ -2936,8 +2950,8 @@ app.component('shift-edit-page', {
     shift() { return this.$root.editingShift; },
     shopName() {
       if (!this.shift) return '';
-      const shop = this.$root.shops.find(s => s.id == this.shift._shop_id);
-      return shop ? shop.name : (this.shift._shop_name || '');
+      const shop = this.$root.shops.find(s => s.id == this.shift.shop_id);
+      return shop ? shop.name : (this.shift.shop_name || '');
     },
     staffName() {
       if (!this.shift) return '';
@@ -2952,7 +2966,7 @@ app.component('shift-edit-page', {
       this.$root.loadShops();
       const start = new Date(this.shift.start_at);
       const end = new Date(this.shift.end_at);
-      this.form.shopId = this.shift._shop_id || '';
+      this.form.shopId = this.shift.shop_id || '';
       this.form.startDate = this.toDateStr(start);
       this.form.startTime = this.toTimeStr(start);
       this.form.endDate = this.toDateStr(end);
@@ -2965,6 +2979,13 @@ app.component('shift-edit-page', {
     toTimeStr(d) {
       return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     },
+    goBack() {
+      if (this.shift?.staff_id) {
+        this.$root.openStaffHome(this.shift.staff_id);
+      } else {
+        this.$root.navigate('home');
+      }
+    },
     async save() {
       this.localError = '';
       this.localSuccess = '';
@@ -2976,7 +2997,7 @@ app.component('shift-edit-page', {
       try {
         const startAt = new Date(`${this.form.startDate}T${this.form.startTime}:00`).toISOString();
         const endAt = new Date(`${this.form.endDate}T${this.form.endTime}:00`).toISOString();
-        await API.updateStaffShift(this.shift._shop_id, this.shift.id, {
+        await API.updateStaffShift(this.shift.shop_id, this.shift.id, {
           shop_id: this.form.shopId,
           start_at: startAt,
           end_at: endAt
@@ -2984,6 +3005,18 @@ app.component('shift-edit-page', {
         this.localSuccess = 'シフトを更新しました';
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
+      }
+      this.submitting = false;
+    },
+    async deleteShift() {
+      if (!confirm('このシフトを削除しますか？')) return;
+      this.submitting = true;
+      this.localError = '';
+      try {
+        await API.deleteStaffShift(this.shift.shop_id, this.shift.id);
+        this.goBack();
+      } catch (e) {
+        this.localError = '削除に失敗しました';
       }
       this.submitting = false;
     }

@@ -111,6 +111,10 @@ const API = {
     return this.request('GET', `/v1/staffs${query}`);
   },
 
+  getStaff(id) {
+    return this.request('GET', `/v1/staffs/${id}`);
+  },
+
   createStaff(data) {
     return this.request('POST', '/v1/staffs', data);
   },

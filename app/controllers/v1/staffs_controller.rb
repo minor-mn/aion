@@ -11,7 +11,7 @@ class V1::StaffsController < ApplicationController
   end
 
   def show
-    render json: staff
+    render json: staff.as_json.merge(shop_name: staff.shop&.name)
   end
 
   def upcoming_shifts

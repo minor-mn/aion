@@ -1100,6 +1100,15 @@ body.modal-open {
   margin-bottom: 12px;
 }
 
+.intro-page { text-align: left; }
+.intro-page p { color: #d6d6e7; line-height: 1.8; }
+.intro-page h2 { margin-top: 40px; }
+.intro-page h3 { margin-top: 30px; color: #f3f3ff; }
+.intro-page .intro-img { text-align: center; margin: 20px 0; }
+.intro-page .intro-img img { max-width: 100%; border-radius: 14px; }
+.intro-page .hl-blue { color: #74b9ff; }
+.intro-page .hl-red { color: #ff6b6b; }
+
 .mypage-toggle-row {
   display: flex;
   justify-content: space-between;

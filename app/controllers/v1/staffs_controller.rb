@@ -58,6 +58,7 @@ class V1::StaffsController < ApplicationController
       {
         id: shift.id,
         staff_id: shift.staff_id,
+        user_id: shift.user_id,
         shop_id: shift.shop_id,
         start_at: shift.start_at.iso8601,
         end_at: shift.end_at.iso8601

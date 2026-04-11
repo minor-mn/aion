@@ -34,7 +34,8 @@
         <button class="menu-close" @click="menuOpen = false">&times;</button>
         <template v-if="currentUser">
           <button class="menu-item" @click="navigate('myPage')">マイページ</button>
-          <button class="menu-item" @click="navigate('mapView')">地図で見る</button>
+          <button v-if="currentView === 'mapView'" class="menu-item" @click="navigate('home')">カレンダーで見る</button>
+          <button v-else class="menu-item" @click="navigate('mapView')">地図で見る</button>
           <button v-if="currentUser.role === 'admin'" class="menu-item" @click="navigate('userList')">ユーザー管理</button>
           <button class="menu-item" @click="navigate('shopForm')">店舗管理</button>
           <button class="menu-item" @click="navigate('staffForm')">キャスト管理</button>
@@ -44,7 +45,9 @@
           <button class="menu-item" @click="navigate('eventForm')">イベント管理</button>
         </template>
         <template v-else>
-          <button class="menu-item" @click="navigate('mapView')">地図で見る</button>
+          <button v-if="currentView === 'mapView'" class="menu-item" @click="navigate('home')">カレンダーで見る</button>
+          <button v-else class="menu-item" @click="navigate('mapView')">地図で見る</button>
+          <button class="menu-item" @click="navigate('introduction')">このサービスについて</button>
         </template>
       </div>
 
@@ -100,6 +103,9 @@
 
       <!-- Staff Home -->
       <staff-home-page v-if="currentView === 'staffHome'"></staff-home-page>
+
+      <!-- Introduction -->
+      <introduction-page v-if="currentView === 'introduction'"></introduction-page>
 
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">

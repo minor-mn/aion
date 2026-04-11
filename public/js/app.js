@@ -1,4 +1,4 @@
-const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, defineAsyncComponent } = Vue;
 const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
@@ -812,13 +812,15 @@ const app = createApp({
       'map': 'mapView', 'login': 'login', 'register': 'register',
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
       'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-import': 'shiftImportPage', 'shift-bulk': 'shiftBulkForm',
-      'events': 'eventForm'
+      'events': 'eventForm',
+      'introduction': 'introduction'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
       'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftImportPage': 'shift-import', 'shiftBulkForm': 'shift-bulk',
-      'eventForm': 'events'
+      'eventForm': 'events',
+      'introduction': 'introduction'
     };
 
     function navigate(view, updateHash = true) {
@@ -1113,23 +1115,38 @@ app.component('shop-home-page', {
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">キャスト</div>
           <div v-if="$root.shopHomeStaffs.length === 0" class="no-data">キャストが未登録です</div>
           <div v-for="staff in $root.shopHomeStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:16px;cursor:pointer" @click="$root.openStaffHome(staff.id)">
-              <div style="width:100px;height:100px;flex-shrink:0">
-                <img
-                  v-if="staff.image_url"
-                  :src="staff.image_url"
-                  :alt="staff.name"
-                  style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:block"
-                >
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+              <div style="display:flex;align-items:center;gap:16px;cursor:pointer;min-width:0;flex:1" @click="$root.openStaffHome(staff.id)">
+                <div style="width:100px;height:100px;flex-shrink:0">
+                  <img
+                    v-if="staff.image_url"
+                    :src="staff.image_url"
+                    :alt="staff.name"
+                    style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:block"
+                  >
+                  <div
+                    v-else
+                    style="width:100px;height:100px;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:flex;align-items:center;justify-content:center;color:#a0a0b8;font-size:0.8rem;text-align:center"
+                  >no image</div>
+                </div>
                 <div
-                  v-else
-                  style="width:100px;height:100px;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:flex;align-items:center;justify-content:center;color:#a0a0b8;font-size:0.8rem;text-align:center"
-                >no image</div>
+                  class="cast-name-link"
+                  style="font-size:1rem;font-weight:700;color:#f3f3ff"
+                >{{ staff.name }}</div>
               </div>
-              <div
-                class="cast-name-link"
-                style="font-size:1rem;font-weight:700;color:#f3f3ff"
-              >{{ staff.name }}</div>
+              <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="$root.editStaff(staff)">編集</button>
+            </div>
+            <div v-if="$root.currentUser" class="pref-slider-container" style="margin-top:12px">
+              <span :style="{ fontSize: '0.75rem', color: $root.negativeScoreColor }">-10</span>
+              <span class="pref-tooltip" :class="{ visible: draggingStaffId === staff.id }" :style="tooltipStyle">{{ draggingValue }}</span>
+              <input type="range" class="pref-slider" min="-10" max="10" step="1"
+                :value="getPreference(staff.id)"
+                @input="onSliderInput(staff.id, $event)"
+                @change="onSliderCommit(staff.id, $event.target.value)"
+                @mousedown="draggingStaffId = staff.id"
+                @touchstart="draggingStaffId = staff.id">
+              <span :style="{ fontSize: '0.75rem', color: $root.positiveScoreColor }">+10</span>
+              <span class="pref-value">{{ getPreference(staff.id) }}</span>
             </div>
           </div>
         </div>
@@ -1151,7 +1168,12 @@ app.component('shop-home-page', {
       calendarYear: new Date().getFullYear(),
       calendarMonth: new Date().getMonth(),
       calendarDaysData: [],
-      calendarLoading: false
+      calendarLoading: false,
+      preferences: {},
+      draggingStaffId: null,
+      draggingValue: 0,
+      tooltipStyle: {},
+      _debounceTimers: {}
     };
   },
   computed: {
@@ -1212,6 +1234,7 @@ app.component('shop-home-page', {
       this.$nextTick(() => {
         this.renderMap();
         this.loadCalendarData();
+        this.loadPreferences();
       });
     }
   },
@@ -1230,6 +1253,49 @@ app.component('shop-home-page', {
     }
   },
   methods: {
+    getPreference(staffId) {
+      return this.preferences[staffId] !== undefined ? this.preferences[staffId] : 0;
+    },
+    async loadPreferences() {
+      if (!this.$root.currentUser) return;
+      try {
+        const data = await API.getPreferences();
+        const prefs = {};
+        for (const p of (data.staff_preferences || [])) {
+          prefs[p.staff_id] = p.score;
+        }
+        this.preferences = prefs;
+      } catch (e) { /* ignore */ }
+    },
+    onSliderInput(staffId, event) {
+      const val = parseInt(event.target.value);
+      this.draggingStaffId = staffId;
+      this.draggingValue = val;
+      this.preferences[staffId] = val;
+      const slider = event.target;
+      const rect = slider.getBoundingClientRect();
+      const ratio = (val - (-10)) / 20;
+      const thumbX = rect.left + ratio * rect.width;
+      const containerRect = slider.closest('.pref-slider-container').getBoundingClientRect();
+      this.tooltipStyle = { left: (thumbX - containerRect.left) + 'px' };
+      if (this._debounceTimers[staffId]) clearTimeout(this._debounceTimers[staffId]);
+      this._debounceTimers[staffId] = setTimeout(() => {
+        this.savePreference(staffId, val);
+        this.draggingStaffId = null;
+      }, 2000);
+    },
+    onSliderCommit(staffId, value) {
+      const val = parseInt(value);
+      this.preferences[staffId] = val;
+      if (this._debounceTimers[staffId]) clearTimeout(this._debounceTimers[staffId]);
+      this.draggingStaffId = null;
+      this.savePreference(staffId, val);
+    },
+    async savePreference(staffId, score) {
+      try {
+        await API.setPreference(staffId, parseInt(score));
+      } catch (e) { /* ignore */ }
+    },
     formatEventRange(startAt, endAt) {
       const start = new Date(startAt);
       const end = new Date(endAt);
@@ -1655,6 +1721,11 @@ app.component('staff-home-page', {
     }
   }
 });
+
+// ========== Introduction Component (async) ==========
+app.component('introduction-page', defineAsyncComponent(() =>
+  fetch('/introduction.html').then(r => r.text()).then(html => ({ template: html }))
+));
 
 // ========== Login Component ==========
 app.component('login-page', {
@@ -2328,7 +2399,7 @@ app.component('staff-form-page', {
             <div class="shop-block-name cast-name-link" @click="$root.openStaffHome(staff.id)">{{ staff.name }}</div>
             <div class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click="$root.openShopHome(staff.shop_id)">{{ getShopName(staff.shop_id) }}</div>
           </div>
-          <button class="btn btn-danger btn-sm" style="white-space:nowrap;flex-shrink:0" @click="deleteStaff(staff)">削除</button>
+          <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="startEdit(staff)">編集</button>
         </div>
         <div v-if="$root.currentUser" class="pref-slider-container" style="margin-top:12px">
           <span :style="{ fontSize: '0.75rem', color: negativeScoreColor }">-10</span>
@@ -2449,6 +2520,19 @@ app.component('staff-form-page', {
         this.localError = 'スコアの設定に失敗しました';
       }
     },
+    startEdit(staff) {
+      this.form = {
+        name: staff.name || '',
+        shop_id: staff.shop_id || '',
+        site_url: staff.site_url || '',
+        image_url: staff.image_url || ''
+      };
+      this.editMode = true;
+      this.editStaffId = staff.id;
+      this.localError = '';
+      this.localSuccess = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
     cancelEdit() {
       this.editMode = false;
       this.editStaffId = null;
@@ -2474,6 +2558,7 @@ app.component('staff-form-page', {
         this.localError = e.data?.errors?.join(', ') || '登録に失敗しました';
       }
       this.submitting = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async updateStaff() {
       if (!this.form.name || !this.form.shop_id) {
@@ -2495,6 +2580,7 @@ app.component('staff-form-page', {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }
       this.submitting = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async deleteStaff(staff) {
       if (!confirm(`「${staff.name}」を削除しますか？`)) return;
@@ -2755,13 +2841,18 @@ app.component('shift-edit-page', {
         </div>
       </div>
 
-      <div class="form-actions" style="margin-bottom:16px">
-        <button class="btn btn-primary" @click="save" :disabled="submitting">
-          {{ submitting ? '保存中...' : '保存' }}
-        </button>
-      </div>
-      <div class="form-actions" style="margin-bottom:16px">
-        <button class="btn btn-danger" @click="deleteShift" :disabled="submitting">削除</button>
+      <template v-if="canEditShift">
+        <div class="form-actions" style="margin-bottom:16px">
+          <button class="btn btn-primary" @click="save" :disabled="submitting">
+            {{ submitting ? '保存中...' : '保存' }}
+          </button>
+        </div>
+        <div class="form-actions" style="margin-bottom:16px">
+          <button class="btn btn-danger" @click="deleteShift" :disabled="submitting">削除</button>
+        </div>
+      </template>
+      <div v-else class="notif-instruction-box" style="margin-bottom:16px">
+        シフトの変更と削除はadminとoperatorとowner(このシフトを登録した人)が行えます。どうしてもこのシフトを編集・削除したい場合、これらの権限のあるユーザに相談するか、これらの権限を付与してもらってください。
       </div>
       <button class="btn btn-outline" @click="goBack">戻る</button>
     </div>
@@ -2776,6 +2867,11 @@ app.component('shift-edit-page', {
   },
   computed: {
     shift() { return this.$root.editingShift; },
+    canEditShift() {
+      if (!this.$root.currentUser) return false;
+      if (this.$root.currentUser.role === 'admin' || this.$root.currentUser.role === 'operator') return true;
+      return this.shift?.user_id === this.$root.currentUser.id;
+    },
     shopName() {
       if (!this.shift) return '';
       const shop = this.$root.shops.find(s => s.id == this.shift.shop_id);

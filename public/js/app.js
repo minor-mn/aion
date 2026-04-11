@@ -1,4 +1,4 @@
-const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } = Vue;
+const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } = Vue;
 const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
@@ -42,16 +42,16 @@ const app = createApp({
     const shopHomeEvents = ref([]);
     const shopHomeLoading = ref(false);
 
-    // Staff schedule modal state
-    const staffScheduleOpen = ref(false);
-    const staffScheduleStaff = ref(null);
-    const staffScheduleShifts = ref([]);
-    const staffScheduleLoading = ref(false);
-    const staffSchedulePage = ref(1);
-    const staffSchedulePageSize = ref(DEFAULT_PAGE_SIZE);
+    // Staff home state
+    const staffHomeStaff = ref(null);
+    const staffHomeLoading = ref(false);
+
 
     // Shift edit state
     const editingShift = ref(null);
+
+    // Shift form preset state
+    const shiftFormPreset = ref(null);
 
     // Staff edit state
     const editingStaff = ref(null);
@@ -219,22 +219,39 @@ const app = createApp({
       shopHomeStaffs.value = [];
       shopHomeEvents.value = [];
       try {
-        const now = new Date();
-        const [shopsData, staffsData, monthlyData] = await Promise.all([
+        const [shopsData, staffsData] = await Promise.all([
           API.getShops(),
-          API.getStaffs(shopId),
-          API.getShopMonthlyShifts(shopId, now.getFullYear(), now.getMonth() + 1)
+          API.getStaffs(shopId)
         ]);
         const allShops = shopsData.shops || [];
         shopHomeShop.value = allShops.find(shop => shop.id == shopId) || null;
         shopHomeStaffs.value = staffsData.staffs || [];
-        shopHomeEvents.value = monthlyData.events || [];
       } catch (e) {
         shopHomeShop.value = null;
         shopHomeStaffs.value = [];
-        shopHomeEvents.value = [];
       }
       shopHomeLoading.value = false;
+    }
+
+    async function loadStaffHome(staffId) {
+      staffHomeLoading.value = true;
+      staffHomeStaff.value = null;
+      try {
+        staffHomeStaff.value = await API.getStaff(staffId);
+      } catch (e) {
+        staffHomeStaff.value = null;
+      }
+      staffHomeLoading.value = false;
+    }
+
+    async function openStaffHome(staffId) {
+      modalOpen.value = false;
+      document.body.classList.remove('modal-open');
+      currentView.value = 'staffHome';
+      error.value = '';
+      success.value = '';
+      window.location.hash = `staff-${staffId}`;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function loadHomeData(force = false) {
@@ -442,7 +459,7 @@ const app = createApp({
     function closeModal() {
       modalOpen.value = false;
       selectedDate.value = null;
-      if (!staffScheduleOpen.value && !timelineModalOpen.value) document.body.classList.remove('modal-open');
+      if (!timelineModalOpen.value) document.body.classList.remove('modal-open');
     }
 
     async function openTimelineModal() {
@@ -454,7 +471,7 @@ const app = createApp({
     function closeTimelineModal() {
       timelineModalOpen.value = false;
       timelinePopup.value = null;
-      if (!modalOpen.value && !staffScheduleOpen.value) document.body.classList.remove('modal-open');
+      if (!modalOpen.value) document.body.classList.remove('modal-open');
     }
 
     function formatTimelineTime(dateTime) {
@@ -570,74 +587,13 @@ const app = createApp({
       });
     });
 
-    // ========== Staff Schedule Modal ==========
-    async function loadStaffScheduleShifts(page = 1) {
-      if (!staffScheduleStaff.value?.id) {
-        staffScheduleShifts.value = [];
-        return;
-      }
-      staffSchedulePage.value = page;
-      staffScheduleLoading.value = true;
-      try {
-        const data = await API.getStaffUpcomingShifts(
-          staffScheduleStaff.value.id,
-          staffSchedulePage.value,
-          staffSchedulePageSize.value
-        );
-        staffScheduleShifts.value = data.staff_shifts || [];
-      } catch (e) {
-        staffScheduleShifts.value = [];
-      }
-      staffScheduleLoading.value = false;
-    }
-
-    async function openStaffSchedule(staffId, staffName, shopId, imageUrl, siteUrl) {
-      const fullStaff = staffs.value.find(st => st.id === staffId || st.id == staffId);
-      staffScheduleStaff.value = {
-        id: staffId, name: staffName, shop_id: shopId,
-        user_id: fullStaff?.user_id ?? null,
-        image_url: imageUrl || fullStaff?.image_url || '',
-        site_url: siteUrl || fullStaff?.site_url || ''
-      };
-      staffSchedulePage.value = 1;
-      staffScheduleShifts.value = [];
-      staffScheduleOpen.value = true;
-      document.body.classList.add('modal-open');
-      loadModalPreferences();
-      await loadStaffScheduleShifts(1);
-    }
-
-    function closeStaffSchedule() {
-      staffScheduleOpen.value = false;
-      staffScheduleStaff.value = null;
-      staffScheduleShifts.value = [];
-      staffSchedulePage.value = 1;
-      if (!modalOpen.value) document.body.classList.remove('modal-open');
-    }
-
-    async function confirmDeleteShift(shift) {
-      if (!confirm('このシフトを削除しますか？')) return;
-      try {
-        await API.deleteStaffShift(shift._shop_id, shift.id);
-        await loadStaffScheduleShifts(staffSchedulePage.value);
-      } catch (e) { /* ignore */ }
-    }
-
-    async function goStaffSchedulePrev() {
-      if (staffSchedulePage.value <= 1) return;
-      await loadStaffScheduleShifts(staffSchedulePage.value - 1);
-    }
-
-    async function goStaffScheduleNext() {
-      await loadStaffScheduleShifts(staffSchedulePage.value + 1);
-    }
-
     function editShift(shift) {
       editingShift.value = shift;
-      staffScheduleOpen.value = false;
       modalOpen.value = false;
       document.body.classList.remove('modal-open');
       currentView.value = 'shiftEdit';
+      if (staffs.value.length === 0) loadStaffs();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function canManageOwnedRecord(record) {
@@ -654,7 +610,6 @@ const app = createApp({
       // Look up full staff data from already-loaded staffs array
       const full = staffs.value.find(st => st.id === staffInfo.id || st.id == staffInfo.id);
       editingStaff.value = full || staffInfo;
-      staffScheduleOpen.value = false;
       modalOpen.value = false;
       document.body.classList.remove('modal-open');
       if (currentView.value === 'staffForm') {
@@ -664,13 +619,13 @@ const app = createApp({
       } else {
         currentView.value = 'staffForm';
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     async function confirmDeleteStaff(staffInfo) {
       if (!confirm(`「${staffInfo.name}」を削除しますか？`)) return;
       try {
         await API.deleteStaff(staffInfo.id);
-        staffScheduleOpen.value = false;
         modalOpen.value = false;
         document.body.classList.remove('modal-open');
         await loadStaffs();
@@ -697,59 +652,7 @@ const app = createApp({
       window.location.hash = `shop-${shopId}`;
     }
 
-    // ========== Modal Preference ==========
-    const modalPreferences = reactive({});
-    const modalPrefDragging = ref(false);
-    const modalPrefDraggingValue = ref(0);
-    const modalPrefTooltipStyle = ref({});
-    let modalPrefDebounceTimer = null;
 
-    async function loadModalPreferences() {
-      if (!currentUser.value) return;
-      try {
-        const data = await API.getPreferences();
-        for (const p of (data.staff_preferences || [])) {
-          modalPreferences[p.staff_id] = p.score;
-        }
-      } catch (e) { /* ignore */ }
-    }
-
-    function getModalPreference(staffId) {
-      return modalPreferences[staffId] !== undefined ? modalPreferences[staffId] : 0;
-    }
-
-    async function saveModalPreference(staffId, score) {
-      try {
-        await API.setPreference(staffId, parseInt(score));
-        modalPreferences[staffId] = parseInt(score);
-      } catch (e) { /* ignore */ }
-    }
-
-    function onModalSliderInput(staffId, event) {
-      const val = parseInt(event.target.value);
-      modalPrefDragging.value = true;
-      modalPrefDraggingValue.value = val;
-      modalPreferences[staffId] = val;
-      const slider = event.target;
-      const rect = slider.getBoundingClientRect();
-      const ratio = (val - (-10)) / 20;
-      const thumbX = rect.left + ratio * rect.width;
-      const containerRect = slider.closest('.pref-slider-container').getBoundingClientRect();
-      modalPrefTooltipStyle.value = { left: (thumbX - containerRect.left) + 'px' };
-      if (modalPrefDebounceTimer) clearTimeout(modalPrefDebounceTimer);
-      modalPrefDebounceTimer = setTimeout(() => {
-        saveModalPreference(staffId, val);
-        modalPrefDragging.value = false;
-      }, 2000);
-    }
-
-    function onModalSliderCommit(staffId, value) {
-      const val = parseInt(value);
-      modalPreferences[staffId] = val;
-      if (modalPrefDebounceTimer) clearTimeout(modalPrefDebounceTimer);
-      modalPrefDragging.value = false;
-      saveModalPreference(staffId, val);
-    }
 
     // ========== Monthly Calendar (おきゅよて) ==========
     const monthlyCalendarOpen = ref(false);
@@ -969,6 +872,18 @@ const app = createApp({
         }
         return;
       }
+      const staffMatch = hash.match(/^staff-(\d+)$/);
+      if (staffMatch) {
+        const staffId = Number(staffMatch[1]);
+        if (currentView.value !== 'staffHome' || staffHomeStaff.value?.id !== staffId) {
+          currentView.value = 'staffHome';
+          menuOpen.value = false;
+          error.value = '';
+          success.value = '';
+          loadStaffHome(staffId);
+        }
+        return;
+      }
       const view = hashToView[hash];
       if (view && view !== currentView.value) {
         navigate(view, false);
@@ -1051,9 +966,13 @@ const app = createApp({
       // Handle initial hash route (e.g. #map)
       const initialHash = window.location.hash.replace('#', '');
       const initialShopMatch = initialHash.match(/^shop-(\d+)$/);
+      const initialStaffMatch = initialHash.match(/^staff-(\d+)$/);
       if (initialShopMatch) {
         currentView.value = 'shopHome';
         await loadShopHome(Number(initialShopMatch[1]));
+      } else if (initialStaffMatch) {
+        currentView.value = 'staffHome';
+        await loadStaffHome(Number(initialStaffMatch[1]));
       } else if (initialHash && hashToView[initialHash]) {
         navigate(hashToView[initialHash], false);
       } else {
@@ -1083,23 +1002,19 @@ const app = createApp({
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen, timelineModalOpen,
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
-      staffScheduleOpen, staffScheduleStaff, staffScheduleShifts, staffScheduleLoading,
-      staffSchedulePage, staffSchedulePageSize,
-      editingShift, editingStaff, editingShop,
+      staffHomeStaff, staffHomeLoading,
+      editingShift, editingStaff, editingShop, shiftFormPreset,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
-      openStaffSchedule, closeStaffSchedule, confirmDeleteShift, editShift, canManageOwnedRecord, isOperatorOrAdmin,
-      goStaffSchedulePrev, goStaffScheduleNext,
-      editStaff, confirmDeleteStaff, editShop, openShopHome,
-      getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadHomeData,
+      editShift, canManageOwnedRecord, isOperatorOrAdmin,
+      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome,
+      getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient, formatEventTimeRange, formatSeatGauge, activeSeatScoreForStaff,
       negativeScoreColor: SCORE_NEGATIVE_COLOR,
       positiveScoreColor: SCORE_POSITIVE_COLOR,
-      modalPreferences, getModalPreference, onModalSliderInput, onModalSliderCommit,
-      modalPrefDragging, modalPrefDraggingValue, modalPrefTooltipStyle,
       monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
       monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
       openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown
@@ -1198,26 +1113,8 @@ app.component('shop-home-page', {
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">キャスト</div>
           <div v-if="$root.shopHomeStaffs.length === 0" class="no-data">キャストが未登録です</div>
           <div v-for="staff in $root.shopHomeStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:16px">
-              <a
-                v-if="staff.site_url"
-                :href="staff.site_url"
-                target="_blank"
-                rel="noopener noreferrer"
-                style="display:block;width:100px;height:100px;flex-shrink:0;text-decoration:none"
-              >
-                <img
-                  v-if="staff.image_url"
-                  :src="staff.image_url"
-                  :alt="staff.name"
-                  style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:block"
-                >
-                <div
-                  v-else
-                  style="width:100px;height:100px;border-radius:50%;border:8px solid #2a2a44;background:#2a2a44;display:flex;align-items:center;justify-content:center;color:#a0a0b8;font-size:0.8rem;text-align:center"
-                >no image</div>
-              </a>
-              <div v-else style="width:100px;height:100px;flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:16px;cursor:pointer" @click="$root.openStaffHome(staff.id)">
+              <div style="width:100px;height:100px;flex-shrink:0">
                 <img
                   v-if="staff.image_url"
                   :src="staff.image_url"
@@ -1232,7 +1129,6 @@ app.component('shop-home-page', {
               <div
                 class="cast-name-link"
                 style="font-size:1rem;font-weight:700;color:#f3f3ff"
-                @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id, staff.image_url, staff.site_url)"
               >{{ staff.name }}</div>
             </div>
           </div>
@@ -1451,6 +1347,311 @@ app.component('shop-home-page', {
         () => {},
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
+    }
+  }
+});
+
+// ========== Staff Home Component ==========
+app.component('staff-home-page', {
+  template: `
+    <div class="register-container">
+      <div v-if="$root.staffHomeLoading" class="loading">読み込み中</div>
+      <div v-else-if="!$root.staffHomeStaff" class="no-data">キャストが見つかりません</div>
+      <template v-else>
+        <a
+          v-if="staff.site_url"
+          :href="staff.site_url"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="display:flex;align-items:center;gap:20px;text-decoration:none"
+        >
+          <div
+            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+          >
+            <img
+              v-if="staff.image_url"
+              :src="staff.image_url"
+              :alt="staff.name"
+              style="width:100%;height:100%;object-fit:cover;display:block"
+            >
+            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+          </div>
+          <div>
+            <h2 style="margin:0;color:#f3f3ff">{{ staff.name }}</h2>
+            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
+          </div>
+        </a>
+        <div v-else style="display:flex;align-items:center;gap:20px">
+          <div
+            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+          >
+            <img
+              v-if="staff.image_url"
+              :src="staff.image_url"
+              :alt="staff.name"
+              style="width:100%;height:100%;object-fit:cover;display:block"
+            >
+            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+          </div>
+          <div>
+            <h2 style="margin:0">{{ staff.name }}</h2>
+            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
+          </div>
+        </div>
+        <div v-if="$root.currentUser" style="margin-top:24px">
+          <div class="pref-slider-container" style="justify-content:center">
+            <span :style="{ fontSize: '0.75rem', color: $root.negativeScoreColor }">-10</span>
+            <span class="pref-tooltip" :class="{ visible: prefDragging }" :style="prefTooltipStyle">{{ prefDraggingValue }}</span>
+            <input type="range" class="pref-slider" min="-10" max="10" step="1"
+              :value="preference"
+              @input="onSliderInput($event)"
+              @change="onSliderCommit($event.target.value)"
+              @mousedown="prefDragging = true"
+              @touchstart="prefDragging = true">
+            <span :style="{ fontSize: '0.75rem', color: $root.positiveScoreColor }">+10</span>
+            <span class="pref-value">{{ preference }}</span>
+          </div>
+        </div>
+        <div class="calendar-section" style="margin-top:30px">
+          <div class="calendar-header">
+            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <h2>{{ calendarTitle }}</h2>
+            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+          </div>
+          <div v-if="calendarLoading" class="loading">読み込み中</div>
+          <div v-else class="calendar-grid shop-home-calendar-grid">
+            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+            <div
+              v-for="(cell, idx) in calendarDays"
+              :key="idx"
+              class="calendar-cell shop-home-calendar-cell"
+              :class="{ empty: cell.empty }"
+              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+              @click="$root.currentUser && !cell.empty && cell.shifts.length === 0 && onEmptyDayClick(cell)"
+            >
+              <template v-if="!cell.empty">
+                <div
+                  class="date-num"
+                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                >{{ cell.day }}</div>
+                <div v-for="shift in cell.shifts" :key="shift.id"
+                  :class="['shop-home-calendar-label', { 'cast-name-link': $root.currentUser }]"
+                  @click.stop="$root.currentUser && onShiftClick(shift)"
+                >{{ formatShiftTime(shift) }}</div>
+              </template>
+            </div>
+          </div>
+        </div>
+        <div v-if="calendarEvents.length > 0" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">イベント</div>
+          <div v-for="event in calendarEvents" :key="event.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
+            <div style="font-size:1rem;font-weight:700;color:#f3f3ff;margin-bottom:6px">
+              <a v-if="event.url" :href="event.url" target="_blank" rel="noopener noreferrer" style="color:#f3f3ff;text-decoration:none">{{ event.title }}</a>
+              <template v-else>{{ event.title }}</template>
+            </div>
+            <div style="font-size:0.85rem;color:#d6d6e7;line-height:1.6">{{ formatEventRange(event.start_at, event.end_at) }}</div>
+          </div>
+        </div>
+        <div style="margin-top:30px;text-align:left">
+          <div class="shop-block" style="background:#1e1e38">
+            <div class="staff-detail-actions" style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+              <button class="btn btn-outline btn-sm" @click="$root.openMonthlyCalendar(staff)">おきゅよて</button>
+              <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-primary" @click="$root.editStaff(staff)">編集</button>
+              <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-danger btn-sm" @click="$root.confirmDeleteStaff(staff)">削除</button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  `,
+  data() {
+    return {
+      calendarYear: new Date().getFullYear(),
+      calendarMonth: new Date().getMonth(),
+      calendarDaysData: [],
+      calendarEvents: [],
+      calendarLoading: false,
+      preference: 0,
+      prefDragging: false,
+      prefDraggingValue: 0,
+      prefTooltipStyle: {},
+      _prefDebounceTimer: null
+    };
+  },
+  computed: {
+    staff() {
+      return this.$root.staffHomeStaff;
+    },
+    calendarTitle() {
+      return `${this.calendarYear}年${this.calendarMonth + 1}月`;
+    },
+    calendarDays() {
+      const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
+      const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const dayMap = {};
+      const eventDates = new Set();
+      for (const day of this.calendarDaysData) {
+        dayMap[day.date] = day;
+      }
+      for (const event of this.calendarEvents) {
+        const current = new Date(event.start_at);
+        const last = new Date(event.end_at);
+        current.setHours(0, 0, 0, 0);
+        last.setHours(0, 0, 0, 0);
+        while (current <= last) {
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          eventDates.add(dateStr);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) {
+        cells.push({ empty: true });
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        cells.push({
+          empty: false,
+          day,
+          label: dayMap[dateStr]?.label || '',
+          shifts: dayMap[dateStr]?.shifts || [],
+          hasEvent: eventDates.has(dateStr)
+        });
+      }
+      return cells;
+    }
+  },
+  watch: {
+    staff() {
+      const today = new Date();
+      this.calendarYear = today.getFullYear();
+      this.calendarMonth = today.getMonth();
+      this.$nextTick(() => {
+        this.loadCalendarData();
+        this.loadPreference();
+      });
+    }
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.loadCalendarData();
+      this.loadPreference();
+    });
+  },
+  methods: {
+    async loadCalendarData() {
+      if (!this.staff?.id) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+        return;
+      }
+      this.calendarLoading = true;
+      try {
+        const data = await API.getStaffMonthlyShifts(this.staff.id, this.calendarYear, this.calendarMonth + 1);
+        const shifts = data.staff_shifts || [];
+        const dayEntries = {};
+        for (const shift of shifts) {
+          const start = new Date(shift.start_at);
+          const end = new Date(shift.end_at);
+          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+          dayEntries[dateStr].shifts.push(shift);
+        }
+        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
+          date, label: entry.labels.join('\n'), shifts: entry.shifts
+        }));
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+      }
+      this.calendarLoading = false;
+    },
+    async loadPreference() {
+      if (!this.$root.currentUser || !this.staff?.id) return;
+      try {
+        const data = await API.getPreferences();
+        const pref = (data.staff_preferences || []).find(p => p.staff_id == this.staff.id);
+        this.preference = pref ? pref.score : 0;
+      } catch (e) { /* ignore */ }
+    },
+    onSliderInput(event) {
+      const val = parseInt(event.target.value);
+      this.prefDragging = true;
+      this.prefDraggingValue = val;
+      this.preference = val;
+      const slider = event.target;
+      const rect = slider.getBoundingClientRect();
+      const ratio = (val - (-10)) / 20;
+      const thumbX = rect.left + ratio * rect.width;
+      const containerRect = slider.closest('.pref-slider-container').getBoundingClientRect();
+      this.prefTooltipStyle = { left: (thumbX - containerRect.left) + 'px' };
+      if (this._prefDebounceTimer) clearTimeout(this._prefDebounceTimer);
+      this._prefDebounceTimer = setTimeout(() => {
+        this.savePreference(val);
+        this.prefDragging = false;
+      }, 2000);
+    },
+    onSliderCommit(value) {
+      const val = parseInt(value);
+      this.preference = val;
+      if (this._prefDebounceTimer) clearTimeout(this._prefDebounceTimer);
+      this.prefDragging = false;
+      this.savePreference(val);
+    },
+    async savePreference(score) {
+      try {
+        await API.setPreference(this.staff.id, parseInt(score));
+      } catch (e) { /* ignore */ }
+    },
+    formatShiftTime(shift) {
+      const start = new Date(shift.start_at);
+      const end = new Date(shift.end_at);
+      const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+      const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+      return `${sh}-${eh}`;
+    },
+    onShiftClick(shift) {
+      this.$root.editShift(shift);
+    },
+    onEmptyDayClick(cell) {
+      const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
+      this.$root.shiftFormPreset = {
+        shopId: this.staff.shop_id,
+        staffId: this.staff.id,
+        date: dateStr
+      };
+      this.$root.navigate('shiftForm');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    async prevMonth() {
+      if (this.calendarMonth === 0) {
+        this.calendarMonth = 11;
+        this.calendarYear -= 1;
+      } else {
+        this.calendarMonth -= 1;
+      }
+      await this.loadCalendarData();
+    },
+    async nextMonth() {
+      if (this.calendarMonth === 11) {
+        this.calendarMonth = 0;
+        this.calendarYear += 1;
+      } else {
+        this.calendarMonth += 1;
+      }
+      await this.loadCalendarData();
+    },
+    formatEventRange(startAt, endAt) {
+      const start = new Date(startAt);
+      const end = new Date(endAt);
+      const dow = ['日','月','火','水','木','金','土'];
+      const startLabel = `${start.getMonth() + 1}月${start.getDate()}日(${dow[start.getDay()]}) ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+      const endLabel = `${end.getMonth() + 1}月${end.getDate()}日(${dow[end.getDay()]}) ${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+      return `${startLabel} 〜 ${endLabel}`;
     }
   }
 });
@@ -2109,8 +2310,8 @@ app.component('staff-form-page', {
           {{ submitting ? (editMode ? '更新中...' : '登録中...') : (editMode ? 'キャストを更新' : 'キャストを登録') }}
         </button>
       </div>
-      <div v-if="editMode" style="margin-bottom:32px">
-        <button class="btn btn-outline" @click="cancelEdit">新規登録に切り替え</button>
+      <div v-if="editMode && editStaffId" style="margin-bottom:12px">
+        <button class="btn btn-outline" @click="$root.openStaffHome(editStaffId)">戻る</button>
       </div>
 
       <h3 style="margin-bottom:12px">登録済みキャスト</h3>
@@ -2124,7 +2325,7 @@ app.component('staff-form-page', {
       <div v-for="staff in filteredStaffs" :key="staff.id" class="shop-block" style="background:#1e1e38">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="min-width:0;flex:1">
-            <div class="shop-block-name cast-name-link" @click="$root.openStaffSchedule(staff.id, staff.name, staff.shop_id, staff.image_url, staff.site_url)">{{ staff.name }}</div>
+            <div class="shop-block-name cast-name-link" @click="$root.openStaffHome(staff.id)">{{ staff.name }}</div>
             <div class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click="$root.openShopHome(staff.shop_id)">{{ getShopName(staff.shop_id) }}</div>
           </div>
           <button class="btn btn-danger btn-sm" style="white-space:nowrap;flex-shrink:0" @click="deleteStaff(staff)">削除</button>
@@ -2332,7 +2533,7 @@ app.component('shift-form-page', {
 
       <div class="form-group">
         <label>キャスト *</label>
-        <select v-model="selectedStaffId" :disabled="!selectedShopId" @change="onStaffChange">
+        <select v-model="selectedStaffId" :disabled="!selectedShopId">
           <option value="">選択してください</option>
           <option v-for="staff in filteredStaffs" :key="staff.id" :value="staff.id">{{ staff.name }}</option>
         </select>
@@ -2378,35 +2579,7 @@ app.component('shift-form-page', {
             {{ submitting ? '登録中...' : 'シフトを登録' }}
           </button>
         </div>
-
-        <hr class="staff-detail-divider">
-        <div class="staff-detail-label">シフト</div>
-        <div v-if="existingShiftsLoading" class="loading">読み込み中</div>
-        <div v-else-if="existingShifts.length === 0" class="no-data">今日以降のシフトはありません</div>
-        <div v-else>
-          <div v-for="shift in existingShifts" :key="shift.id" class="staff-schedule-item">
-            <div class="staff-schedule-info">
-              <div class="staff-schedule-date">
-                {{ new Date(shift.start_at).toLocaleDateString('ja-JP', {month:'numeric',day:'numeric',weekday:'short'}) }}
-              </div>
-              <div class="staff-schedule-time">
-                {{ new Date(shift.start_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
-                〜
-                {{ new Date(shift.end_at).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
-              </div>
-              <div class="staff-schedule-shop">{{ shift._shop_name }}</div>
-            </div>
-            <div v-if="$root.canManageOwnedRecord(shift)" class="staff-schedule-actions">
-              <button class="btn btn-outline btn-sm" @click="$root.editShift(shift)">編集</button>
-              <button class="btn btn-danger btn-sm" @click="deleteExistingShift(shift)">削除</button>
-            </div>
-          </div>
-          <div v-if="showPrev || showNext" style="display:flex;justify-content:space-between;margin-top:16px">
-            <button v-if="showPrev" class="btn btn-secondary btn-sm" @click="goPrev">prev</button>
-            <div v-else></div>
-            <button v-if="showNext" class="btn btn-secondary btn-sm" @click="goNext">next</button>
-          </div>
-        </div>
+        <button class="btn btn-outline" @click="goBack">戻る</button>
       </template>
     </div>
   `,
@@ -2418,10 +2591,6 @@ app.component('shift-form-page', {
       selectedStaffId: '',
       shiftTargetShopId: '',
       entries: [{ date: dateStr, startTime: '17:00', endTime: '23:00' }],
-      existingShifts: [],
-      existingShiftsLoading: false,
-      existingShiftsPage: 1,
-      existingShiftsPageSize: DEFAULT_PAGE_SIZE,
       submitting: false,
       localError: '',
       localSuccess: ''
@@ -2431,17 +2600,20 @@ app.component('shift-form-page', {
     filteredStaffs() {
       if (!this.selectedShopId) return [];
       return this.$root.staffs.filter(s => s.shop_id == this.selectedShopId);
-    },
-    showPrev() {
-      return this.existingShiftsPage > 1;
-    },
-    showNext() {
-      return this.existingShifts.length === this.existingShiftsPageSize;
     }
   },
   async mounted() {
     await this.$root.loadShops();
     await this.$root.loadStaffs();
+    const preset = this.$root.shiftFormPreset;
+    if (preset) {
+      this.selectedShopId = preset.shopId || '';
+      this.selectedStaffId = preset.staffId || '';
+      if (preset.date) {
+        this.entries = [{ date: preset.date, startTime: '17:00', endTime: '23:00' }];
+      }
+      this.$root.shiftFormPreset = null;
+    }
   },
   methods: {
     newEntry() {
@@ -2465,13 +2637,15 @@ app.component('shift-form-page', {
     removeEntry(index) {
       this.entries.splice(index, 1);
     },
+    goBack() {
+      if (this.selectedStaffId) {
+        this.$root.openStaffHome(this.selectedStaffId);
+      } else {
+        this.$root.navigate('home');
+      }
+    },
     onShopChange() {
       this.selectedStaffId = '';
-      this.existingShiftsPage = 1;
-      this.existingShifts = [];
-    },
-    async onStaffChange() {
-      await this.loadExistingShifts(1);
     },
     buildDatetime(date, time, isNextDay) {
       const dt = new Date(`${date}T${time}:00`);
@@ -2522,49 +2696,20 @@ app.component('shift-form-page', {
         this.localSuccess = skipped > 0
           ? `${successCount}件のシフトを登録しました（${skipped}件は時間重複のためスキップ）`
           : `${successCount}件のシフトを登録しました`;
-        this.entries = [this.newEntry()];
-        await this.loadExistingShifts(this.existingShiftsPage);
+        const lastEntry = this.entries[this.entries.length - 1];
+        const next = this.newEntry();
+        if (lastEntry) {
+          next.date = lastEntry.date;
+          next.startTime = lastEntry.startTime;
+          next.endTime = lastEntry.endTime;
+        }
+        this.entries = [next];
       } else if (errors.length > 0) {
         this.localError = '登録できるシフトがありませんでした（時間帯が重複しています）';
       }
       this.submitting = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
-    async loadExistingShifts(page = 1) {
-      if (!this.selectedStaffId) {
-        this.existingShifts = [];
-        return;
-      }
-
-      this.existingShiftsPage = page;
-      this.existingShiftsLoading = true;
-      try {
-        const data = await API.getStaffUpcomingShifts(
-          this.selectedStaffId,
-          this.existingShiftsPage,
-          this.existingShiftsPageSize
-        );
-        this.existingShifts = data.staff_shifts || [];
-      } catch (e) {
-        this.existingShifts = [];
-      }
-      this.existingShiftsLoading = false;
-    },
-    async deleteExistingShift(shift) {
-      if (!confirm('このシフトを削除しますか？')) return;
-      try {
-        await API.deleteStaffShift(shift._shop_id, shift.id);
-        await this.loadExistingShifts(this.existingShiftsPage);
-      } catch (e) {
-        this.localError = e.data?.errors?.join(', ') || e.data?.error || '削除に失敗しました';
-      }
-    },
-    async goPrev() {
-      if (this.existingShiftsPage <= 1) return;
-      await this.loadExistingShifts(this.existingShiftsPage - 1);
-    },
-    async goNext() {
-      await this.loadExistingShifts(this.existingShiftsPage + 1);
-    }
   }
 });
 
@@ -2615,7 +2760,10 @@ app.component('shift-edit-page', {
           {{ submitting ? '保存中...' : '保存' }}
         </button>
       </div>
-      <button class="btn btn-outline" @click="$root.navigate('home')">戻る</button>
+      <div class="form-actions" style="margin-bottom:16px">
+        <button class="btn btn-danger" @click="deleteShift" :disabled="submitting">削除</button>
+      </div>
+      <button class="btn btn-outline" @click="goBack">戻る</button>
     </div>
   `,
   data() {
@@ -2630,8 +2778,8 @@ app.component('shift-edit-page', {
     shift() { return this.$root.editingShift; },
     shopName() {
       if (!this.shift) return '';
-      const shop = this.$root.shops.find(s => s.id == this.shift._shop_id);
-      return shop ? shop.name : (this.shift._shop_name || '');
+      const shop = this.$root.shops.find(s => s.id == this.shift.shop_id);
+      return shop ? shop.name : (this.shift.shop_name || '');
     },
     staffName() {
       if (!this.shift) return '';
@@ -2646,7 +2794,7 @@ app.component('shift-edit-page', {
       this.$root.loadShops();
       const start = new Date(this.shift.start_at);
       const end = new Date(this.shift.end_at);
-      this.form.shopId = this.shift._shop_id || '';
+      this.form.shopId = this.shift.shop_id || '';
       this.form.startDate = this.toDateStr(start);
       this.form.startTime = this.toTimeStr(start);
       this.form.endDate = this.toDateStr(end);
@@ -2659,6 +2807,13 @@ app.component('shift-edit-page', {
     toTimeStr(d) {
       return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     },
+    goBack() {
+      if (this.shift?.staff_id) {
+        this.$root.openStaffHome(this.shift.staff_id);
+      } else {
+        this.$root.navigate('home');
+      }
+    },
     async save() {
       this.localError = '';
       this.localSuccess = '';
@@ -2670,7 +2825,7 @@ app.component('shift-edit-page', {
       try {
         const startAt = new Date(`${this.form.startDate}T${this.form.startTime}:00`).toISOString();
         const endAt = new Date(`${this.form.endDate}T${this.form.endTime}:00`).toISOString();
-        await API.updateStaffShift(this.shift._shop_id, this.shift.id, {
+        await API.updateStaffShift(this.shift.shop_id, this.shift.id, {
           shop_id: this.form.shopId,
           start_at: startAt,
           end_at: endAt
@@ -2678,6 +2833,19 @@ app.component('shift-edit-page', {
         this.localSuccess = 'シフトを更新しました';
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
+      }
+      this.submitting = false;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    async deleteShift() {
+      if (!confirm('このシフトを削除しますか？')) return;
+      this.submitting = true;
+      this.localError = '';
+      try {
+        await API.deleteStaffShift(this.shift.shop_id, this.shift.id);
+        this.goBack();
+      } catch (e) {
+        this.localError = '削除に失敗しました';
       }
       this.submitting = false;
     }

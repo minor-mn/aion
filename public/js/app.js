@@ -1678,7 +1678,7 @@ app.component('staff-home-page', {
       const end = new Date(shift.end_at);
       const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
       const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
-      return `${sh}-${eh}`;
+      return `${sh}\n${eh}`;
     },
     onShiftClick(shift) {
       this.$root.editShift(shift);

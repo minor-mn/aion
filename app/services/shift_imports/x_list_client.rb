@@ -47,7 +47,7 @@ module ShiftImports
       raise "X_BEARER_TOKEN is not configured" if @bearer_token.blank?
 
       uri = URI("#{API_BASE}/2/users/by/username/#{username}")
-      uri.query = URI.encode_www_form("user.fields" => "id,username,profile_image_url")
+      uri.query = URI.encode_www_form("user.fields" => "id,name,username,profile_image_url")
 
       TwitterStreamLogger.info("x_user_lookup_start username=#{username}")
       request = Net::HTTP::Get.new(uri)

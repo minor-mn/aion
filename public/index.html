@@ -297,9 +297,9 @@
                 class="timeline-popup"
                 @click.stop
               >
-                <div class="timeline-popup-shop">{{ timelinePopup.shopName }}</div>
-                <div v-for="staff in timelinePopup.staffs" :key="staff.name + '-' + staff.timeLabel" class="timeline-popup-row">
-                  <span class="timeline-popup-name">{{ staff.name }}</span>
+                <div class="timeline-popup-shop cast-name-link" @click="openShopHome(timelinePopup.shopId)">{{ timelinePopup.shopName }}</div>
+                <div v-for="staff in timelinePopup.staffs" :key="staff.staff_id + '-' + staff.timeLabel" class="timeline-popup-row">
+                  <span class="timeline-popup-name cast-name-link" @click="openStaffHome(staff.staff_id)">{{ staff.name }}</span>
                   <span class="timeline-popup-time">{{ staff.timeLabel }}</span>
                 </div>
               </div>

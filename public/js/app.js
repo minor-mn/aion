@@ -246,6 +246,8 @@ const app = createApp({
 
     async function openStaffHome(staffId) {
       modalOpen.value = false;
+      timelineModalOpen.value = false;
+      timelinePopup.value = null;
       document.body.classList.remove('modal-open');
       currentView.value = 'staffHome';
       error.value = '';
@@ -481,6 +483,7 @@ const app = createApp({
 
     function openTimelinePopup(shop, bar) {
       timelinePopup.value = {
+        shopId: shop.shop_id,
         shopName: shop.shop_name,
         staffs: bar.activeStaffs
       };
@@ -521,6 +524,7 @@ const app = createApp({
           const clippedEnd = Math.min(endMs, dayEndMs);
           return {
             name: staff.name,
+            staff_id: staff.staff_id,
             score: Number(staff.score || 0),
             startMs: clippedStart,
             endMs: clippedEnd,
@@ -568,7 +572,7 @@ const app = createApp({
             bars.push({
               activeSignature,
               activeStaffs: activeShifts
-                .map(shift => ({ name: shift.name, timeLabel: shift.timeLabel }))
+                .map(shift => ({ name: shift.name, staff_id: shift.staff_id, timeLabel: shift.timeLabel }))
                 .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
               color,
               segmentEnd,
@@ -645,6 +649,8 @@ const app = createApp({
 
     async function openShopHome(shopId) {
       modalOpen.value = false;
+      timelineModalOpen.value = false;
+      timelinePopup.value = null;
       document.body.classList.remove('modal-open');
       currentView.value = 'shopHome';
       error.value = '';
@@ -852,7 +858,7 @@ const app = createApp({
           history.replaceState(null, '', window.location.pathname + window.location.search);
         }
       }
-      if (view === 'home') loadHomeData(true);
+      if (view === 'home') { loadHomeData(true); window.scrollTo(0, 0); }
       if (view === 'shiftEdit') { loadShops(); }
       if (view === 'mapView') { loadShops(); }
       if (view === 'eventForm') { loadShops(); }
@@ -1089,7 +1095,8 @@ app.component('shop-home-page', {
               :key="idx"
               class="calendar-cell shop-home-calendar-cell"
               :class="{ empty: cell.empty }"
-              style="display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px;cursor:default;text-align:center"
+              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty) ? 'pointer' : 'default', textAlign:'center' }"
+              @click="$root.currentUser && !cell.empty && onDayClick(cell)"
             >
               <template v-if="!cell.empty">
                 <div
@@ -1134,7 +1141,7 @@ app.component('shop-home-page', {
                   style="font-size:1rem;font-weight:700;color:#f3f3ff"
                 >{{ staff.name }}</div>
               </div>
-              <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="$root.editStaff(staff)">編集</button>
+              <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-primary btn-sm" style="white-space:nowrap;flex-shrink:0" @click="$root.editStaff(staff)">編集</button>
             </div>
             <div v-if="$root.currentUser" class="pref-slider-container" style="margin-top:12px">
               <span :style="{ fontSize: '0.75rem', color: $root.negativeScoreColor }">-10</span>
@@ -1302,6 +1309,16 @@ app.component('shop-home-page', {
       const startLabel = `${start.getMonth() + 1}月${start.getDate()}日(${['日','月','火','水','木','金','土'][start.getDay()]}) ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
       const endLabel = `${end.getMonth() + 1}月${end.getDate()}日(${['日','月','火','水','木','金','土'][end.getDay()]}) ${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
       return `${startLabel} 〜 ${endLabel}`;
+    },
+    onDayClick(cell) {
+      const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
+      this.$root.shiftFormPreset = {
+        shopId: this.shop.id,
+        staffId: null,
+        date: dateStr
+      };
+      this.$root.navigate('shiftForm');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async loadCalendarData() {
       if (!this.shop?.id) {
@@ -1962,7 +1979,7 @@ app.component('shop-form-page', {
                   <div v-if="shop.site_url" style="font-size:0.8rem;color:#a0a0b8">{{ shop.site_url }}</div>
           </div>
           <div v-if="$root.canManageOwnedRecord(shop)" style="display:flex;gap:6px">
-            <button class="btn btn-secondary btn-sm" @click="editExistingShop(shop)">編集</button>
+            <button class="btn btn-primary btn-sm" @click="editExistingShop(shop)">編集</button>
             <button class="btn btn-danger btn-sm" @click="deleteShop(shop)">削除</button>
           </div>
         </div>
@@ -2252,7 +2269,7 @@ app.component('user-list-page', {
             <div style="font-size:0.8rem;color:#a0a0b8">role: {{ user.role }}</div>
           </div>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-secondary btn-sm" @click="editExistingUser(user)">編集</button>
+            <button class="btn btn-primary btn-sm" @click="editExistingUser(user)">編集</button>
             <button v-if="user.id !== $root.currentUser.id" class="btn btn-danger btn-sm" @click="deleteUserWithConfirm(user)">削除</button>
           </div>
         </div>
@@ -2298,6 +2315,7 @@ app.component('user-list-page', {
       };
       this.localError = '';
       this.localSuccess = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     cancelEdit() {
       this.editMode = false;
@@ -2358,7 +2376,7 @@ app.component('staff-form-page', {
 
       <h3 style="margin-bottom:12px">{{ editMode ? 'キャスト編集' : '新規キャスト登録' }}</h3>
       <div class="form-group">
-        <label>キャスト名 *</label>
+        <label>キャスト名</label>
         <input v-model="form.name" type="text" placeholder="キャスト名">
       </div>
       <div class="form-group">
@@ -2369,20 +2387,30 @@ app.component('staff-form-page', {
         </select>
       </div>
       <div class="form-group">
-        <label>サイトURL</label>
-        <input v-model="form.site_url" type="url" placeholder="https://...">
+        <label>サイトURL (𝕏なら自動更新されます)</label>
+        <input v-model="form.site_url" type="url" placeholder="https://x.com/zzzz">
       </div>
       <div class="form-group">
         <label>画像URL</label>
         <input v-model="form.image_url" type="url" placeholder="https://...">
       </div>
-      <div class="form-actions" style="margin-bottom:12px">
-        <button class="btn btn-primary" @click="editMode ? updateStaff() : createStaff()" :disabled="submitting">
-          {{ submitting ? (editMode ? '更新中...' : '登録中...') : (editMode ? 'キャストを更新' : 'キャストを登録') }}
-        </button>
-      </div>
-      <div v-if="editMode && editStaffId" style="margin-bottom:12px">
-        <button class="btn btn-outline" @click="$root.openStaffHome(editStaffId)">戻る</button>
+      <div class="form-actions" style="margin-bottom:16px" :style="editMode ? 'display:flex;gap:8px' : ''">
+        <template v-if="editMode">
+          <button class="btn btn-primary" @click="updateStaff()" :disabled="submitting" style="flex:1">
+            {{ submitting ? '更新中...' : '更新' }}
+          </button>
+          <button class="btn btn-danger" @click="deleteStaff({ id: editStaffId, name: form.name })" :disabled="submitting" style="flex:1">
+            削除
+          </button>
+          <button class="btn btn-secondary" @click="cancelEdit" style="flex:1">
+            新規登録へ
+          </button>
+        </template>
+        <template v-else>
+          <button class="btn btn-primary" @click="createStaff()" :disabled="submitting">
+            {{ submitting ? '登録中...' : 'キャストを登録' }}
+          </button>
+        </template>
       </div>
 
       <h3 style="margin-bottom:12px">登録済みキャスト</h3>
@@ -2399,7 +2427,7 @@ app.component('staff-form-page', {
             <div class="shop-block-name cast-name-link" @click="$root.openStaffHome(staff.id)">{{ staff.name }}</div>
             <div class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click="$root.openShopHome(staff.shop_id)">{{ getShopName(staff.shop_id) }}</div>
           </div>
-          <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-outline btn-sm" style="white-space:nowrap;flex-shrink:0" @click="startEdit(staff)">編集</button>
+          <button v-if="$root.canManageOwnedRecord(staff)" class="btn btn-primary btn-sm" style="white-space:nowrap;flex-shrink:0" @click="startEdit(staff)">編集</button>
         </div>
         <div v-if="$root.currentUser" class="pref-slider-container" style="margin-top:12px">
           <span :style="{ fontSize: '0.75rem', color: negativeScoreColor }">-10</span>
@@ -2541,8 +2569,12 @@ app.component('staff-form-page', {
       this.localSuccess = '';
     },
     async createStaff() {
-      if (!this.form.name || !this.form.shop_id) {
-        this.localError = 'キャスト名と所属店舗は必須です';
+      if (!this.form.shop_id) {
+        this.localError = '所属店舗は必須です';
+        return;
+      }
+      if (!this.form.name && !this.form.site_url) {
+        this.localError = 'キャスト名またはサイトURLを入力してください';
         return;
       }
       this.submitting = true;
@@ -2561,8 +2593,12 @@ app.component('staff-form-page', {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async updateStaff() {
-      if (!this.form.name || !this.form.shop_id) {
-        this.localError = 'キャスト名と所属店舗は必須です';
+      if (!this.form.shop_id) {
+        this.localError = '所属店舗は必須です';
+        return;
+      }
+      if (!this.form.name && !this.form.site_url) {
+        this.localError = 'キャスト名またはサイトURLを入力してください';
         return;
       }
       this.submitting = true;
@@ -2586,6 +2622,7 @@ app.component('staff-form-page', {
       if (!confirm(`「${staff.name}」を削除しますか？`)) return;
       try {
         await API.deleteStaff(staff.id);
+        this.cancelEdit();
         this.localSuccess = '削除しました';
         await this.$root.loadStaffs();
         if (!this.$root.staffs.some(s => String(s.shop_id) === String(this.filterShopId))) {
@@ -2594,6 +2631,7 @@ app.component('staff-form-page', {
       } catch (e) {
         this.localError = '削除に失敗しました';
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async loadFilteredStaffs() {
       // staffs are already loaded, filtering is done by computed
@@ -2626,9 +2664,9 @@ app.component('shift-form-page', {
       </div>
 
       <div class="form-group">
-        <label>シフト先店舗</label>
+        <label>シフト先店舗 (他店に出勤する場合)</label>
         <select v-model="shiftTargetShopId">
-          <option value="">選択しない</option>
+          <option value="">同上</option>
           <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
         </select>
       </div>
@@ -2809,14 +2847,18 @@ app.component('shift-edit-page', {
 
       <div class="form-group">
         <label>店舗</label>
-        <select v-model="form.shopId">
-          <option value="">選択してください</option>
-          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
-        </select>
+        <input type="text" :value="homeShopName" disabled>
       </div>
       <div class="form-group">
         <label>キャスト</label>
         <input type="text" :value="staffName" disabled>
+      </div>
+      <div class="form-group">
+        <label>シフト先店舗 (他店に出勤する場合)</label>
+        <select v-model="form.targetShopId">
+          <option value="">同上</option>
+          <option v-for="shop in $root.shops" :key="shop.id" :value="shop.id">{{ shop.name }}</option>
+        </select>
       </div>
       <div class="form-group">
         <label>開始日時</label>
@@ -2859,7 +2901,7 @@ app.component('shift-edit-page', {
   `,
   data() {
     return {
-      form: { shopId: '', startDate: '', startTime: '', endDate: '', endTime: '' },
+      form: { targetShopId: '', startDate: '', startTime: '', endDate: '', endTime: '' },
       submitting: false,
       localError: '',
       localSuccess: ''
@@ -2880,17 +2922,29 @@ app.component('shift-edit-page', {
     staffName() {
       if (!this.shift) return '';
       return this.$root.getStaffName(this.shift.staff_id);
+    },
+    homeShopName() {
+      if (!this.shift) return '';
+      const staff = this.$root.staffs.find(s => s.id == this.shift.staff_id);
+      if (staff) {
+        const shop = this.$root.shops.find(s => s.id == staff.shop_id);
+        if (shop) return shop.name;
+      }
+      return this.shopName;
     }
   },
-    mounted() {
+    async mounted() {
       if (!this.shift) {
         this.$root.navigate('home');
         return;
       }
-      this.$root.loadShops();
+      await this.$root.loadShops();
+      await this.$root.loadStaffs();
       const start = new Date(this.shift.start_at);
       const end = new Date(this.shift.end_at);
-      this.form.shopId = this.shift.shop_id || '';
+      const staff = this.$root.staffs.find(s => s.id == this.shift.staff_id);
+      const homeShopId = staff?.shop_id;
+      this.form.targetShopId = (this.shift.shop_id && this.shift.shop_id != homeShopId) ? this.shift.shop_id : '';
       this.form.startDate = this.toDateStr(start);
       this.form.startTime = this.toTimeStr(start);
       this.form.endDate = this.toDateStr(end);
@@ -2921,8 +2975,10 @@ app.component('shift-edit-page', {
       try {
         const startAt = new Date(`${this.form.startDate}T${this.form.startTime}:00`).toISOString();
         const endAt = new Date(`${this.form.endDate}T${this.form.endTime}:00`).toISOString();
+        const staff = this.$root.staffs.find(s => s.id == this.shift.staff_id);
+        const effectiveShopId = this.form.targetShopId || staff?.shop_id || this.shift.shop_id;
         await API.updateStaffShift(this.shift.shop_id, this.shift.id, {
-          shop_id: this.form.shopId,
+          shop_id: effectiveShopId,
           start_at: startAt,
           end_at: endAt
         });
@@ -3677,7 +3733,7 @@ app.component('event-form-page', {
             <div v-if="event.start_at" style="font-size:0.8rem;color:#a0a0b8">{{ formatEventListRange(event.start_at, event.end_at) }}</div>
           </div>
           <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn btn-secondary btn-sm" @click="editExisting(event)">編集</button>
+            <button class="btn btn-primary btn-sm" @click="editExisting(event)">編集</button>
             <button class="btn btn-danger btn-sm" @click="deleteEvent(event)">削除</button>
           </div>
         </div>

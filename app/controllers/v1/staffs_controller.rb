@@ -1,5 +1,6 @@
 class V1::StaffsController < ApplicationController
   include Paginatable
+  wrap_parameters false
 
   before_action :authenticate_user!, only: %i[create update destroy]
   before_action :validate_shop_id, only: %i[create]
@@ -88,6 +89,10 @@ class V1::StaffsController < ApplicationController
   def create
     new_staff = Staff.new(staff_params)
     new_staff.user = current_user
+    enrich_from_x_profile!(new_staff)
+    if new_staff.image_url.blank?
+      return render json: { errors: [ "画像URLを入力してください" ] }, status: :unprocessable_entity
+    end
     if new_staff.save
       render json: new_staff, status: :created
     else
@@ -97,7 +102,12 @@ class V1::StaffsController < ApplicationController
 
   def update
     before_data = staff.as_json
-    if staff.update(staff_params)
+    staff.assign_attributes(staff_params)
+    enrich_from_x_profile!(staff)
+    if staff.image_url.blank?
+      return render json: { errors: [ "画像URLを入力してください" ] }, status: :unprocessable_entity
+    end
+    if staff.save
       ActionLogger.log(user: current_user, action_type: "update", target: staff, detail: before_data)
       render json: staff
     else
@@ -130,12 +140,32 @@ class V1::StaffsController < ApplicationController
   end
 
   def staff_params
-    params.permit(:name, :shop_id, :image_url, :site_url)
+    params.except(:id, :format, :controller, :action).permit(:name, :shop_id, :image_url, :site_url)
   end
 
   def authorize_staff_management!
     return unless staff
 
     authorize_owner_or_operator_or_admin!(staff)
+  end
+
+  def enrich_from_x_profile!(record)
+    return unless record.name.blank? || record.image_url.blank?
+
+    matcher = ShiftImports::CandidateMatcher.new
+    username = matcher.username_from_site_url(record.site_url)
+    return unless username.present?
+
+    client = ShiftImports::XListClient.new
+    data = client.fetch_user_by_username(username: username).dig("data")
+    return if data.blank?
+
+    record.name = data["name"] if record.name.blank? && data["name"].present?
+    if record.image_url.blank? && data["profile_image_url"].present?
+      record.image_url = data["profile_image_url"].sub("_normal.", ".")
+    end
+  rescue StandardError
+    # X API failure — leave fields blank, model validation will handle name,
+    # controller checks handle image_url
   end
 end

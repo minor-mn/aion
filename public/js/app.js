@@ -1304,6 +1304,7 @@ app.component('shop-home-page', {
       tooltipStyle: {},
       _debounceTimers: {},
       currentPosition: null,
+      positionError: null,
       checkInBusy: false
     };
   },
@@ -1339,6 +1340,14 @@ app.component('shop-home-page', {
     },
     checkInHint() {
       if (!this.hasCoordinates) return '';
+      const suffix = '（チェックインには位置情報が必要です）';
+      switch (this.positionError) {
+        case 'unsupported': return `この端末は位置情報に対応していません${suffix}`;
+        case 'denied':      return `位置情報の許可が拒否されました${suffix}`;
+        case 'unavailable': return `位置情報を取得できませんでした${suffix}`;
+        case 'timeout':     return `位置情報の取得がタイムアウトしました${suffix}`;
+        case 'unknown':     return `位置情報の取得に失敗しました${suffix}`;
+      }
       if (this.currentPosition == null) return '位置情報を取得中...';
       if (this.canCheckIn) return '';
       const limit = Number(this.$root.limitMeters || 50);
@@ -1416,13 +1425,27 @@ app.component('shop-home-page', {
   },
   methods: {
     acquirePosition() {
-      if (!navigator.geolocation || !this.hasCoordinates || !this.$root.currentUser) return;
+      if (!this.hasCoordinates || !this.$root.currentUser) return;
+      if (!navigator.geolocation) {
+        this.currentPosition = null;
+        this.positionError = 'unsupported';
+        return;
+      }
+      this.currentPosition = null;
+      this.positionError = null;
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           this.currentPosition = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          this.positionError = null;
         },
-        () => {
+        (err) => {
           this.currentPosition = null;
+          switch (err && err.code) {
+            case 1: this.positionError = 'denied'; break;
+            case 2: this.positionError = 'unavailable'; break;
+            case 3: this.positionError = 'timeout'; break;
+            default: this.positionError = 'unknown';
+          }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );

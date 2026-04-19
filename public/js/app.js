@@ -59,6 +59,13 @@ const app = createApp({
     // Shop edit state
     const editingShop = ref(null);
 
+    // Check-in state
+    const activeCheckIn = ref(null);
+    const ratingCheckIn = ref(null);
+    const ratingCandidateStaffs = ref([]);
+    const limitMeters = ref(50);
+    const thankYouOpen = ref(false);
+
     // ========== Auth ==========
     function decodeJwtPayload(token) {
       try {
@@ -117,6 +124,8 @@ const app = createApp({
         history.replaceState(null, '', window.location.pathname + window.location.search);
         success.value = 'サインインしました';
         await loadHomeData(true);
+        loadConfig();
+        loadActiveCheckIn();
       } catch (e) {
         error.value = e.data?.error || 'サインインに失敗しました';
       }
@@ -140,6 +149,7 @@ const app = createApp({
         // ignore
       }
       currentUser.value = null;
+      activeCheckIn.value = null;
       menuOpen.value = false;
       scheduleData.value = [];
       currentView.value = 'home';
@@ -810,7 +820,7 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftImportPage', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftImportPage', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList', 'checkInRating'];
     const operatorOnlyViews = ['shiftImportPage', 'shiftBulkForm'];
 
     // Mapping between hash fragments and view names
@@ -820,14 +830,16 @@ const app = createApp({
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
       'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-import': 'shiftImportPage', 'shift-bulk': 'shiftBulkForm',
       'events': 'eventForm',
-      'introduction': 'introduction'
+      'introduction': 'introduction',
+      'check-in-rating': 'checkInRating'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
       'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftImportPage': 'shift-import', 'shiftBulkForm': 'shift-bulk',
       'eventForm': 'events',
-      'introduction': 'introduction'
+      'introduction': 'introduction',
+      'checkInRating': 'check-in-rating'
     };
 
     function navigate(view, updateHash = true) {
@@ -865,6 +877,101 @@ const app = createApp({
       if (view === 'eventForm') { loadShops(); }
       if (view === 'shiftBulkForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftImportPage') { loadShops(); loadStaffs(); }
+    }
+
+    async function loadActiveCheckIn() {
+      if (!currentUser.value) {
+        activeCheckIn.value = null;
+        return;
+      }
+      try {
+        const data = await API.getCurrentCheckIn();
+        activeCheckIn.value = data?.check_in || null;
+      } catch (e) {
+        activeCheckIn.value = null;
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const data = await API.getConfig();
+        if (data && data.limit_meters) {
+          limitMeters.value = Number(data.limit_meters);
+        }
+      } catch (e) {
+        // keep default
+      }
+    }
+
+    function getCurrentPosition() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('位置情報が利用できません'));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+
+    async function performCheckIn(shopId) {
+      if (!currentUser.value) {
+        error.value = 'サインインしてください';
+        return;
+      }
+      try {
+        const pos = await getCurrentPosition();
+        const data = await API.createCheckIn(shopId, pos.latitude, pos.longitude);
+        activeCheckIn.value = data.check_in;
+        success.value = `${data.check_in.shop_name} にチェックインしました`;
+      } catch (e) {
+        if (e && e.data && e.data.error) {
+          error.value = e.data.error;
+        } else if (e && e.message) {
+          error.value = `現在地取得に失敗しました: ${e.message}`;
+        } else {
+          error.value = 'チェックインに失敗しました';
+        }
+      }
+    }
+
+    async function performCheckOut() {
+      if (!activeCheckIn.value) return;
+      try {
+        const data = await API.checkOut(activeCheckIn.value.id);
+        ratingCheckIn.value = data.check_in;
+        ratingCandidateStaffs.value = data.staffs || [];
+        activeCheckIn.value = null;
+        navigate('checkInRating');
+      } catch (e) {
+        error.value = e?.data?.error || 'チェックアウトに失敗しました';
+      }
+    }
+
+    async function submitCheckInRates(payload) {
+      if (!ratingCheckIn.value) return;
+      try {
+        await API.submitStaffRates(ratingCheckIn.value.id, payload);
+        ratingCheckIn.value = null;
+        ratingCandidateStaffs.value = [];
+        thankYouOpen.value = true;
+      } catch (e) {
+        const msg = e?.data?.error;
+        if (Array.isArray(msg)) {
+          error.value = msg.join(', ');
+        } else {
+          error.value = msg || '評価の送信に失敗しました';
+        }
+      }
+    }
+
+    function closeThankYouModal() {
+      thankYouOpen.value = false;
+      navigate('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function handleHashChange() {
@@ -971,6 +1078,10 @@ const app = createApp({
       }
 
       await checkAuth();
+      if (currentUser.value) {
+        loadConfig();
+        loadActiveCheckIn();
+      }
 
       // Handle initial hash route (e.g. #map)
       const initialHash = window.location.hash.replace('#', '');
@@ -1026,7 +1137,9 @@ const app = createApp({
       positiveScoreColor: SCORE_POSITIVE_COLOR,
       monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
       monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
-      openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown
+      openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown,
+      activeCheckIn, ratingCheckIn, ratingCandidateStaffs, limitMeters, thankYouOpen,
+      loadActiveCheckIn, performCheckIn, performCheckOut, submitCheckInRates, closeThankYouModal
     };
   }
 });
@@ -1070,6 +1183,14 @@ app.component('shop-home-page', {
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
           <h2 style="margin:0">{{ shop.name }}</h2>
+        </div>
+        <div v-if="showCheckInBlock" style="margin-top:20px;text-align:center">
+          <button
+            class="btn-checkin"
+            :disabled="!canCheckIn || checkInBusy"
+            @click="handleCheckIn"
+          >チェックイン</button>
+          <div v-if="checkInHint" style="margin-top:8px;font-size:0.8rem;color:#a0a0b8">{{ checkInHint }}</div>
         </div>
         <div v-if="shop.address || hasCoordinates" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">所在地</div>
@@ -1181,7 +1302,9 @@ app.component('shop-home-page', {
       draggingStaffId: null,
       draggingValue: 0,
       tooltipStyle: {},
-      _debounceTimers: {}
+      _debounceTimers: {},
+      currentPosition: null,
+      checkInBusy: false
     };
   },
   computed: {
@@ -1191,6 +1314,35 @@ app.component('shop-home-page', {
     hasCoordinates() {
       if (!this.shop) return false;
       return this.shop.latitude !== null && this.shop.latitude !== '' && this.shop.longitude !== null && this.shop.longitude !== '';
+    },
+    distanceToShop() {
+      if (!this.hasCoordinates || !this.currentPosition) return null;
+      const R = 6371000;
+      const toRad = (d) => d * Math.PI / 180;
+      const lat1 = toRad(Number(this.shop.latitude));
+      const lat2 = toRad(Number(this.currentPosition.latitude));
+      const dLat = toRad(Number(this.currentPosition.latitude) - Number(this.shop.latitude));
+      const dLng = toRad(Number(this.currentPosition.longitude) - Number(this.shop.longitude));
+      const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng/2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    },
+    canCheckIn() {
+      if (!this.$root.currentUser) return false;
+      if (!this.hasCoordinates) return false;
+      if (this.$root.activeCheckIn) return false;
+      if (this.currentPosition == null) return false;
+      const limit = Number(this.$root.limitMeters || 50);
+      return this.distanceToShop !== null && this.distanceToShop <= limit;
+    },
+    showCheckInBlock() {
+      return !!this.$root.currentUser && this.hasCoordinates && !this.$root.activeCheckIn;
+    },
+    checkInHint() {
+      if (!this.hasCoordinates) return '';
+      if (this.currentPosition == null) return '位置情報を取得中...';
+      if (this.canCheckIn) return '';
+      const limit = Number(this.$root.limitMeters || 50);
+      return `店舗から ${Math.round(this.distanceToShop)}m 離れています（チェックインには ${limit}m 以内が必要です）`;
     },
     calendarTitle() {
       return `${this.calendarYear}年${this.calendarMonth + 1}月`;
@@ -1243,6 +1395,7 @@ app.component('shop-home-page', {
         this.renderMap();
         this.loadCalendarData();
         this.loadPreferences();
+        this.acquirePosition();
       });
     }
   },
@@ -1250,6 +1403,7 @@ app.component('shop-home-page', {
     this.$nextTick(() => {
       this.renderMap();
       this.loadCalendarData();
+      this.acquirePosition();
     });
   },
   beforeUnmount() {
@@ -1261,6 +1415,27 @@ app.component('shop-home-page', {
     }
   },
   methods: {
+    acquirePosition() {
+      if (!navigator.geolocation || !this.hasCoordinates || !this.$root.currentUser) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          this.currentPosition = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        },
+        () => {
+          this.currentPosition = null;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    },
+    async handleCheckIn() {
+      if (this.checkInBusy) return;
+      this.checkInBusy = true;
+      try {
+        await this.$root.performCheckIn(this.shop.id);
+      } finally {
+        this.checkInBusy = false;
+      }
+    },
     getPreference(staffId) {
       return this.preferences[staffId] !== undefined ? this.preferences[staffId] : 0;
     },
@@ -1461,6 +1636,9 @@ app.component('staff-home-page', {
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
           <div>
+            <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
+              <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
+            </div>
             <h2 style="margin:0;color:#f3f3ff">{{ staff.name }}</h2>
             <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
@@ -1478,6 +1656,9 @@ app.component('staff-home-page', {
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
           <div>
+            <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
+              <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
+            </div>
             <h2 style="margin:0">{{ staff.name }}</h2>
             <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
@@ -1526,6 +1707,21 @@ app.component('staff-home-page', {
             </div>
           </div>
         </div>
+        <div v-if="hasRateSummary" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">みんなの評価</div>
+          <table class="rate-summary-table" style="width:100%;border-collapse:collapse">
+            <tbody>
+              <tr v-for="row in rateSummaryRows" :key="row.label" style="border-bottom:1px solid #3a3a5c">
+                <td style="padding:10px 8px;color:#d6d6e7;font-size:0.9rem">{{ row.label }}</td>
+                <td style="padding:10px 8px;text-align:right">
+                  <span class="rating-stars" style="font-size:1.1rem">
+                    <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: row.stars >= n }">{{ row.stars >= n ? '★' : '☆' }}</span>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div v-if="calendarEvents.length > 0" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">イベント</div>
           <div v-for="event in calendarEvents" :key="event.id" class="shop-block" style="background:#1e1e38;margin-bottom:12px">
@@ -1565,6 +1761,19 @@ app.component('staff-home-page', {
   computed: {
     staff() {
       return this.$root.staffHomeStaff;
+    },
+    overallRateStars() {
+      return this.starsFor('overall_rate_total');
+    },
+    hasRateSummary() {
+      if (!this.$root.currentUser || !this.staff) return false;
+      return (Number(this.staff.check_in_count) || 0) > 0;
+    },
+    rateSummaryRows() {
+      return RATE_LABELS.map(r => ({
+        label: r.label,
+        stars: this.starsFor(`${r.key}_total`)
+      }));
     },
     calendarTitle() {
       return `${this.calendarYear}年${this.calendarMonth + 1}月`;
@@ -1623,6 +1832,18 @@ app.component('staff-home-page', {
     });
   },
   methods: {
+    starsFor(field) {
+      if (!this.$root.currentUser || !this.staff) return 0;
+      const count = Number(this.staff.check_in_count) || 0;
+      if (count <= 0) return 0;
+      const total = Number(this.staff[field]) || 0;
+      const avg = total / count;
+      if (avg >= 4.5) return 5;
+      if (avg >= 3.5) return 4;
+      if (avg >= 2.5) return 3;
+      if (avg >= 1.5) return 2;
+      return 1;
+    },
     async loadCalendarData() {
       if (!this.staff?.id) {
         this.calendarDaysData = [];
@@ -1744,6 +1965,129 @@ app.component('staff-home-page', {
 app.component('introduction-page', defineAsyncComponent(() =>
   fetch('/introduction.html').then(r => r.text()).then(html => ({ template: html }))
 ));
+
+// ========== Check-In Rating Component ==========
+app.component('check-in-rating-page', {
+  template: `
+    <div class="register-container">
+      <div v-if="!$root.ratingCheckIn" class="no-data">評価対象のチェックインがありません</div>
+      <template v-else>
+        <h2>チェックアウトしました</h2>
+        <template v-if="$root.ratingCandidateStaffs.length === 0">
+          <div class="form-actions" style="margin-top:24px">
+            <button class="btn btn-outline" @click="goBack">戻る</button>
+          </div>
+        </template>
+        <template v-else>
+          <p style="color:#d6d6e7;font-size:0.9rem;line-height:1.6;margin:12px 0 20px">
+            本日の {{ $root.ratingCheckIn.shop_name }} はいかがでしたか。よろしければ5点満点での簡単なアンケートにご協力ください。
+          </p>
+          <div v-for="staff in $root.ratingCandidateStaffs" :key="staff.id" class="rating-staff-block">
+            <div class="rating-staff-header">
+              <div v-if="staff.image_url" :style="{ width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', flexShrink:0 }">
+                <img :src="staff.image_url" :alt="staff.name" style="width:100%;height:100%;object-fit:cover;display:block">
+              </div>
+              <div v-else :style="{ width:'64px', height:'64px', borderRadius:'50%', background:'#2a2a44', flexShrink:0 }"></div>
+              <div class="rating-staff-name">{{ staff.name }}</div>
+            </div>
+            <div v-for="row in rows" :key="row.key" class="rating-row">
+              <div class="rating-row-label">{{ row.label }}</div>
+              <div class="rating-stars" role="radiogroup" :aria-label="row.label">
+                <span
+                  v-for="n in 5"
+                  :key="n"
+                  class="rating-star"
+                  :class="{ filled: getRate(staff.id, row.key) >= n }"
+                  @click="setRate(staff.id, row.key, n)"
+                  role="radio"
+                  :aria-checked="getRate(staff.id, row.key) === n"
+                >{{ getRate(staff.id, row.key) >= n ? '★' : '☆' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions" style="margin-top:24px">
+            <button class="btn btn-primary" @click="submit" :disabled="submitting">
+              {{ submitting ? '送信中...' : '送信' }}
+            </button>
+          </div>
+        </template>
+      </template>
+    </div>
+  `,
+  data() {
+    return {
+      rows: RATE_LABELS,
+      ratesByStaff: {},
+      submitting: false
+    };
+  },
+  watch: {
+    '$root.ratingCandidateStaffs': {
+      immediate: true,
+      handler(list) {
+        const next = {};
+        for (const s of (list || [])) {
+          next[s.id] = {
+            overall_rate: 2,
+            appearance_rate: 2,
+            service_rate: 2,
+            mood_rate: 2
+          };
+        }
+        this.ratesByStaff = next;
+      }
+    }
+  },
+  mounted() {
+    if (!this.$root.ratingCheckIn) {
+      this.$root.navigate('home');
+    }
+  },
+  methods: {
+    getRate(staffId, key) {
+      return this.ratesByStaff[staffId]?.[key] ?? 0;
+    },
+    setRate(staffId, key, value) {
+      if (!this.ratesByStaff[staffId]) {
+        this.ratesByStaff[staffId] = { overall_rate: 2, appearance_rate: 2, service_rate: 2, mood_rate: 2 };
+      }
+      this.ratesByStaff[staffId][key] = value;
+    },
+    async submit() {
+      if (this.submitting) return;
+      this.submitting = true;
+      const payload = [];
+      for (const staff of this.$root.ratingCandidateStaffs) {
+        const r = this.ratesByStaff[staff.id] || {};
+        payload.push({
+          staff_id: staff.id,
+          overall_rate: r.overall_rate ?? 0,
+          appearance_rate: r.appearance_rate ?? 0,
+          service_rate: r.service_rate ?? 0,
+          mood_rate: r.mood_rate ?? 0
+        });
+      }
+      try {
+        await this.$root.submitCheckInRates(payload);
+      } finally {
+        this.submitting = false;
+      }
+    },
+    formatRange(startIso, endIso) {
+      if (!startIso) return '';
+      const start = new Date(startIso);
+      const end = endIso ? new Date(endIso) : null;
+      const fmt = (d) => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return end ? `${fmt(start)} 〜 ${fmt(end)}` : fmt(start);
+    },
+    goBack() {
+      this.$root.ratingCheckIn = null;
+      this.$root.ratingCandidateStaffs = [];
+      this.$root.navigate('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+});
 
 // ========== Login Component ==========
 app.component('login-page', {

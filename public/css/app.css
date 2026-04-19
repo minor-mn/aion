@@ -1392,3 +1392,117 @@ body.modal-open {
   line-height: 1.3;
   white-space: pre-line;
 }
+
+/* ---------- Check-in ---------- */
+[v-cloak] {
+  display: none !important;
+}
+.btn-checkin {
+  display: inline-block;
+  background: #e8d040;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 32px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(232, 208, 64, 0.4);
+  transition: opacity 0.2s, transform 0.1s;
+}
+.btn-checkin:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.btn-checkin:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.btn-checkin:disabled {
+  background: #555;
+  color: #999;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.checkin-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, rgba(255, 245, 157, 0.9) 0%, rgba(249, 168, 37, 0.9) 100%);
+  border: 2px solid rgba(249, 168, 37, 0.9);
+  border-radius: 12px;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 10;
+  animation: checkin-blink 1.2s ease-in-out infinite;
+  text-align: center;
+  max-width: 60%;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.checkin-banner-line1 {
+  font-size: 0.9rem;
+  color: #fff;
+}
+.checkin-banner-line2 {
+  font-size: 1.1rem;
+  margin-top: 4px;
+  color: #fff;
+  word-break: break-all;
+}
+@keyframes checkin-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------- Rating stars ---------- */
+.rating-stars {
+  display: inline-flex;
+  gap: 4px;
+  font-size: 1.6rem;
+  user-select: none;
+  cursor: pointer;
+}
+.rating-star {
+  color: #666;
+  transition: color 0.1s;
+  line-height: 1;
+}
+.rating-star.filled {
+  color: #e8d040;
+  text-shadow: 0 0 4px rgba(232, 208, 64, 0.4);
+}
+.rating-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+  gap: 12px;
+}
+.rating-row-label {
+  font-size: 0.85rem;
+  color: #d6d6e7;
+  flex-shrink: 0;
+}
+.rating-staff-block {
+  background: #1e1e38;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.rating-staff-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.rating-staff-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f3f3ff;
+}

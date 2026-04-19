@@ -3,6 +3,14 @@ const SCORE_POSITIVE_COLOR = '#ff6b6b';
 const SCORE_NEUTRAL_COLOR = '#888888';
 const SCORE_GRADIENT_BASE_COLOR = '#252547';
 
+// Shared rating definitions (used by check-in rating form and staff home summary)
+const RATE_LABELS = Object.freeze([
+  { key: 'overall_rate',    label: '総合評価' },
+  { key: 'appearance_rate', label: '外見や身だしなみ' },
+  { key: 'service_rate',    label: '接客品質や気配り' },
+  { key: 'mood_rate',       label: 'トークや雰囲気作り' }
+]);
+
 // API Client for Aion
 const API = {
   token: localStorage.getItem('aion_token'),
@@ -280,6 +288,25 @@ const API = {
 
   deleteUser(id) {
     return this.request('DELETE', `/v1/users/${id}`);
+  },
+
+  // Config
+  getConfig() {
+    return this.request('GET', '/v1/config');
+  },
+
+  // Check-ins
+  createCheckIn(shopId, latitude, longitude) {
+    return this.request('POST', '/v1/check_ins', { shop_id: shopId, latitude, longitude });
+  },
+  getCurrentCheckIn() {
+    return this.request('GET', '/v1/check_ins/current');
+  },
+  checkOut(checkInId) {
+    return this.request('PATCH', `/v1/check_ins/${checkInId}/check_out`);
+  },
+  submitStaffRates(checkInId, staffRates) {
+    return this.request('POST', `/v1/check_ins/${checkInId}/staff_rates`, { staff_rates: staffRates });
   }
 };
 

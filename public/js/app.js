@@ -444,12 +444,13 @@ const app = createApp({
       for (const g of Object.values(groups)) {
         g.staffs.sort(sortFn);
       }
-      // Sort shop groups by earliest start time, then shop name
+      // Sort shop groups by total score desc, then earliest start time, then shop name
       const result = Object.values(groups);
       for (const group of result) {
         delete group.scoredStaffIds;
       }
       result.sort((a, b) => {
+        if (a.totalScore !== b.totalScore) return b.totalScore - a.totalScore;
         const ta = new Date(a.staffs[0].datetime_begin).getTime();
         const tb = new Date(b.staffs[0].datetime_begin).getTime();
         if (ta !== tb) return ta - tb;
@@ -2700,10 +2701,41 @@ app.component('shift-form-page', {
 
         <div class="form-actions" style="margin-bottom:32px">
           <button class="btn btn-primary" @click="submitShifts" :disabled="submitting">
-            {{ submitting ? '登録中...' : 'シフトを登録' }}
+            {{ submitting ? '登録中...' : 'シフトを新規登録' }}
           </button>
         </div>
         <button class="btn btn-outline" @click="goBack">戻る</button>
+
+        <div class="calendar-section" style="margin-top:30px">
+          <div class="calendar-header">
+            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <h2>{{ calendarTitle }}</h2>
+            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+          </div>
+          <div v-if="calendarLoading" class="loading">読み込み中</div>
+          <div v-else class="calendar-grid shop-home-calendar-grid">
+            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+            <div
+              v-for="(cell, idx) in calendarDays"
+              :key="idx"
+              class="calendar-cell shop-home-calendar-cell"
+              :class="{ empty: cell.empty }"
+              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+              @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
+            >
+              <template v-if="!cell.empty">
+                <div
+                  class="date-num"
+                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                >{{ cell.day }}</div>
+                <div v-for="shift in cell.shifts" :key="shift.id"
+                  class="shop-home-calendar-label cast-name-link"
+                  @click.stop="$root.editShift(shift)"
+                >{{ formatShiftTime(shift) }}</div>
+              </template>
+            </div>
+          </div>
+        </div>
       </template>
     </div>
   `,
@@ -2717,13 +2749,69 @@ app.component('shift-form-page', {
       entries: [{ date: dateStr, startTime: '17:00', endTime: '23:00' }],
       submitting: false,
       localError: '',
-      localSuccess: ''
+      localSuccess: '',
+      calendarYear: today.getFullYear(),
+      calendarMonth: today.getMonth(),
+      calendarDaysData: [],
+      calendarEvents: [],
+      calendarLoading: false
     };
   },
   computed: {
     filteredStaffs() {
       if (!this.selectedShopId) return [];
       return this.$root.staffs.filter(s => s.shop_id == this.selectedShopId);
+    },
+    calendarTitle() {
+      return `${this.calendarYear}年${this.calendarMonth + 1}月`;
+    },
+    calendarDays() {
+      const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
+      const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const dayMap = {};
+      const eventDates = new Set();
+      for (const day of this.calendarDaysData) {
+        dayMap[day.date] = day;
+      }
+      for (const event of this.calendarEvents) {
+        const current = new Date(event.start_at);
+        const last = new Date(event.end_at);
+        current.setHours(0, 0, 0, 0);
+        last.setHours(0, 0, 0, 0);
+        while (current <= last) {
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          eventDates.add(dateStr);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) {
+        cells.push({ empty: true });
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        cells.push({
+          empty: false,
+          day,
+          label: dayMap[dateStr]?.label || '',
+          shifts: dayMap[dateStr]?.shifts || [],
+          hasEvent: eventDates.has(dateStr)
+        });
+      }
+      return cells;
+    }
+  },
+  watch: {
+    selectedStaffId(val) {
+      const today = new Date();
+      this.calendarYear = today.getFullYear();
+      this.calendarMonth = today.getMonth();
+      if (val) {
+        this.$nextTick(() => this.loadCalendarData());
+      } else {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+      }
     }
   },
   async mounted() {
@@ -2735,6 +2823,14 @@ app.component('shift-form-page', {
       this.selectedStaffId = preset.staffId || '';
       if (preset.date) {
         this.entries = [{ date: preset.date, startTime: '17:00', endTime: '23:00' }];
+        const [py, pm] = preset.date.split('-').map(v => parseInt(v, 10));
+        if (!isNaN(py) && !isNaN(pm)) {
+          this.calendarYear = py;
+          this.calendarMonth = pm - 1;
+          if (this.selectedStaffId) {
+            this.$nextTick(() => this.loadCalendarData());
+          }
+        }
       }
       this.$root.shiftFormPreset = null;
     }
@@ -2833,7 +2929,78 @@ app.component('shift-form-page', {
       }
       this.submitting = false;
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (successCount > 0 && this.selectedStaffId) {
+        this.loadCalendarData();
+      }
     },
+    async loadCalendarData() {
+      if (!this.selectedStaffId) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+        return;
+      }
+      this.calendarLoading = true;
+      try {
+        const data = await API.getStaffMonthlyShifts(this.selectedStaffId, this.calendarYear, this.calendarMonth + 1);
+        const shifts = data.staff_shifts || [];
+        const dayEntries = {};
+        for (const shift of shifts) {
+          const start = new Date(shift.start_at);
+          const end = new Date(shift.end_at);
+          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+          dayEntries[dateStr].shifts.push(shift);
+        }
+        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
+          date, label: entry.labels.join('\n'), shifts: entry.shifts
+        }));
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+      }
+      this.calendarLoading = false;
+    },
+    async prevMonth() {
+      if (this.calendarMonth === 0) {
+        this.calendarMonth = 11;
+        this.calendarYear -= 1;
+      } else {
+        this.calendarMonth -= 1;
+      }
+      await this.loadCalendarData();
+    },
+    async nextMonth() {
+      if (this.calendarMonth === 11) {
+        this.calendarMonth = 0;
+        this.calendarYear += 1;
+      } else {
+        this.calendarMonth += 1;
+      }
+      await this.loadCalendarData();
+    },
+    formatShiftTime(shift) {
+      const start = new Date(shift.start_at);
+      const end = new Date(shift.end_at);
+      const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+      const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+      return `${sh}\n${eh}`;
+    },
+    onCalendarEmptyDayClick(cell) {
+      const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
+      const last = this.entries[this.entries.length - 1];
+      const entry = this.newEntry();
+      entry.date = dateStr;
+      if (last) {
+        entry.startTime = last.startTime || '17:00';
+        entry.endTime = last.endTime || '23:00';
+      }
+      this.entries.push(entry);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 });
 
@@ -2897,6 +3064,37 @@ app.component('shift-edit-page', {
         シフトの変更と削除はadminとoperatorとowner(このシフトを登録した人)が行えます。どうしてもこのシフトを編集・削除したい場合、これらの権限のあるユーザに相談するか、これらの権限を付与してもらってください。
       </div>
       <button class="btn btn-outline" @click="goBack">戻る</button>
+
+      <div v-if="shift && shift.staff_id" class="calendar-section" style="margin-top:30px">
+        <div class="calendar-header">
+          <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+          <h2>{{ calendarTitle }}</h2>
+          <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+        </div>
+        <div v-if="calendarLoading" class="loading">読み込み中</div>
+        <div v-else class="calendar-grid shop-home-calendar-grid">
+          <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+          <div
+            v-for="(cell, idx) in calendarDays"
+            :key="idx"
+            class="calendar-cell shop-home-calendar-cell"
+            :class="{ empty: cell.empty }"
+            :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+            @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
+          >
+            <template v-if="!cell.empty">
+              <div
+                class="date-num"
+                :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+              >{{ cell.day }}</div>
+              <div v-for="s in cell.shifts" :key="s.id"
+                class="shop-home-calendar-label cast-name-link"
+                @click.stop="$root.editShift(s)"
+              >{{ formatShiftTime(s) }}</div>
+            </template>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   data() {
@@ -2904,11 +3102,54 @@ app.component('shift-edit-page', {
       form: { targetShopId: '', startDate: '', startTime: '', endDate: '', endTime: '' },
       submitting: false,
       localError: '',
-      localSuccess: ''
+      localSuccess: '',
+      calendarYear: new Date().getFullYear(),
+      calendarMonth: new Date().getMonth(),
+      calendarDaysData: [],
+      calendarEvents: [],
+      calendarLoading: false
     };
   },
   computed: {
     shift() { return this.$root.editingShift; },
+    calendarTitle() {
+      return `${this.calendarYear}年${this.calendarMonth + 1}月`;
+    },
+    calendarDays() {
+      const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
+      const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const dayMap = {};
+      const eventDates = new Set();
+      for (const day of this.calendarDaysData) {
+        dayMap[day.date] = day;
+      }
+      for (const event of this.calendarEvents) {
+        const current = new Date(event.start_at);
+        const last = new Date(event.end_at);
+        current.setHours(0, 0, 0, 0);
+        last.setHours(0, 0, 0, 0);
+        while (current <= last) {
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          eventDates.add(dateStr);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) {
+        cells.push({ empty: true });
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        cells.push({
+          empty: false,
+          day,
+          label: dayMap[dateStr]?.label || '',
+          shifts: dayMap[dateStr]?.shifts || [],
+          hasEvent: eventDates.has(dateStr)
+        });
+      }
+      return cells;
+    },
     canEditShift() {
       if (!this.$root.currentUser) return false;
       if (this.$root.currentUser.role === 'admin' || this.$root.currentUser.role === 'operator') return true;
@@ -2933,6 +3174,18 @@ app.component('shift-edit-page', {
       return this.shopName;
     }
   },
+  watch: {
+    shift: {
+      immediate: false,
+      handler(val) {
+        if (!val) return;
+        const start = new Date(val.start_at);
+        this.calendarYear = start.getFullYear();
+        this.calendarMonth = start.getMonth();
+        this.$nextTick(() => this.loadCalendarData());
+      }
+    }
+  },
     async mounted() {
       if (!this.shift) {
         this.$root.navigate('home');
@@ -2949,6 +3202,9 @@ app.component('shift-edit-page', {
       this.form.startTime = this.toTimeStr(start);
       this.form.endDate = this.toDateStr(end);
       this.form.endTime = this.toTimeStr(end);
+      this.calendarYear = start.getFullYear();
+      this.calendarMonth = start.getMonth();
+      this.loadCalendarData();
   },
   methods: {
     toDateStr(d) {
@@ -2983,6 +3239,7 @@ app.component('shift-edit-page', {
           end_at: endAt
         });
         this.localSuccess = 'シフトを更新しました';
+        this.loadCalendarData();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }
@@ -3000,6 +3257,74 @@ app.component('shift-edit-page', {
         this.localError = '削除に失敗しました';
       }
       this.submitting = false;
+    },
+    async loadCalendarData() {
+      const staffId = this.shift?.staff_id;
+      if (!staffId) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+        return;
+      }
+      this.calendarLoading = true;
+      try {
+        const data = await API.getStaffMonthlyShifts(staffId, this.calendarYear, this.calendarMonth + 1);
+        const shifts = data.staff_shifts || [];
+        const dayEntries = {};
+        for (const s of shifts) {
+          const start = new Date(s.start_at);
+          const end = new Date(s.end_at);
+          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+          dayEntries[dateStr].shifts.push(s);
+        }
+        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
+          date, label: entry.labels.join('\n'), shifts: entry.shifts
+        }));
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+      }
+      this.calendarLoading = false;
+    },
+    async prevMonth() {
+      if (this.calendarMonth === 0) {
+        this.calendarMonth = 11;
+        this.calendarYear -= 1;
+      } else {
+        this.calendarMonth -= 1;
+      }
+      await this.loadCalendarData();
+    },
+    async nextMonth() {
+      if (this.calendarMonth === 11) {
+        this.calendarMonth = 0;
+        this.calendarYear += 1;
+      } else {
+        this.calendarMonth += 1;
+      }
+      await this.loadCalendarData();
+    },
+    formatShiftTime(shift) {
+      const start = new Date(shift.start_at);
+      const end = new Date(shift.end_at);
+      const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+      const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+      return `${sh}\n${eh}`;
+    },
+    onCalendarEmptyDayClick(cell) {
+      const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
+      const staff = this.$root.staffs.find(s => s.id == this.shift.staff_id);
+      this.$root.shiftFormPreset = {
+        shopId: staff?.shop_id || this.shift.shop_id,
+        staffId: this.shift.staff_id,
+        date: dateStr
+      };
+      this.$root.navigate('shiftForm');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 });

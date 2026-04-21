@@ -33,8 +33,8 @@ class V1::ShopsController < ApplicationController
 
       {
         date: date.iso8601,
-        start_at: earliest_start.iso8601,
-        end_at: latest_end.iso8601,
+        start_at: earliest_start.iso8601(3),
+        end_at: latest_end.iso8601(3),
         label: "#{earliest_start.strftime('%H:%M')}\n#{latest_end.strftime('%H:%M')}"
       }
     end.sort_by { |day| day[:date] }
@@ -49,8 +49,8 @@ class V1::ShopsController < ApplicationController
           user_id: event.user_id,
           title: event.title,
           url: event.url,
-          start_at: event.start_at.iso8601,
-          end_at: event.end_at.iso8601
+          start_at: event.start_at.iso8601(3),
+          end_at: event.end_at.iso8601(3)
         }
       end
 

@@ -102,9 +102,6 @@ class V1::StaffsController < ApplicationController
     new_staff = Staff.new(staff_params)
     new_staff.user = current_user
     enrich_from_x_profile!(new_staff)
-    if new_staff.image_url.blank?
-      return render json: { errors: [ "画像URLを入力してください" ] }, status: :unprocessable_entity
-    end
     if new_staff.save
       render json: new_staff, status: :created
     else
@@ -116,9 +113,6 @@ class V1::StaffsController < ApplicationController
     before_data = staff.as_json
     staff.assign_attributes(staff_params)
     enrich_from_x_profile!(staff)
-    if staff.image_url.blank?
-      return render json: { errors: [ "画像URLを入力してください" ] }, status: :unprocessable_entity
-    end
     if staff.save
       ActionLogger.log(user: current_user, action_type: "update", target: staff, detail: before_data)
       render json: staff

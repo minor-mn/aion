@@ -29,6 +29,7 @@ class V1::ShiftImportCandidatesController < ApplicationController
 
     render json: {
       shift_import_posts: paginated_groups,
+      shift_import_candidates: paginated_groups,
       total_posts: grouped_candidates.size
     }
   end

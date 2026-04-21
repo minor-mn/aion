@@ -42,7 +42,7 @@ module ShiftImports
       return { imported_count: 0, had_errors: false } if username.blank?
 
       TwitterStreamLogger.info("staff_import_start staff_id=#{staff.id} username=#{username}")
-      ensure_twitter_user_id!(staff, username)
+      sync_staff_profile_from_x!(staff, username)
 
       response = fetch_staff_tweets(staff, username)
       tweets = response.fetch("data", [])
@@ -81,22 +81,41 @@ module ShiftImports
       raise
     end
 
-    def ensure_twitter_user_id!(staff, username)
-      return if staff.twitter_user_id.present?
-
+    def sync_staff_profile_from_x!(staff, username)
       response = @client.fetch_user_by_username(username: username)
       twitter_user_id = response.dig("data", "id")
       raise "X user lookup returned no data for @#{username}" if twitter_user_id.blank?
 
-      attributes = { twitter_user_id: twitter_user_id }
+      attributes = {}
+      if staff.twitter_user_id != twitter_user_id
+        attributes[:twitter_user_id] = twitter_user_id
+      end
+
+      x_name = response.dig("data", "name").to_s.strip
+      if x_name.present? && x_name != staff.name
+        duplicated_name = Staff.where(shop_id: staff.shop_id, name: x_name).where.not(id: staff.id).exists?
+        if duplicated_name
+          TwitterStreamLogger.warn(
+            "staff_import_skip_name_update staff_id=#{staff.id} username=#{username} reason=duplicated_name"
+          )
+        else
+          attributes[:name] = x_name
+        end
+      end
+
       profile_image_url = response.dig("data", "profile_image_url")
-      if staff.image_url.blank? && profile_image_url.present?
-        attributes[:image_url] = normalize_profile_image_url(profile_image_url)
+      normalized_profile_image_url = normalize_profile_image_url(profile_image_url)
+      if normalized_profile_image_url.present? && normalized_profile_image_url != staff.image_url
+        attributes[:image_url] = normalized_profile_image_url
       end
       attributes[:twitter_not_found_count] = 0 if staff.twitter_not_found_count.to_i.positive?
 
-      staff.update!(attributes)
-      TwitterStreamLogger.info("staff_import_set_user_id staff_id=#{staff.id} username=#{username} twitter_user_id=#{twitter_user_id}")
+      if attributes.present?
+        staff.update!(attributes)
+        TwitterStreamLogger.info(
+          "staff_import_sync_profile staff_id=#{staff.id} username=#{username} changed=#{attributes.keys.join(',')}"
+        )
+      end
     rescue XListClient::RequestError => e
       raise unless e.status == 404
 
@@ -105,6 +124,10 @@ module ShiftImports
     end
 
     def fetch_staff_tweets(staff, username)
+      if staff.twitter_user_id.blank?
+        raise "X user id is missing for @#{username}"
+      end
+
       response = if staff.twitter_since_id.present?
         TwitterStreamLogger.info(
           "staff_import_fetch_since_id staff_id=#{staff.id} username=#{username} since_id=#{staff.twitter_since_id}"
@@ -326,6 +349,8 @@ module ShiftImports
     end
 
     def normalize_profile_image_url(url)
+      return if url.blank?
+
       url.sub("_normal.", ".")
     end
   end

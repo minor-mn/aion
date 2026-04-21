@@ -27,7 +27,7 @@ RSpec.describe "CheckIns", type: :request do
 
         expect {
           post "/v1/check_ins/#{ci_a1.id}/staff_rates",
-               params: { staff_rates: [{ staff_id: staff_a.id, overall_rate: 3, appearance_rate: 0, service_rate: 0, mood_rate: 0 }] }.to_json,
+               params: { staff_rates: [ { staff_id: staff_a.id, overall_rate: 3, appearance_rate: 0, service_rate: 0, mood_rate: 0 } ] }.to_json,
                headers: headers_a
           expect(response).to have_http_status(:created)
         }.to change(StaffRate, :count).by(1)
@@ -52,7 +52,7 @@ RSpec.describe "CheckIns", type: :request do
 
         expect {
           post "/v1/check_ins/#{ci_b1.id}/staff_rates",
-               params: { staff_rates: [{ staff_id: staff_a.id, overall_rate: 5, appearance_rate: 4, service_rate: 4, mood_rate: 4 }] }.to_json,
+               params: { staff_rates: [ { staff_id: staff_a.id, overall_rate: 5, appearance_rate: 4, service_rate: 4, mood_rate: 4 } ] }.to_json,
                headers: headers_b
           expect(response).to have_http_status(:created)
         }.to change(StaffRate, :count).by(1)
@@ -77,7 +77,7 @@ RSpec.describe "CheckIns", type: :request do
         before_total = tr.reload.attributes.slice("check_in_count", "total_overall_rate", "total_appearance_rate", "total_service_rate", "total_mood_rate")
 
         post "/v1/check_ins/#{ci_a2.id}/staff_rates",
-             params: { staff_rates: [{ staff_id: staff_a.id, overall_rate: 1, appearance_rate: 1, service_rate: 1, mood_rate: 1 }] }.to_json,
+             params: { staff_rates: [ { staff_id: staff_a.id, overall_rate: 1, appearance_rate: 1, service_rate: 1, mood_rate: 1 } ] }.to_json,
              headers: headers_a2
         expect(response).to have_http_status(:created)
 

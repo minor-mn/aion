@@ -9,6 +9,6 @@ class CreateStaffRates < ActiveRecord::Migration[8.0]
       t.integer :mood_rate, limit: 1, null: false, default: 0
       t.timestamps
     end
-    add_index :staff_rates, [:check_in_id, :staff_id], unique: true
+    add_index :staff_rates, [ :check_in_id, :staff_id ], unique: true
   end
 end

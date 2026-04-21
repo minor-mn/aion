@@ -23,7 +23,7 @@ class StaffRate < ApplicationRecord
   private
 
   def autofill_rates
-    raw = RATE_COLUMNS.map { |c| [c, self[c]] }.to_h
+    raw = RATE_COLUMNS.map { |c| [ c, self[c] ] }.to_h
     rated = raw.select { |_, v| v.is_a?(Integer) && v.between?(1, 5) }
     return if rated.empty?
 

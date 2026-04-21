@@ -7,7 +7,7 @@ class CreateCheckIns < ActiveRecord::Migration[8.0]
       t.datetime :checked_out_at
       t.timestamps
     end
-    add_index :check_ins, [:user_id, :checked_out_at]
-    add_index :check_ins, [:shop_id, :checked_in_at]
+    add_index :check_ins, [ :user_id, :checked_out_at ]
+    add_index :check_ins, [ :shop_id, :checked_in_at ]
   end
 end

@@ -6,7 +6,7 @@ class GeoDistance
   end
 
   def self.meters_between(lat1, lon1, lat2, lon2)
-    return Float::INFINITY if [lat1, lon1, lat2, lon2].any?(&:nil?)
+    return Float::INFINITY if [ lat1, lon1, lat2, lon2 ].any?(&:nil?)
 
     phi1 = to_rad(lat1.to_f)
     phi2 = to_rad(lat2.to_f)

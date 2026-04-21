@@ -10,6 +10,6 @@ class CreateTotalRates < ActiveRecord::Migration[8.0]
       t.integer :check_in_count, null: false, default: 0
       t.timestamps
     end
-    add_index :total_rates, [:staff_id, :year], unique: true
+    add_index :total_rates, [ :staff_id, :year ], unique: true
   end
 end

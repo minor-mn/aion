@@ -1272,7 +1272,7 @@ app.component('shop-home-page', {
               v-for="(cell, idx) in calendarDays"
               :key="idx"
               class="calendar-cell shop-home-calendar-cell"
-              :class="{ empty: cell.empty }"
+              :class="{ empty: cell.empty, 'is-today': cell.isToday }"
               :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty) ? 'pointer' : 'default', textAlign:'center' }"
               @click="$root.currentUser && !cell.empty && onDayClick(cell)"
             >
@@ -1416,6 +1416,8 @@ app.component('shop-home-page', {
     calendarDays() {
       const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
       const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const dayMap = {};
       const eventDates = new Set();
       for (const day of this.calendarDaysData) {
@@ -1445,7 +1447,8 @@ app.component('shop-home-page', {
           empty: false,
           day,
           label: dayMap[dateStr]?.label || '',
-          hasEvent: eventDates.has(dateStr)
+          hasEvent: eventDates.has(dateStr),
+          isToday: dateStr === todayStr
         });
       }
 
@@ -1771,7 +1774,7 @@ app.component('staff-home-page', {
               v-for="(cell, idx) in calendarDays"
               :key="idx"
               class="calendar-cell shop-home-calendar-cell"
-              :class="{ empty: cell.empty }"
+              :class="{ empty: cell.empty, 'is-today': cell.isToday }"
               :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
               @click="$root.currentUser && !cell.empty && cell.shifts.length === 0 && onEmptyDayClick(cell)"
             >
@@ -1863,6 +1866,8 @@ app.component('staff-home-page', {
     calendarDays() {
       const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
       const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const dayMap = {};
       const eventDates = new Set();
       for (const day of this.calendarDaysData) {
@@ -1890,7 +1895,8 @@ app.component('staff-home-page', {
           day,
           label: dayMap[dateStr]?.label || '',
           shifts: dayMap[dateStr]?.shifts || [],
-          hasEvent: eventDates.has(dateStr)
+          hasEvent: eventDates.has(dateStr),
+          isToday: dateStr === todayStr
         });
       }
       return cells;

@@ -3,6 +3,62 @@ const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
 
+// ========== 日本の祝日判定 ==========
+function getNthMonday(year, month, n) {
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const firstMonday = (firstDay <= 1) ? 1 + (1 - firstDay) : 1 + (7 - firstDay + 1);
+  return firstMonday + (n - 1) * 7;
+}
+
+function is_pure_holiday(y, m, d) {
+  const h = {
+    1: [1], 2: [11, 23], 4: [29], 5: [3, 4, 5], 8: [11], 11: [3, 23]
+  };
+  if (h[m] && h[m].includes(d)) return true;
+  if (m === 1 && d === getNthMonday(y, 1, 2)) return true;
+  if (m === 7 && d === getNthMonday(y, 7, 3)) return true;
+  if (m === 9 && d === getNthMonday(y, 9, 3)) return true;
+  if (m === 10 && d === getNthMonday(y, 10, 2)) return true;
+  if (m === 3 && d === Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))) return true;
+  if (m === 9 && d === Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))) return true;
+  return false;
+}
+
+function is_holiday_in_japan(year, month, day) {
+  const date = new Date(year, month - 1, day);
+  const dayOfWeek = date.getDay();
+
+  if (is_pure_holiday(year, month, day)) return true;
+
+  // 振替休日: 当日が日曜でなければ、前日以前に遡って日曜の祝日があれば振替
+  if (dayOfWeek !== 0) {
+    for (let i = 1; i < 7; i++) {
+      const prev = new Date(year, month - 1, day - i);
+      if (is_pure_holiday(prev.getFullYear(), prev.getMonth() + 1, prev.getDate())) {
+        if (prev.getDay() === 0) return true;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // 国民の休日: 前後の日がともに純粋な祝日
+  const prevDay = new Date(year, month - 1, day - 1);
+  const nextDay = new Date(year, month - 1, day + 1);
+  if (is_pure_holiday(prevDay.getFullYear(), prevDay.getMonth() + 1, prevDay.getDate()) &&
+      is_pure_holiday(nextDay.getFullYear(), nextDay.getMonth() + 1, nextDay.getDate())) {
+    return true;
+  }
+
+  return false;
+}
+
+function isHolidayOrWeekend(year, month, day) {
+  const dow = new Date(year, month - 1, day).getDay();
+  if (dow === 0 || dow === 6) return true;
+  return is_holiday_in_japan(year, month, day);
+}
+
 const app = createApp({
   setup() {
     // ========== State ==========
@@ -1223,6 +1279,7 @@ app.component('shop-home-page', {
               <template v-if="!cell.empty">
                 <div
                   class="date-num"
+                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
                   :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
                 >{{ cell.day }}</div>
                 <div v-if="cell.label" class="shop-home-calendar-label">{{ cell.label }}</div>
@@ -1412,6 +1469,7 @@ app.component('shop-home-page', {
     this.$nextTick(() => {
       this.renderMap();
       this.loadCalendarData();
+      this.loadPreferences();
       this.acquirePosition();
     });
   },
@@ -1720,6 +1778,7 @@ app.component('staff-home-page', {
               <template v-if="!cell.empty">
                 <div
                   class="date-num"
+                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
                   :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
                 >{{ cell.day }}</div>
                 <div v-for="shift in cell.shifts" :key="shift.id"
@@ -3093,6 +3152,7 @@ app.component('shift-form-page', {
               <template v-if="!cell.empty">
                 <div
                   class="date-num"
+                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
                   :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
                 >{{ cell.day }}</div>
                 <div v-for="shift in cell.shifts" :key="shift.id"
@@ -3452,6 +3512,7 @@ app.component('shift-edit-page', {
             <template v-if="!cell.empty">
               <div
                 class="date-num"
+                :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
                 :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
               >{{ cell.day }}</div>
               <div v-for="s in cell.shifts" :key="s.id"
@@ -4992,6 +5053,9 @@ app.component('map-view-page', {
     }
   }
 });
+
+// カレンダーの日付が土日または日本の祝日か
+app.config.globalProperties.$isHolidayOrWeekend = isHolidayOrWeekend;
 
 // Mount the app
 app.mount('#app');

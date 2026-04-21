@@ -151,7 +151,7 @@
                  :style="{ background: cell.empty ? 'transparent' : cell.gradient }"
                  @click="openDayModal(cell)">
               <template v-if="!cell.empty">
-                <span class="date-num">{{ cell.day }}</span>
+                <span class="date-num" :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }">{{ cell.day }}</span>
                 <span v-if="cell.seatGauge" class="calendar-seat-gauge">{{ cell.seatGauge }}</span>
               </template>
               <span v-if="cell.hasEvents" class="event-crown">👑</span>

@@ -447,6 +447,26 @@ body {
   z-index: 1;
 }
 
+.calendar-cell .date-num.weekend-date-num {
+  position: relative !important;
+  isolation: isolate;
+}
+
+.calendar-cell .date-num.weekend-date-num::before {
+  content: "";
+  position: absolute;
+  width: 1.5em;
+  height: 1.5em;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(90, 90, 255, 0.9) 0%, rgba(90, 90, 255, 0) 100%);
+  filter: blur(1.5px);
+  z-index: -1;
+  pointer-events: none;
+}
+
 .calendar-seat-gauge {
   position: absolute;
   left: 50%;

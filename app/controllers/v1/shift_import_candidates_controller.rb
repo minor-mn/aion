@@ -37,6 +37,10 @@ class V1::ShiftImportCandidatesController < ApplicationController
   def import_from_x
     result = ShiftImports::ImportFromXList.new.call
     render json: result, status: :ok
+  rescue ShiftImports::XListClient::RequestError => e
+    render json: { error: format_x_api_error(e) }, status: :unprocessable_entity
+  rescue StandardError => e
+    render json: { error: e.message.presence || "Xからの取り込みに失敗しました" }, status: :unprocessable_entity
   end
 
   def approve
@@ -86,5 +90,13 @@ class V1::ShiftImportCandidatesController < ApplicationController
       source_posted_at: candidate.source_posted_at&.iso8601,
       raw_text: candidate.raw_text
     }
+  end
+
+  def format_x_api_error(error)
+    body = JSON.parse(error.body.to_s)
+    detail = body["detail"] || body["title"] || body.dig("errors", 0, "message")
+    "X APIエラー(#{error.status}): #{detail.presence || '認証情報または契約状態を確認してください'}"
+  rescue JSON::ParserError
+    "X APIエラー(#{error.status}): 認証情報または契約状態を確認してください"
   end
 end

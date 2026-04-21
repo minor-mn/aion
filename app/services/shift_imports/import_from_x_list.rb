@@ -1,6 +1,7 @@
 module ShiftImports
   class ImportFromXList
     TWITTER_NOT_FOUND_DELETE_THRESHOLD = 25
+    DELETE_INTENT_REGEX = /(いませ|やすみ|居ませ)/.freeze
 
     def initialize(client: XListClient.new, parser: ShiftImports::OpenaiShiftParser.new, matcher: CandidateMatcher.new)
       @client = client
@@ -158,6 +159,16 @@ module ShiftImports
       TwitterStreamLogger.info("tweet_process_start post_id=#{post_id} username=#{username || '-'}")
 
       if retweet?(tweet)
+        log_skipped_tweet!(
+          post_id: post_id,
+          post_url: post_url,
+          posted_at: posted_at,
+          raw_text: raw_text,
+          username: username,
+          shop: shop,
+          staff: staff,
+          reason: "retweet"
+        )
         TwitterStreamLogger.info("tweet_process_skip post_id=#{post_id} reason=retweet username=#{username || '-'}")
         return { imported_count: 0, had_errors: false }
       end
@@ -177,8 +188,19 @@ module ShiftImports
 
       parsed = @parser.parse_post(raw_text, image_urls: image_urls, posted_at: posted_at)
       actions = Array(parsed["actions"])
+      actions = fallback_delete_actions(raw_text: raw_text, posted_at: posted_at, shop: shop, staff: staff) if actions.empty?
 
       if actions.empty?
+        log_skipped_tweet!(
+          post_id: post_id,
+          post_url: post_url,
+          posted_at: posted_at,
+          raw_text: raw_text,
+          username: username,
+          shop: shop,
+          staff: staff,
+          reason: "no_actions"
+        )
         TwitterStreamLogger.info("tweet_process_skip post_id=#{post_id} reason=no_actions")
         return { imported_count: 0, had_errors: false }
       end
@@ -317,6 +339,60 @@ module ShiftImports
     rescue StandardError => e
       TwitterStreamLogger.warn("tweet_process_seat_failed post_id=#{post_id} message=#{e.class}: #{e.message}")
       { applied: false, message: "#{e.class}: #{e.message}" }
+    end
+
+    def fallback_delete_actions(raw_text:, posted_at:, shop:, staff:)
+      return [] if staff.blank?
+      return [] unless raw_text.to_s.match?(DELETE_INTENT_REGEX)
+
+      target_shift = current_or_next_shift(posted_at: posted_at, shop: shop, staff: staff)
+      return [] unless target_shift
+
+      start_at = target_shift.start_at.in_time_zone
+      TwitterStreamLogger.info(
+        "tweet_process_fallback_delete staff_id=#{staff.id} shop_id=#{shop&.id || '-'} target_shift_id=#{target_shift.id} date=#{start_at.to_date.iso8601}"
+      )
+      [
+        {
+          "action" => "delete",
+          "date" => start_at.to_date.iso8601,
+          "start_time" => start_at.strftime("%H:%M"),
+          "end_time" => nil
+        }
+      ]
+    end
+
+    def current_or_next_shift(posted_at:, shop:, staff:)
+      base_time = posted_at || Time.current
+      scope = StaffShift.where(staff_id: staff.id)
+      scope = scope.where(shop_id: shop.id) if shop
+
+      current_shift = scope.where("start_at <= ? AND end_at >= ?", base_time, base_time).order(:start_at).first
+      return current_shift if current_shift
+
+      scope.where("start_at >= ?", base_time).order(:start_at).first
+    end
+
+    def log_skipped_tweet!(post_id:, post_url:, posted_at:, raw_text:, username:, shop:, staff:, reason:)
+      candidate = ShiftImportCandidate.new(
+        action: "skip",
+        shop: shop,
+        staff: staff,
+        parsed_shop_name: shop&.name,
+        parsed_staff_name: staff&.name,
+        source_username: username,
+        start_at: posted_at || Time.current,
+        end_at: nil,
+        source_post_id: post_id,
+        source_post_url: post_url,
+        source_posted_at: posted_at,
+        raw_text: raw_text,
+        applied: false,
+        result_message: reason
+      )
+      candidate.save!
+    rescue StandardError => e
+      TwitterStreamLogger.warn("tweet_process_skip_log_failed post_id=#{post_id} reason=#{reason} message=#{e.class}: #{e.message}")
     end
 
     def retweet?(tweet)

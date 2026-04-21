@@ -46,6 +46,22 @@ RSpec.describe "ShiftImportCandidates API", type: :request do
 
       expect(response).to have_http_status(:ok)
     end
+
+    it "returns a readable error when X API returns an auth error" do
+      importer = instance_double(ShiftImports::ImportFromXList)
+      allow(importer).to receive(:call).and_raise(
+        ShiftImports::XListClient::RequestError.new(
+          status: 403,
+          body: { title: "Client Forbidden", detail: "Forbidden" }.to_json
+        )
+      )
+      allow(ShiftImports::ImportFromXList).to receive(:new).and_return(importer)
+
+      post "/v1/shift_import_candidates/import_from_x", headers: operator_headers
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(JSON.parse(response.body)["error"]).to include("X APIエラー(403)")
+    end
   end
 
   describe "PATCH /v1/shift_import_candidates/:id/approve" do

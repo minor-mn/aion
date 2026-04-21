@@ -1,10 +1,10 @@
 class ShiftImportCandidate < ApplicationRecord
-  self.cleanup_before = 7.days
+  self.cleanup_before = 30.days
 
   belongs_to :shop, optional: true
   belongs_to :staff, optional: true
 
-  validates :action, inclusion: { in: %w[add delete change] }
+  validates :action, inclusion: { in: %w[add delete change skip] }
   validates :start_at, :source_post_id, :source_post_url, :raw_text, presence: true
   validates :end_at, presence: true, if: :requires_end_at?
 
@@ -22,5 +22,9 @@ class ShiftImportCandidate < ApplicationRecord
 
   def change?
     action == "change"
+  end
+
+  def skip?
+    action == "skip"
   end
 end

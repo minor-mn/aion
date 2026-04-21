@@ -77,5 +77,19 @@ Rails.application.routes.draw do
 
     # users
     resources :users, only: %i[index update destroy]
+
+    # config
+    get "config", to: "config#show"
+
+    # check-ins
+    resources :check_ins, only: %i[create] do
+      collection do
+        get :current
+      end
+      member do
+        patch :check_out
+        post :staff_rates, to: "check_ins#create_staff_rates"
+      end
+    end
   end
 end

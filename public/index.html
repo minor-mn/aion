@@ -20,6 +20,17 @@
     <!-- Header -->
     <header class="header" @click="navigate('home')">
       <span class="header-logo">Okyuyote!</span>
+      <div
+        v-if="activeCheckIn"
+        v-cloak
+        class="checkin-banner"
+        @click.stop="performCheckOut"
+        role="button"
+        aria-label="チェックアウト"
+      >
+        <span class="checkin-banner-line1">チェックイン中</span>
+        <span class="checkin-banner-line2">{{ activeCheckIn.shop_name }}</span>
+      </div>
       <div class="header-right" @click.stop>
         <button v-if="currentUser" class="btn-signin" @click="handleLogout">サインアウト</button>
         <button v-else class="btn-signin" @click="navigate('login')">サインイン</button>
@@ -107,6 +118,21 @@
       <!-- Introduction -->
       <introduction-page v-if="currentView === 'introduction'"></introduction-page>
 
+      <!-- Check-In Rating -->
+      <check-in-rating-page v-if="currentView === 'checkInRating'"></check-in-rating-page>
+
+      <!-- Thank You Modal -->
+      <template v-if="thankYouOpen">
+        <div class="modal-overlay" @click="closeThankYouModal">
+          <div class="modal-content" style="max-width:360px;text-align:center" @click.stop>
+            <div class="modal-body" style="padding:24px 16px">
+              <div style="font-size:1rem;font-weight:700;color:#f3f3ff;margin-bottom:20px">ご協力ありがとうございました</div>
+              <button class="btn btn-primary" @click="closeThankYouModal">OK</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- Home Page -->
       <div v-if="currentView === 'home'" class="container">
 
@@ -125,7 +151,7 @@
                  :style="{ background: cell.empty ? 'transparent' : cell.gradient }"
                  @click="openDayModal(cell)">
               <template v-if="!cell.empty">
-                <span class="date-num">{{ cell.day }}</span>
+                <span class="date-num" :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }">{{ cell.day }}</span>
                 <span v-if="cell.seatGauge" class="calendar-seat-gauge">{{ cell.seatGauge }}</span>
               </template>
               <span v-if="cell.hasEvents" class="event-crown">👑</span>

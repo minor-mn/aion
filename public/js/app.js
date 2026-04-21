@@ -3,6 +3,62 @@ const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
 
+// ========== 日本の祝日判定 ==========
+function getNthMonday(year, month, n) {
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const firstMonday = (firstDay <= 1) ? 1 + (1 - firstDay) : 1 + (7 - firstDay + 1);
+  return firstMonday + (n - 1) * 7;
+}
+
+function is_pure_holiday(y, m, d) {
+  const h = {
+    1: [1], 2: [11, 23], 4: [29], 5: [3, 4, 5], 8: [11], 11: [3, 23]
+  };
+  if (h[m] && h[m].includes(d)) return true;
+  if (m === 1 && d === getNthMonday(y, 1, 2)) return true;
+  if (m === 7 && d === getNthMonday(y, 7, 3)) return true;
+  if (m === 9 && d === getNthMonday(y, 9, 3)) return true;
+  if (m === 10 && d === getNthMonday(y, 10, 2)) return true;
+  if (m === 3 && d === Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))) return true;
+  if (m === 9 && d === Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4))) return true;
+  return false;
+}
+
+function is_holiday_in_japan(year, month, day) {
+  const date = new Date(year, month - 1, day);
+  const dayOfWeek = date.getDay();
+
+  if (is_pure_holiday(year, month, day)) return true;
+
+  // 振替休日: 当日が日曜でなければ、前日以前に遡って日曜の祝日があれば振替
+  if (dayOfWeek !== 0) {
+    for (let i = 1; i < 7; i++) {
+      const prev = new Date(year, month - 1, day - i);
+      if (is_pure_holiday(prev.getFullYear(), prev.getMonth() + 1, prev.getDate())) {
+        if (prev.getDay() === 0) return true;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // 国民の休日: 前後の日がともに純粋な祝日
+  const prevDay = new Date(year, month - 1, day - 1);
+  const nextDay = new Date(year, month - 1, day + 1);
+  if (is_pure_holiday(prevDay.getFullYear(), prevDay.getMonth() + 1, prevDay.getDate()) &&
+      is_pure_holiday(nextDay.getFullYear(), nextDay.getMonth() + 1, nextDay.getDate())) {
+    return true;
+  }
+
+  return false;
+}
+
+function isHolidayOrWeekend(year, month, day) {
+  const dow = new Date(year, month - 1, day).getDay();
+  if (dow === 0 || dow === 6) return true;
+  return is_holiday_in_japan(year, month, day);
+}
+
 const app = createApp({
   setup() {
     // ========== State ==========
@@ -58,6 +114,13 @@ const app = createApp({
 
     // Shop edit state
     const editingShop = ref(null);
+
+    // Check-in state
+    const activeCheckIn = ref(null);
+    const ratingCheckIn = ref(null);
+    const ratingCandidateStaffs = ref([]);
+    const limitMeters = ref(50);
+    const thankYouOpen = ref(false);
 
     // ========== Auth ==========
     function decodeJwtPayload(token) {
@@ -117,6 +180,8 @@ const app = createApp({
         history.replaceState(null, '', window.location.pathname + window.location.search);
         success.value = 'サインインしました';
         await loadHomeData(true);
+        loadConfig();
+        loadActiveCheckIn();
       } catch (e) {
         error.value = e.data?.error || 'サインインに失敗しました';
       }
@@ -140,6 +205,7 @@ const app = createApp({
         // ignore
       }
       currentUser.value = null;
+      activeCheckIn.value = null;
       menuOpen.value = false;
       scheduleData.value = [];
       currentView.value = 'home';
@@ -444,12 +510,13 @@ const app = createApp({
       for (const g of Object.values(groups)) {
         g.staffs.sort(sortFn);
       }
-      // Sort shop groups by earliest start time, then shop name
+      // Sort shop groups by total score desc, then earliest start time, then shop name
       const result = Object.values(groups);
       for (const group of result) {
         delete group.scoredStaffIds;
       }
       result.sort((a, b) => {
+        if (a.totalScore !== b.totalScore) return b.totalScore - a.totalScore;
         const ta = new Date(a.staffs[0].datetime_begin).getTime();
         const tb = new Date(b.staffs[0].datetime_begin).getTime();
         if (ta !== tb) return ta - tb;
@@ -809,7 +876,7 @@ const app = createApp({
     }
 
     // ========== Navigation ==========
-    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftImportPage', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList'];
+    const authRequiredViews = ['shopForm', 'staffForm', 'shiftForm', 'shiftImportPage', 'shiftBulkForm', 'shiftEdit', 'myPage', 'eventForm', 'userList', 'checkInRating'];
     const operatorOnlyViews = ['shiftImportPage', 'shiftBulkForm'];
 
     // Mapping between hash fragments and view names
@@ -819,14 +886,16 @@ const app = createApp({
       'forgot-password': 'forgotPassword', 'my-page': 'myPage',
       'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-import': 'shiftImportPage', 'shift-bulk': 'shiftBulkForm',
       'events': 'eventForm',
-      'introduction': 'introduction'
+      'introduction': 'introduction',
+      'check-in-rating': 'checkInRating'
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
       'forgotPassword': 'forgot-password', 'myPage': 'my-page',
       'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftImportPage': 'shift-import', 'shiftBulkForm': 'shift-bulk',
       'eventForm': 'events',
-      'introduction': 'introduction'
+      'introduction': 'introduction',
+      'checkInRating': 'check-in-rating'
     };
 
     function navigate(view, updateHash = true) {
@@ -864,6 +933,101 @@ const app = createApp({
       if (view === 'eventForm') { loadShops(); }
       if (view === 'shiftBulkForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftImportPage') { loadShops(); loadStaffs(); }
+    }
+
+    async function loadActiveCheckIn() {
+      if (!currentUser.value) {
+        activeCheckIn.value = null;
+        return;
+      }
+      try {
+        const data = await API.getCurrentCheckIn();
+        activeCheckIn.value = data?.check_in || null;
+      } catch (e) {
+        activeCheckIn.value = null;
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const data = await API.getConfig();
+        if (data && data.limit_meters) {
+          limitMeters.value = Number(data.limit_meters);
+        }
+      } catch (e) {
+        // keep default
+      }
+    }
+
+    function getCurrentPosition() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('位置情報が利用できません'));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+
+    async function performCheckIn(shopId) {
+      if (!currentUser.value) {
+        error.value = 'サインインしてください';
+        return;
+      }
+      try {
+        const pos = await getCurrentPosition();
+        const data = await API.createCheckIn(shopId, pos.latitude, pos.longitude);
+        activeCheckIn.value = data.check_in;
+        success.value = `${data.check_in.shop_name} にチェックインしました`;
+      } catch (e) {
+        if (e && e.data && e.data.error) {
+          error.value = e.data.error;
+        } else if (e && e.message) {
+          error.value = `現在地取得に失敗しました: ${e.message}`;
+        } else {
+          error.value = 'チェックインに失敗しました';
+        }
+      }
+    }
+
+    async function performCheckOut() {
+      if (!activeCheckIn.value) return;
+      try {
+        const data = await API.checkOut(activeCheckIn.value.id);
+        ratingCheckIn.value = data.check_in;
+        ratingCandidateStaffs.value = data.staffs || [];
+        activeCheckIn.value = null;
+        navigate('checkInRating');
+      } catch (e) {
+        error.value = e?.data?.error || 'チェックアウトに失敗しました';
+      }
+    }
+
+    async function submitCheckInRates(payload) {
+      if (!ratingCheckIn.value) return;
+      try {
+        await API.submitStaffRates(ratingCheckIn.value.id, payload);
+        ratingCheckIn.value = null;
+        ratingCandidateStaffs.value = [];
+        thankYouOpen.value = true;
+      } catch (e) {
+        const msg = e?.data?.error;
+        if (Array.isArray(msg)) {
+          error.value = msg.join(', ');
+        } else {
+          error.value = msg || '評価の送信に失敗しました';
+        }
+      }
+    }
+
+    function closeThankYouModal() {
+      thankYouOpen.value = false;
+      navigate('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function handleHashChange() {
@@ -970,6 +1134,10 @@ const app = createApp({
       }
 
       await checkAuth();
+      if (currentUser.value) {
+        loadConfig();
+        loadActiveCheckIn();
+      }
 
       // Handle initial hash route (e.g. #map)
       const initialHash = window.location.hash.replace('#', '');
@@ -1025,7 +1193,9 @@ const app = createApp({
       positiveScoreColor: SCORE_POSITIVE_COLOR,
       monthlyCalendarOpen, monthlyCalendarStaff, monthlyYear, monthlyMonth,
       monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
-      openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown
+      openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown,
+      activeCheckIn, ratingCheckIn, ratingCandidateStaffs, limitMeters, thankYouOpen,
+      loadActiveCheckIn, performCheckIn, performCheckOut, submitCheckInRates, closeThankYouModal
     };
   }
 });
@@ -1070,6 +1240,14 @@ app.component('shop-home-page', {
           </div>
           <h2 style="margin:0">{{ shop.name }}</h2>
         </div>
+        <div v-if="showCheckInBlock" style="margin-top:20px;text-align:center">
+          <button
+            class="btn-checkin"
+            :disabled="!canCheckIn || checkInBusy"
+            @click="handleCheckIn"
+          >チェックイン</button>
+          <div v-if="checkInHint" style="margin-top:8px;font-size:0.8rem;color:#a0a0b8">{{ checkInHint }}</div>
+        </div>
         <div v-if="shop.address || hasCoordinates" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">所在地</div>
           <div v-if="shop.address" style="margin-bottom:16px;color:#d6d6e7;line-height:1.7">
@@ -1094,13 +1272,14 @@ app.component('shop-home-page', {
               v-for="(cell, idx) in calendarDays"
               :key="idx"
               class="calendar-cell shop-home-calendar-cell"
-              :class="{ empty: cell.empty }"
+              :class="{ empty: cell.empty, 'is-today': cell.isToday }"
               :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty) ? 'pointer' : 'default', textAlign:'center' }"
               @click="$root.currentUser && !cell.empty && onDayClick(cell)"
             >
               <template v-if="!cell.empty">
                 <div
                   class="date-num"
+                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
                   :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
                 >{{ cell.day }}</div>
                 <div v-if="cell.label" class="shop-home-calendar-label">{{ cell.label }}</div>
@@ -1180,7 +1359,10 @@ app.component('shop-home-page', {
       draggingStaffId: null,
       draggingValue: 0,
       tooltipStyle: {},
-      _debounceTimers: {}
+      _debounceTimers: {},
+      currentPosition: null,
+      positionError: null,
+      checkInBusy: false
     };
   },
   computed: {
@@ -1191,12 +1373,51 @@ app.component('shop-home-page', {
       if (!this.shop) return false;
       return this.shop.latitude !== null && this.shop.latitude !== '' && this.shop.longitude !== null && this.shop.longitude !== '';
     },
+    distanceToShop() {
+      if (!this.hasCoordinates || !this.currentPosition) return null;
+      const R = 6371000;
+      const toRad = (d) => d * Math.PI / 180;
+      const lat1 = toRad(Number(this.shop.latitude));
+      const lat2 = toRad(Number(this.currentPosition.latitude));
+      const dLat = toRad(Number(this.currentPosition.latitude) - Number(this.shop.latitude));
+      const dLng = toRad(Number(this.currentPosition.longitude) - Number(this.shop.longitude));
+      const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng/2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    },
+    canCheckIn() {
+      if (!this.$root.currentUser) return false;
+      if (!this.hasCoordinates) return false;
+      if (this.$root.activeCheckIn) return false;
+      if (this.currentPosition == null) return false;
+      const limit = Number(this.$root.limitMeters || 50);
+      return this.distanceToShop !== null && this.distanceToShop <= limit;
+    },
+    showCheckInBlock() {
+      return !!this.$root.currentUser && this.hasCoordinates && !this.$root.activeCheckIn;
+    },
+    checkInHint() {
+      if (!this.hasCoordinates) return '';
+      const suffix = '（チェックインには位置情報が必要です）';
+      switch (this.positionError) {
+        case 'unsupported': return `この端末は位置情報に対応していません${suffix}`;
+        case 'denied':      return `位置情報の許可が拒否されました${suffix}`;
+        case 'unavailable': return `位置情報を取得できませんでした${suffix}`;
+        case 'timeout':     return `位置情報の取得がタイムアウトしました${suffix}`;
+        case 'unknown':     return `位置情報の取得に失敗しました${suffix}`;
+      }
+      if (this.currentPosition == null) return '位置情報を取得中...';
+      if (this.canCheckIn) return '';
+      const limit = Number(this.$root.limitMeters || 50);
+      return `店舗から ${Math.round(this.distanceToShop)}m 離れています（チェックインには ${limit}m 以内が必要です）`;
+    },
     calendarTitle() {
       return `${this.calendarYear}年${this.calendarMonth + 1}月`;
     },
     calendarDays() {
       const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
       const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const dayMap = {};
       const eventDates = new Set();
       for (const day of this.calendarDaysData) {
@@ -1226,7 +1447,8 @@ app.component('shop-home-page', {
           empty: false,
           day,
           label: dayMap[dateStr]?.label || '',
-          hasEvent: eventDates.has(dateStr)
+          hasEvent: eventDates.has(dateStr),
+          isToday: dateStr === todayStr
         });
       }
 
@@ -1242,6 +1464,7 @@ app.component('shop-home-page', {
         this.renderMap();
         this.loadCalendarData();
         this.loadPreferences();
+        this.acquirePosition();
       });
     }
   },
@@ -1249,6 +1472,8 @@ app.component('shop-home-page', {
     this.$nextTick(() => {
       this.renderMap();
       this.loadCalendarData();
+      this.loadPreferences();
+      this.acquirePosition();
     });
   },
   beforeUnmount() {
@@ -1260,6 +1485,41 @@ app.component('shop-home-page', {
     }
   },
   methods: {
+    acquirePosition() {
+      if (!this.hasCoordinates || !this.$root.currentUser) return;
+      if (!navigator.geolocation) {
+        this.currentPosition = null;
+        this.positionError = 'unsupported';
+        return;
+      }
+      this.currentPosition = null;
+      this.positionError = null;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          this.currentPosition = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+          this.positionError = null;
+        },
+        (err) => {
+          this.currentPosition = null;
+          switch (err && err.code) {
+            case 1: this.positionError = 'denied'; break;
+            case 2: this.positionError = 'unavailable'; break;
+            case 3: this.positionError = 'timeout'; break;
+            default: this.positionError = 'unknown';
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    },
+    async handleCheckIn() {
+      if (this.checkInBusy) return;
+      this.checkInBusy = true;
+      try {
+        await this.$root.performCheckIn(this.shop.id);
+      } finally {
+        this.checkInBusy = false;
+      }
+    },
     getPreference(staffId) {
       return this.preferences[staffId] !== undefined ? this.preferences[staffId] : 0;
     },
@@ -1460,6 +1720,9 @@ app.component('staff-home-page', {
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
           <div>
+            <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
+              <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
+            </div>
             <h2 style="margin:0;color:#f3f3ff">{{ staff.name }}</h2>
             <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
@@ -1477,6 +1740,9 @@ app.component('staff-home-page', {
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
           <div>
+            <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
+              <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
+            </div>
             <h2 style="margin:0">{{ staff.name }}</h2>
             <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
@@ -1508,13 +1774,14 @@ app.component('staff-home-page', {
               v-for="(cell, idx) in calendarDays"
               :key="idx"
               class="calendar-cell shop-home-calendar-cell"
-              :class="{ empty: cell.empty }"
+              :class="{ empty: cell.empty, 'is-today': cell.isToday }"
               :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
               @click="$root.currentUser && !cell.empty && cell.shifts.length === 0 && onEmptyDayClick(cell)"
             >
               <template v-if="!cell.empty">
                 <div
                   class="date-num"
+                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
                   :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
                 >{{ cell.day }}</div>
                 <div v-for="shift in cell.shifts" :key="shift.id"
@@ -1524,6 +1791,21 @@ app.component('staff-home-page', {
               </template>
             </div>
           </div>
+        </div>
+        <div v-if="hasRateSummary" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">みんなの評価</div>
+          <table class="rate-summary-table" style="width:100%;border-collapse:collapse">
+            <tbody>
+              <tr v-for="row in rateSummaryRows" :key="row.label" style="border-bottom:1px solid #3a3a5c">
+                <td style="padding:10px 8px;color:#d6d6e7;font-size:0.9rem">{{ row.label }}</td>
+                <td style="padding:10px 8px;text-align:right">
+                  <span class="rating-stars" style="font-size:1.1rem">
+                    <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: row.stars >= n }">{{ row.stars >= n ? '★' : '☆' }}</span>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <div v-if="calendarEvents.length > 0" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">イベント</div>
@@ -1565,12 +1847,27 @@ app.component('staff-home-page', {
     staff() {
       return this.$root.staffHomeStaff;
     },
+    overallRateStars() {
+      return this.starsFor('overall_rate_total');
+    },
+    hasRateSummary() {
+      if (!this.$root.currentUser || !this.staff) return false;
+      return (Number(this.staff.check_in_count) || 0) > 0;
+    },
+    rateSummaryRows() {
+      return RATE_LABELS.map(r => ({
+        label: r.label,
+        stars: this.starsFor(`${r.key}_total`)
+      }));
+    },
     calendarTitle() {
       return `${this.calendarYear}年${this.calendarMonth + 1}月`;
     },
     calendarDays() {
       const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
       const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const dayMap = {};
       const eventDates = new Set();
       for (const day of this.calendarDaysData) {
@@ -1598,7 +1895,8 @@ app.component('staff-home-page', {
           day,
           label: dayMap[dateStr]?.label || '',
           shifts: dayMap[dateStr]?.shifts || [],
-          hasEvent: eventDates.has(dateStr)
+          hasEvent: eventDates.has(dateStr),
+          isToday: dateStr === todayStr
         });
       }
       return cells;
@@ -1622,6 +1920,18 @@ app.component('staff-home-page', {
     });
   },
   methods: {
+    starsFor(field) {
+      if (!this.$root.currentUser || !this.staff) return 0;
+      const count = Number(this.staff.check_in_count) || 0;
+      if (count <= 0) return 0;
+      const total = Number(this.staff[field]) || 0;
+      const avg = total / count;
+      if (avg >= 4.5) return 5;
+      if (avg >= 3.5) return 4;
+      if (avg >= 2.5) return 3;
+      if (avg >= 1.5) return 2;
+      return 1;
+    },
     async loadCalendarData() {
       if (!this.staff?.id) {
         this.calendarDaysData = [];
@@ -1743,6 +2053,129 @@ app.component('staff-home-page', {
 app.component('introduction-page', defineAsyncComponent(() =>
   fetch('/introduction.html').then(r => r.text()).then(html => ({ template: html }))
 ));
+
+// ========== Check-In Rating Component ==========
+app.component('check-in-rating-page', {
+  template: `
+    <div class="register-container">
+      <div v-if="!$root.ratingCheckIn" class="no-data">評価対象のチェックインがありません</div>
+      <template v-else>
+        <h2>チェックアウトしました</h2>
+        <template v-if="$root.ratingCandidateStaffs.length === 0">
+          <div class="form-actions" style="margin-top:24px">
+            <button class="btn btn-outline" @click="goBack">戻る</button>
+          </div>
+        </template>
+        <template v-else>
+          <p style="color:#d6d6e7;font-size:0.9rem;line-height:1.6;margin:12px 0 20px">
+            本日の {{ $root.ratingCheckIn.shop_name }} はいかがでしたか。よろしければ5点満点での簡単なアンケートにご協力ください。
+          </p>
+          <div v-for="staff in $root.ratingCandidateStaffs" :key="staff.id" class="rating-staff-block">
+            <div class="rating-staff-header">
+              <div v-if="staff.image_url" :style="{ width:'64px', height:'64px', borderRadius:'50%', overflow:'hidden', flexShrink:0 }">
+                <img :src="staff.image_url" :alt="staff.name" style="width:100%;height:100%;object-fit:cover;display:block">
+              </div>
+              <div v-else :style="{ width:'64px', height:'64px', borderRadius:'50%', background:'#2a2a44', flexShrink:0 }"></div>
+              <div class="rating-staff-name">{{ staff.name }}</div>
+            </div>
+            <div v-for="row in rows" :key="row.key" class="rating-row">
+              <div class="rating-row-label">{{ row.label }}</div>
+              <div class="rating-stars" role="radiogroup" :aria-label="row.label">
+                <span
+                  v-for="n in 5"
+                  :key="n"
+                  class="rating-star"
+                  :class="{ filled: getRate(staff.id, row.key) >= n }"
+                  @click="setRate(staff.id, row.key, n)"
+                  role="radio"
+                  :aria-checked="getRate(staff.id, row.key) === n"
+                >{{ getRate(staff.id, row.key) >= n ? '★' : '☆' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions" style="margin-top:24px">
+            <button class="btn btn-primary" @click="submit" :disabled="submitting">
+              {{ submitting ? '送信中...' : '送信' }}
+            </button>
+          </div>
+        </template>
+      </template>
+    </div>
+  `,
+  data() {
+    return {
+      rows: RATE_LABELS,
+      ratesByStaff: {},
+      submitting: false
+    };
+  },
+  watch: {
+    '$root.ratingCandidateStaffs': {
+      immediate: true,
+      handler(list) {
+        const next = {};
+        for (const s of (list || [])) {
+          next[s.id] = {
+            overall_rate: 2,
+            appearance_rate: 2,
+            service_rate: 2,
+            mood_rate: 2
+          };
+        }
+        this.ratesByStaff = next;
+      }
+    }
+  },
+  mounted() {
+    if (!this.$root.ratingCheckIn) {
+      this.$root.navigate('home');
+    }
+  },
+  methods: {
+    getRate(staffId, key) {
+      return this.ratesByStaff[staffId]?.[key] ?? 0;
+    },
+    setRate(staffId, key, value) {
+      if (!this.ratesByStaff[staffId]) {
+        this.ratesByStaff[staffId] = { overall_rate: 2, appearance_rate: 2, service_rate: 2, mood_rate: 2 };
+      }
+      this.ratesByStaff[staffId][key] = value;
+    },
+    async submit() {
+      if (this.submitting) return;
+      this.submitting = true;
+      const payload = [];
+      for (const staff of this.$root.ratingCandidateStaffs) {
+        const r = this.ratesByStaff[staff.id] || {};
+        payload.push({
+          staff_id: staff.id,
+          overall_rate: r.overall_rate ?? 0,
+          appearance_rate: r.appearance_rate ?? 0,
+          service_rate: r.service_rate ?? 0,
+          mood_rate: r.mood_rate ?? 0
+        });
+      }
+      try {
+        await this.$root.submitCheckInRates(payload);
+      } finally {
+        this.submitting = false;
+      }
+    },
+    formatRange(startIso, endIso) {
+      if (!startIso) return '';
+      const start = new Date(startIso);
+      const end = endIso ? new Date(endIso) : null;
+      const fmt = (d) => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return end ? `${fmt(start)} 〜 ${fmt(end)}` : fmt(start);
+    },
+    goBack() {
+      this.$root.ratingCheckIn = null;
+      this.$root.ratingCandidateStaffs = [];
+      this.$root.navigate('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+});
 
 // ========== Login Component ==========
 app.component('login-page', {
@@ -2700,10 +3133,42 @@ app.component('shift-form-page', {
 
         <div class="form-actions" style="margin-bottom:32px">
           <button class="btn btn-primary" @click="submitShifts" :disabled="submitting">
-            {{ submitting ? '登録中...' : 'シフトを登録' }}
+            {{ submitting ? '登録中...' : 'シフトを新規登録' }}
           </button>
         </div>
         <button class="btn btn-outline" @click="goBack">戻る</button>
+
+        <div class="calendar-section" style="margin-top:30px">
+          <div class="calendar-header">
+            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <h2>{{ calendarTitle }}</h2>
+            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+          </div>
+          <div v-if="calendarLoading" class="loading">読み込み中</div>
+          <div v-else class="calendar-grid shop-home-calendar-grid">
+            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+            <div
+              v-for="(cell, idx) in calendarDays"
+              :key="idx"
+              class="calendar-cell shop-home-calendar-cell"
+              :class="{ empty: cell.empty }"
+              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+              @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
+            >
+              <template v-if="!cell.empty">
+                <div
+                  class="date-num"
+                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
+                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                >{{ cell.day }}</div>
+                <div v-for="shift in cell.shifts" :key="shift.id"
+                  class="shop-home-calendar-label cast-name-link"
+                  @click.stop="$root.editShift(shift)"
+                >{{ formatShiftTime(shift) }}</div>
+              </template>
+            </div>
+          </div>
+        </div>
       </template>
     </div>
   `,
@@ -2717,13 +3182,69 @@ app.component('shift-form-page', {
       entries: [{ date: dateStr, startTime: '17:00', endTime: '23:00' }],
       submitting: false,
       localError: '',
-      localSuccess: ''
+      localSuccess: '',
+      calendarYear: today.getFullYear(),
+      calendarMonth: today.getMonth(),
+      calendarDaysData: [],
+      calendarEvents: [],
+      calendarLoading: false
     };
   },
   computed: {
     filteredStaffs() {
       if (!this.selectedShopId) return [];
       return this.$root.staffs.filter(s => s.shop_id == this.selectedShopId);
+    },
+    calendarTitle() {
+      return `${this.calendarYear}年${this.calendarMonth + 1}月`;
+    },
+    calendarDays() {
+      const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
+      const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const dayMap = {};
+      const eventDates = new Set();
+      for (const day of this.calendarDaysData) {
+        dayMap[day.date] = day;
+      }
+      for (const event of this.calendarEvents) {
+        const current = new Date(event.start_at);
+        const last = new Date(event.end_at);
+        current.setHours(0, 0, 0, 0);
+        last.setHours(0, 0, 0, 0);
+        while (current <= last) {
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          eventDates.add(dateStr);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) {
+        cells.push({ empty: true });
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        cells.push({
+          empty: false,
+          day,
+          label: dayMap[dateStr]?.label || '',
+          shifts: dayMap[dateStr]?.shifts || [],
+          hasEvent: eventDates.has(dateStr)
+        });
+      }
+      return cells;
+    }
+  },
+  watch: {
+    selectedStaffId(val) {
+      const today = new Date();
+      this.calendarYear = today.getFullYear();
+      this.calendarMonth = today.getMonth();
+      if (val) {
+        this.$nextTick(() => this.loadCalendarData());
+      } else {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+      }
     }
   },
   async mounted() {
@@ -2735,6 +3256,14 @@ app.component('shift-form-page', {
       this.selectedStaffId = preset.staffId || '';
       if (preset.date) {
         this.entries = [{ date: preset.date, startTime: '17:00', endTime: '23:00' }];
+        const [py, pm] = preset.date.split('-').map(v => parseInt(v, 10));
+        if (!isNaN(py) && !isNaN(pm)) {
+          this.calendarYear = py;
+          this.calendarMonth = pm - 1;
+          if (this.selectedStaffId) {
+            this.$nextTick(() => this.loadCalendarData());
+          }
+        }
       }
       this.$root.shiftFormPreset = null;
     }
@@ -2833,7 +3362,78 @@ app.component('shift-form-page', {
       }
       this.submitting = false;
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (successCount > 0 && this.selectedStaffId) {
+        this.loadCalendarData();
+      }
     },
+    async loadCalendarData() {
+      if (!this.selectedStaffId) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+        return;
+      }
+      this.calendarLoading = true;
+      try {
+        const data = await API.getStaffMonthlyShifts(this.selectedStaffId, this.calendarYear, this.calendarMonth + 1);
+        const shifts = data.staff_shifts || [];
+        const dayEntries = {};
+        for (const shift of shifts) {
+          const start = new Date(shift.start_at);
+          const end = new Date(shift.end_at);
+          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+          dayEntries[dateStr].shifts.push(shift);
+        }
+        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
+          date, label: entry.labels.join('\n'), shifts: entry.shifts
+        }));
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+      }
+      this.calendarLoading = false;
+    },
+    async prevMonth() {
+      if (this.calendarMonth === 0) {
+        this.calendarMonth = 11;
+        this.calendarYear -= 1;
+      } else {
+        this.calendarMonth -= 1;
+      }
+      await this.loadCalendarData();
+    },
+    async nextMonth() {
+      if (this.calendarMonth === 11) {
+        this.calendarMonth = 0;
+        this.calendarYear += 1;
+      } else {
+        this.calendarMonth += 1;
+      }
+      await this.loadCalendarData();
+    },
+    formatShiftTime(shift) {
+      const start = new Date(shift.start_at);
+      const end = new Date(shift.end_at);
+      const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+      const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+      return `${sh}\n${eh}`;
+    },
+    onCalendarEmptyDayClick(cell) {
+      const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
+      const last = this.entries[this.entries.length - 1];
+      const entry = this.newEntry();
+      entry.date = dateStr;
+      if (last) {
+        entry.startTime = last.startTime || '17:00';
+        entry.endTime = last.endTime || '23:00';
+      }
+      this.entries.push(entry);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 });
 
@@ -2897,6 +3497,38 @@ app.component('shift-edit-page', {
         シフトの変更と削除はadminとoperatorとowner(このシフトを登録した人)が行えます。どうしてもこのシフトを編集・削除したい場合、これらの権限のあるユーザに相談するか、これらの権限を付与してもらってください。
       </div>
       <button class="btn btn-outline" @click="goBack">戻る</button>
+
+      <div v-if="shift && shift.staff_id" class="calendar-section" style="margin-top:30px">
+        <div class="calendar-header">
+          <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+          <h2>{{ calendarTitle }}</h2>
+          <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+        </div>
+        <div v-if="calendarLoading" class="loading">読み込み中</div>
+        <div v-else class="calendar-grid shop-home-calendar-grid">
+          <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+          <div
+            v-for="(cell, idx) in calendarDays"
+            :key="idx"
+            class="calendar-cell shop-home-calendar-cell"
+            :class="{ empty: cell.empty }"
+            :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+            @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
+          >
+            <template v-if="!cell.empty">
+              <div
+                class="date-num"
+                :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
+                :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+              >{{ cell.day }}</div>
+              <div v-for="s in cell.shifts" :key="s.id"
+                class="shop-home-calendar-label cast-name-link"
+                @click.stop="$root.editShift(s)"
+              >{{ formatShiftTime(s) }}</div>
+            </template>
+          </div>
+        </div>
+      </div>
     </div>
   `,
   data() {
@@ -2904,11 +3536,54 @@ app.component('shift-edit-page', {
       form: { targetShopId: '', startDate: '', startTime: '', endDate: '', endTime: '' },
       submitting: false,
       localError: '',
-      localSuccess: ''
+      localSuccess: '',
+      calendarYear: new Date().getFullYear(),
+      calendarMonth: new Date().getMonth(),
+      calendarDaysData: [],
+      calendarEvents: [],
+      calendarLoading: false
     };
   },
   computed: {
     shift() { return this.$root.editingShift; },
+    calendarTitle() {
+      return `${this.calendarYear}年${this.calendarMonth + 1}月`;
+    },
+    calendarDays() {
+      const firstDay = new Date(this.calendarYear, this.calendarMonth, 1).getDay();
+      const daysInMonth = new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+      const dayMap = {};
+      const eventDates = new Set();
+      for (const day of this.calendarDaysData) {
+        dayMap[day.date] = day;
+      }
+      for (const event of this.calendarEvents) {
+        const current = new Date(event.start_at);
+        const last = new Date(event.end_at);
+        current.setHours(0, 0, 0, 0);
+        last.setHours(0, 0, 0, 0);
+        while (current <= last) {
+          const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          eventDates.add(dateStr);
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) {
+        cells.push({ empty: true });
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        cells.push({
+          empty: false,
+          day,
+          label: dayMap[dateStr]?.label || '',
+          shifts: dayMap[dateStr]?.shifts || [],
+          hasEvent: eventDates.has(dateStr)
+        });
+      }
+      return cells;
+    },
     canEditShift() {
       if (!this.$root.currentUser) return false;
       if (this.$root.currentUser.role === 'admin' || this.$root.currentUser.role === 'operator') return true;
@@ -2933,6 +3608,18 @@ app.component('shift-edit-page', {
       return this.shopName;
     }
   },
+  watch: {
+    shift: {
+      immediate: false,
+      handler(val) {
+        if (!val) return;
+        const start = new Date(val.start_at);
+        this.calendarYear = start.getFullYear();
+        this.calendarMonth = start.getMonth();
+        this.$nextTick(() => this.loadCalendarData());
+      }
+    }
+  },
     async mounted() {
       if (!this.shift) {
         this.$root.navigate('home');
@@ -2949,6 +3636,9 @@ app.component('shift-edit-page', {
       this.form.startTime = this.toTimeStr(start);
       this.form.endDate = this.toDateStr(end);
       this.form.endTime = this.toTimeStr(end);
+      this.calendarYear = start.getFullYear();
+      this.calendarMonth = start.getMonth();
+      this.loadCalendarData();
   },
   methods: {
     toDateStr(d) {
@@ -2983,6 +3673,7 @@ app.component('shift-edit-page', {
           end_at: endAt
         });
         this.localSuccess = 'シフトを更新しました';
+        this.loadCalendarData();
       } catch (e) {
         this.localError = e.data?.errors?.join(', ') || '更新に失敗しました';
       }
@@ -3000,6 +3691,74 @@ app.component('shift-edit-page', {
         this.localError = '削除に失敗しました';
       }
       this.submitting = false;
+    },
+    async loadCalendarData() {
+      const staffId = this.shift?.staff_id;
+      if (!staffId) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+        return;
+      }
+      this.calendarLoading = true;
+      try {
+        const data = await API.getStaffMonthlyShifts(staffId, this.calendarYear, this.calendarMonth + 1);
+        const shifts = data.staff_shifts || [];
+        const dayEntries = {};
+        for (const s of shifts) {
+          const start = new Date(s.start_at);
+          const end = new Date(s.end_at);
+          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+          dayEntries[dateStr].shifts.push(s);
+        }
+        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
+          date, label: entry.labels.join('\n'), shifts: entry.shifts
+        }));
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        this.calendarDaysData = [];
+        this.calendarEvents = [];
+      }
+      this.calendarLoading = false;
+    },
+    async prevMonth() {
+      if (this.calendarMonth === 0) {
+        this.calendarMonth = 11;
+        this.calendarYear -= 1;
+      } else {
+        this.calendarMonth -= 1;
+      }
+      await this.loadCalendarData();
+    },
+    async nextMonth() {
+      if (this.calendarMonth === 11) {
+        this.calendarMonth = 0;
+        this.calendarYear += 1;
+      } else {
+        this.calendarMonth += 1;
+      }
+      await this.loadCalendarData();
+    },
+    formatShiftTime(shift) {
+      const start = new Date(shift.start_at);
+      const end = new Date(shift.end_at);
+      const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+      const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+      return `${sh}\n${eh}`;
+    },
+    onCalendarEmptyDayClick(cell) {
+      const dateStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
+      const staff = this.$root.staffs.find(s => s.id == this.shift.staff_id);
+      this.$root.shiftFormPreset = {
+        shopId: staff?.shop_id || this.shift.shop_id,
+        staffId: this.shift.staff_id,
+        date: dateStr
+      };
+      this.$root.navigate('shiftForm');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 });
@@ -4300,6 +5059,9 @@ app.component('map-view-page', {
     }
   }
 });
+
+// カレンダーの日付が土日または日本の祝日か
+app.config.globalProperties.$isHolidayOrWeekend = isHolidayOrWeekend;
 
 // Mount the app
 app.mount('#app');

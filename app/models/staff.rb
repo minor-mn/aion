@@ -4,6 +4,8 @@ class Staff < ApplicationRecord
   has_many :staff_shifts
   has_many :staff_preferences
   has_many :seat_availabilities, dependent: :destroy
+  has_many :staff_rates, dependent: :destroy
+  has_many :total_rates, dependent: :destroy
 
   validates :name, presence: true, uniqueness: { scope: :shop_id, message: "は同じ店舗内で既に登録されています" }
 end

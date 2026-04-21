@@ -3,6 +3,7 @@ class V1::StaffsController < ApplicationController
   wrap_parameters false
 
   before_action :authenticate_user!, only: %i[create update destroy]
+  before_action :authenticate_user_if_present!, only: %i[show]
   before_action :validate_shop_id, only: %i[create]
   before_action :authorize_staff_management!, only: %i[update destroy]
 
@@ -12,7 +13,18 @@ class V1::StaffsController < ApplicationController
   end
 
   def show
-    render json: staff.as_json.merge(shop_name: staff.shop&.name)
+    json = staff.as_json.merge(shop_name: staff.shop&.name)
+    if current_user
+      tr = TotalRate.find_by(staff_id: staff.id, year: Time.current.year)
+      json.merge!(
+        overall_rate_total: tr&.total_overall_rate.to_i,
+        appearance_rate_total: tr&.total_appearance_rate.to_i,
+        service_rate_total: tr&.total_service_rate.to_i,
+        mood_rate_total: tr&.total_mood_rate.to_i,
+        check_in_count: tr&.check_in_count.to_i
+      )
+    end
+    render json: json
   end
 
   def upcoming_shifts

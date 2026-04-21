@@ -10,6 +10,7 @@ class User < ApplicationRecord
   has_many :staffs, dependent: :nullify
   has_many :events, dependent: :nullify
   has_many :staff_shifts, dependent: :nullify
+  has_many :check_ins, dependent: :destroy
 
   enum :role, { admin: "admin", operator: "operator", user: "user" }, default: :user, validate: true
 

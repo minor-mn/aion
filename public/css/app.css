@@ -451,12 +451,35 @@ body {
   z-index: 1;
 }
 
-.calendar-cell .date-num.weekend-date-num {
+/* トップページカレンダー専用の土日・祝日装飾 */
+.calendar-cell:not(.shop-home-calendar-cell) .date-num.weekend-date-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  isolation: isolate;
+  width: 1.9em;
+  height: 1.9em;
+}
+
+.calendar-cell:not(.shop-home-calendar-cell) .date-num.weekend-date-num::before {
+  content: "";
+  position: absolute;
+  inset: 0.1em;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  filter: blur(4px);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 店舗ホーム・キャストホーム等のカレンダー用 土日・祝日装飾 */
+.shop-home-calendar-cell .date-num.weekend-date-num {
   position: relative !important;
   isolation: isolate;
 }
 
-.calendar-cell .date-num.weekend-date-num::before {
+.shop-home-calendar-cell .date-num.weekend-date-num::before {
   content: "";
   position: absolute;
   width: 1.5em;

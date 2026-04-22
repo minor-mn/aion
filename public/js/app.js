@@ -78,6 +78,8 @@ const app = createApp({
     const modalOpen = ref(false);
     const timelineModalOpen = ref(false);
     const timelinePopup = ref(null);
+    const dayModalOriginStyle = ref({});
+    const dayModalAnimating = ref(false);
 
     // Today's data (for unauthenticated + bottom section)
     const todayShops = ref([]);
@@ -443,11 +445,31 @@ const app = createApp({
       }, 0);
     }
 
-    function openDayModal(cell) {
+    function openDayModal(cell, event) {
       if (cell.empty) return;
+      const clickX = event?.clientX ?? (window.innerWidth / 2);
+      const clickY = event?.clientY ?? (window.innerHeight / 2);
       selectedDate.value = cell.dateStr;
+      dayModalAnimating.value = false;
       modalOpen.value = true;
       document.body.classList.add('modal-open');
+      nextTick(() => {
+        const modalEl = document.querySelector('.day-detail-modal-content');
+        if (!modalEl) {
+          dayModalOriginStyle.value = {};
+          return;
+        }
+        const rect = modalEl.getBoundingClientRect();
+        const originX = Math.min(Math.max(clickX - rect.left, 0), rect.width);
+        const originY = Math.min(Math.max(clickY - rect.top, 0), rect.height);
+        dayModalOriginStyle.value = {
+          '--day-modal-origin-x': `${originX}px`,
+          '--day-modal-origin-y': `${originY}px`
+        };
+        requestAnimationFrame(() => {
+          dayModalAnimating.value = true;
+        });
+      });
     }
 
     async function openTodayTimelineModal() {
@@ -528,6 +550,8 @@ const app = createApp({
     function closeModal() {
       modalOpen.value = false;
       selectedDate.value = null;
+      dayModalOriginStyle.value = {};
+      dayModalAnimating.value = false;
       if (!timelineModalOpen.value) document.body.classList.remove('modal-open');
     }
 
@@ -1231,6 +1255,7 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen, timelineModalOpen,
+      dayModalOriginStyle, dayModalAnimating,
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
       staffHomeStaff, staffHomeLoading,
       editingShift, editingStaff, editingShop, shiftFormPreset,

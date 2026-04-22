@@ -748,8 +748,13 @@ const app = createApp({
         return;
       }
 
-      const appUrl = `twitter://user?screen_name=${encodeURIComponent(username)}`;
       const webUrl = `https://x.com/${encodeURIComponent(username)}`;
+      if (!isSmartPhone()) {
+        window.open(webUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const appUrl = `twitter://user?screen_name=${encodeURIComponent(username)}`;
       let fallbackTimer = null;
 
       const clearFallback = () => {
@@ -911,10 +916,17 @@ const app = createApp({
       return normalized > 0 ? '🪑'.repeat(normalized) : '';
     }
 
+    function isSmartPhone() {
+      const ua = (navigator.userAgent || "").toLowerCase();
+      const mobileLike = /iphone|ipod|android.+mobile|windows phone/.test(ua);
+      const iPadOSLike = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+      return mobileLike || iPadOSLike;
+    }
+
     function formatCalendarSeatGauge(score) {
       const normalized = Number(score) || 0;
       if (normalized <= 0) return '';
-      return window.innerWidth <= 768 ? '🪑' : '🪑'.repeat(normalized);
+      return isSmartPhone() ? '🪑' : '🪑'.repeat(normalized);
     }
 
     // ========== Navigation ==========
@@ -1230,6 +1242,7 @@ const app = createApp({
       editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
+      isSmartPhone,
       scoreToGradient, formatEventTimeRange, formatSeatGauge, activeSeatScoreForStaff,
       negativeScoreColor: SCORE_NEGATIVE_COLOR,
       positiveScoreColor: SCORE_POSITIVE_COLOR,

@@ -1261,13 +1261,28 @@ app.component('shop-home-page', {
       <div v-if="$root.shopHomeLoading" class="loading">読み込み中</div>
       <div v-else-if="!$root.shopHomeShop" class="no-data">店舗が見つかりません</div>
       <template v-else>
-        <a
-          v-if="shop.site_url"
-          href="#"
-          @click.prevent="$root.openSiteUrl(shop.site_url)"
-          style="display:flex;align-items:center;gap:20px;text-decoration:none"
-        >
+        <div style="display:flex;align-items:center;gap:20px;min-width:0">
+          <a
+            v-if="shop.site_url"
+            href="#"
+            @click.prevent="$root.openSiteUrl(shop.site_url)"
+            style="text-decoration:none;display:block"
+            aria-label="店舗のXを開く"
+          >
+            <div
+              style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+            >
+              <img
+                v-if="$root.shopHomeShop.image_url"
+                :src="$root.shopHomeShop.image_url"
+                :alt="$root.shopHomeShop.name"
+                style="width:100%;height:100%;object-fit:cover;display:block"
+              >
+              <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+            </div>
+          </a>
           <div
+            v-else
             style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
           >
             <img
@@ -1278,21 +1293,7 @@ app.component('shop-home-page', {
             >
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
-          <h2 style="margin:0;color:#f3f3ff">{{ shop.name }}</h2>
-        </a>
-        <div v-else style="display:flex;align-items:center;gap:20px">
-          <div
-            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
-          >
-            <img
-              v-if="$root.shopHomeShop.image_url"
-              :src="$root.shopHomeShop.image_url"
-              :alt="$root.shopHomeShop.name"
-              style="width:100%;height:100%;object-fit:cover;display:block"
-            >
-            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
-          </div>
-          <h2 style="margin:0">{{ shop.name }}</h2>
+          <h2 style="margin:0;color:#f3f3ff;flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.3">{{ shop.name }}</h2>
         </div>
         <div v-if="showCheckInBlock" style="margin-top:20px;text-align:center">
           <button
@@ -1832,13 +1833,28 @@ app.component('staff-home-page', {
       <div v-if="$root.staffHomeLoading" class="loading">読み込み中</div>
       <div v-else-if="!$root.staffHomeStaff" class="no-data">キャストが見つかりません</div>
       <template v-else>
-        <a
-          v-if="staff.site_url"
-          href="#"
-          @click.prevent="$root.openSiteUrl(staff.site_url)"
-          style="display:flex;align-items:center;gap:20px;text-decoration:none"
-        >
+        <div style="display:flex;align-items:center;gap:20px;min-width:0">
+          <a
+            v-if="staff.site_url"
+            href="#"
+            @click.prevent="$root.openSiteUrl(staff.site_url)"
+            style="text-decoration:none;display:block"
+            aria-label="キャストのXを開く"
+          >
+            <div
+              style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+            >
+              <img
+                v-if="staff.image_url"
+                :src="staff.image_url"
+                :alt="staff.name"
+                style="width:100%;height:100%;object-fit:cover;display:block"
+              >
+              <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+            </div>
+          </a>
           <div
+            v-else
             style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
           >
             <img
@@ -1849,32 +1865,12 @@ app.component('staff-home-page', {
             >
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
-          <div>
+          <div style="flex:1;min-width:0">
             <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
               <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
             </div>
-            <h2 style="margin:0;color:#f3f3ff">{{ staff.name }}</h2>
-            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
-          </div>
-        </a>
-        <div v-else style="display:flex;align-items:center;gap:20px">
-          <div
-            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
-          >
-            <img
-              v-if="staff.image_url"
-              :src="staff.image_url"
-              :alt="staff.name"
-              style="width:100%;height:100%;object-fit:cover;display:block"
-            >
-            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
-          </div>
-          <div>
-            <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
-              <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
-            </div>
-            <h2 style="margin:0">{{ staff.name }}</h2>
-            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
+            <h2 style="margin:0;color:#f3f3ff;overflow-wrap:anywhere;word-break:break-word;line-height:1.3">{{ staff.name }}</h2>
+            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.stop.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
         </div>
         <div v-if="$root.currentUser" style="margin-top:24px">
@@ -3206,7 +3202,7 @@ app.component('staff-form-page', {
 app.component('shift-form-page', {
   template: `
     <div class="register-container">
-      <h2>シフト管理</h2>
+      <h2>シフト新規登録</h2>
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 

@@ -725,6 +725,48 @@ const app = createApp({
       window.location.hash = `shop-${shopId}`;
     }
 
+    function extractXUsername(rawUrl) {
+      if (!rawUrl) return null;
+      try {
+        const url = new URL(rawUrl);
+        const host = url.hostname.toLowerCase();
+        const xHosts = [ "x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.x.com", "mobile.twitter.com" ];
+        if (!xHosts.includes(host)) return null;
+        const username = url.pathname.split("/").filter(Boolean)[0];
+        return username || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function openSiteUrl(url) {
+      if (!url) return;
+
+      const username = extractXUsername(url);
+      if (!username) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const appUrl = `twitter://user?screen_name=${encodeURIComponent(username)}`;
+      const webUrl = `https://x.com/${encodeURIComponent(username)}`;
+      let fallbackTimer = null;
+
+      const clearFallback = () => {
+        if (fallbackTimer) {
+          clearTimeout(fallbackTimer);
+          fallbackTimer = null;
+        }
+      };
+
+      document.addEventListener("visibilitychange", clearFallback, { once: true });
+      fallbackTimer = setTimeout(() => {
+        window.open(webUrl, "_blank", "noopener,noreferrer");
+      }, 700);
+
+      window.location.href = appUrl;
+    }
+
 
 
     // ========== Monthly Calendar (おきゅよて) ==========
@@ -1185,7 +1227,7 @@ const app = createApp({
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
-      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome,
+      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl,
       getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
       scoreToGradient, formatEventTimeRange, formatSeatGauge, activeSeatScoreForStaff,
@@ -1208,9 +1250,8 @@ app.component('shop-home-page', {
       <template v-else>
         <a
           v-if="shop.site_url"
-          :href="shop.site_url"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#"
+          @click.prevent="$root.openSiteUrl(shop.site_url)"
           style="display:flex;align-items:center;gap:20px;text-decoration:none"
         >
           <div
@@ -1780,9 +1821,8 @@ app.component('staff-home-page', {
       <template v-else>
         <a
           v-if="staff.site_url"
-          :href="staff.site_url"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#"
+          @click.prevent="$root.openSiteUrl(staff.site_url)"
           style="display:flex;align-items:center;gap:20px;text-decoration:none"
         >
           <div

@@ -1353,6 +1353,7 @@ app.component('shop-home-page', {
       currentLocationMarker: null,
       mapPopupEvents: [],
       mapPopupStaffs: [],
+      popupAutoOpened: false,
       calendarYear: new Date().getFullYear(),
       calendarMonth: new Date().getMonth(),
       calendarDaysData: [],
@@ -1462,6 +1463,7 @@ app.component('shop-home-page', {
       const today = new Date();
       this.calendarYear = today.getFullYear();
       this.calendarMonth = today.getMonth();
+      this.popupAutoOpened = false;
       await this.loadMapPopupData();
       this.$nextTick(() => {
         this.renderMap();
@@ -1664,6 +1666,10 @@ app.component('shop-home-page', {
           this.marker = L.marker([lat, lng]).addTo(this.map);
         }
         this.updateMapPopup();
+        if (!this.popupAutoOpened) {
+          this.marker.openPopup();
+          this.popupAutoOpened = true;
+        }
         return;
       }
 
@@ -1686,6 +1692,8 @@ app.component('shop-home-page', {
 
       this.marker = L.marker([lat, lng]).addTo(this.map);
       this.updateMapPopup();
+      this.marker.openPopup();
+      this.popupAutoOpened = true;
       this.getCurrentLocation();
     },
     updateMapPopup() {
@@ -1693,9 +1701,9 @@ app.component('shop-home-page', {
 
       let popupHtml = '<strong><a href="#shop-' + this.shop.id + '" style="color:#000;text-decoration:none">' + this.escapeHtml(this.shop.name) + '</a></strong>';
 
-      popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
-      popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">開催中のイベント</div>';
       if (this.mapPopupEvents.length > 0) {
+        popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
+        popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">開催中のイベント</div>';
         for (const ev of this.mapPopupEvents) {
           popupHtml += '<div style="font-size:0.8rem">';
           if (ev.url) {
@@ -1705,20 +1713,16 @@ app.component('shop-home-page', {
           }
           popupHtml += '</div>';
         }
-      } else {
-        popupHtml += '<div style="font-size:0.8rem;color:#666">なし</div>';
       }
 
-      popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
-      popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">シフト中</div>';
       if (this.mapPopupStaffs.length > 0) {
+        popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
+        popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">シフト中</div>';
         for (const shift of this.mapPopupStaffs) {
           const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
           const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
           popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
         }
-      } else {
-        popupHtml += '<div style="font-size:0.8rem;color:#666">なし</div>';
       }
 
       if (this.currentPosition && this.hasCoordinates) {
@@ -3209,8 +3213,6 @@ app.component('shift-form-page', {
             {{ submitting ? '登録中...' : 'シフトを新規登録' }}
           </button>
         </div>
-        <button class="btn btn-outline" @click="goBack">戻る</button>
-
         <div class="calendar-section" style="margin-top:30px">
           <div class="calendar-header">
             <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
@@ -3243,6 +3245,7 @@ app.component('shift-form-page', {
           </div>
         </div>
       </template>
+      <button v-if="selectedShopId" class="btn btn-outline" @click="goBack">戻る</button>
     </div>
   `,
   data() {
@@ -3366,6 +3369,8 @@ app.component('shift-form-page', {
     goBack() {
       if (this.selectedStaffId) {
         this.$root.openStaffHome(this.selectedStaffId);
+      } else if (this.selectedShopId) {
+        this.$root.openShopHome(this.selectedShopId);
       } else {
         this.$root.navigate('home');
       }

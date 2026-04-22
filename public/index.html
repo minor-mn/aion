@@ -234,10 +234,10 @@
                    :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, #2f335f 55%, #3b4378 100%)' }">
                 <div class="shop-block-name cast-name-link" @click.stop="openShopHome(group.shop_id)">{{ group.shop_name }}</div>
                 <div v-if="currentUser" class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
-                <ul class="cast-list">
-                  <li v-for="staff in group.staffs" :key="staff.staff_id" class="cast-item">
-                    <span class="cast-name cast-name-link" @click.stop="openStaffHome(staff.staff_id)">{{ staff.name }}</span>
-                    <span class="cast-shift-time">
+                <div class="modal-shift-list" :class="{ 'with-score': currentUser }">
+                  <div v-for="staff in group.staffs" :key="staff.staff_id" class="modal-shift-row">
+                    <span class="modal-shift-name cast-name-link" @click.stop="openStaffHome(staff.staff_id)">{{ staff.name }}</span>
+                    <span class="modal-shift-time">
                       {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
                       <template v-if="activeSeatScoreForStaff(staff) > 0">
                         <br>
@@ -251,12 +251,12 @@
                         <template v-else>{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</template>
                       </template>
                     </span>
-                    <span v-if="currentUser" class="cast-score"
+                    <span v-if="currentUser" class="modal-shift-score"
                           :class="{ positive: staff.score > 0, negative: staff.score < 0, neutral: staff.score === 0 }">
                       {{ staff.score > 0 ? '+' : '' }}{{ staff.score }}
                     </span>
-                  </li>
-                </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

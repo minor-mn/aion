@@ -1054,6 +1054,60 @@ body.modal-open {
   margin-left: 4px;
 }
 
+.modal-shift-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-shift-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  align-items: center;
+  column-gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #3a3a5c;
+  font-size: 0.9rem;
+}
+
+.modal-shift-list.with-score .modal-shift-row {
+  grid-template-columns: minmax(0, 1fr) 132px 52px;
+}
+
+.modal-shift-row:last-child {
+  border-bottom: none;
+}
+
+.modal-shift-name {
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.modal-shift-time {
+  text-align: right;
+  font-size: 0.8rem;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+
+.modal-shift-score {
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.modal-shift-score.positive {
+  color: var(--score-positive-color, #ff6b6b);
+}
+
+.modal-shift-score.negative {
+  color: var(--score-negative-color, #74b9ff);
+}
+
+.modal-shift-score.neutral {
+  color: var(--score-neutral-color, #888);
+}
+
 .staff-detail-section {
   display: flex;
   justify-content: space-between;

@@ -1351,6 +1351,8 @@ app.component('shop-home-page', {
       map: null,
       marker: null,
       currentLocationMarker: null,
+      mapPopupEvents: [],
+      mapPopupStaffs: [],
       calendarYear: new Date().getFullYear(),
       calendarMonth: new Date().getMonth(),
       calendarDaysData: [],
@@ -1456,10 +1458,11 @@ app.component('shop-home-page', {
     }
   },
   watch: {
-    shop() {
+    async shop() {
       const today = new Date();
       this.calendarYear = today.getFullYear();
       this.calendarMonth = today.getMonth();
+      await this.loadMapPopupData();
       this.$nextTick(() => {
         this.renderMap();
         this.loadCalendarData();
@@ -1468,7 +1471,8 @@ app.component('shop-home-page', {
       });
     }
   },
-  mounted() {
+  async mounted() {
+    await this.loadMapPopupData();
     this.$nextTick(() => {
       this.renderMap();
       this.loadCalendarData();
@@ -1485,6 +1489,25 @@ app.component('shop-home-page', {
     }
   },
   methods: {
+    async loadMapPopupData() {
+      if (!this.shop?.id) {
+        this.mapPopupEvents = [];
+        this.mapPopupStaffs = [];
+        return;
+      }
+
+      try {
+        const data = await API.getNowSchedule();
+        const targetShop = (data.shops || []).find(s => Number(s.shop_id) === Number(this.shop.id));
+        this.mapPopupEvents = targetShop?.events || [];
+        this.mapPopupStaffs = targetShop?.staffs || [];
+      } catch (e) {
+        this.mapPopupEvents = [];
+        this.mapPopupStaffs = [];
+      }
+
+      this.updateMapPopup();
+    },
     acquirePosition() {
       if (!this.hasCoordinates || !this.$root.currentUser) return;
       if (!navigator.geolocation) {
@@ -1640,6 +1663,7 @@ app.component('shop-home-page', {
         } else {
           this.marker = L.marker([lat, lng]).addTo(this.map);
         }
+        this.updateMapPopup();
         return;
       }
 
@@ -1661,7 +1685,49 @@ app.component('shop-home-page', {
       }).addTo(this.map);
 
       this.marker = L.marker([lat, lng]).addTo(this.map);
+      this.updateMapPopup();
       this.getCurrentLocation();
+    },
+    updateMapPopup() {
+      if (!this.marker || !this.shop) return;
+
+      let popupHtml = '<strong><a href="#shop-' + this.shop.id + '" style="color:#000;text-decoration:none">' + this.escapeHtml(this.shop.name) + '</a></strong>';
+
+      popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
+      popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">開催中のイベント</div>';
+      if (this.mapPopupEvents.length > 0) {
+        for (const ev of this.mapPopupEvents) {
+          popupHtml += '<div style="font-size:0.8rem">';
+          if (ev.url) {
+            popupHtml += '<a href="' + this.escapeHtml(ev.url) + '" target="_blank" rel="noopener" style="color:#000;text-decoration:none">' + this.escapeHtml(ev.title) + '</a>';
+          } else {
+            popupHtml += this.escapeHtml(ev.title);
+          }
+          popupHtml += '</div>';
+        }
+      } else {
+        popupHtml += '<div style="font-size:0.8rem;color:#666">なし</div>';
+      }
+
+      popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
+      popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">シフト中</div>';
+      if (this.mapPopupStaffs.length > 0) {
+        for (const shift of this.mapPopupStaffs) {
+          const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+          const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+          popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
+        }
+      } else {
+        popupHtml += '<div style="font-size:0.8rem;color:#666">なし</div>';
+      }
+
+      if (this.currentPosition && this.hasCoordinates) {
+        const origin = this.currentPosition.latitude + ',' + this.currentPosition.longitude;
+        const destination = this.shop.latitude + ',' + this.shop.longitude;
+        popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&origin=' + origin + '&destination=' + destination + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';
+      }
+
+      this.marker.bindPopup(popupHtml);
     },
     getCurrentLocation() {
       if (!navigator.geolocation || !this.map) return;
@@ -1672,6 +1738,7 @@ app.component('shop-home-page', {
 
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
+          this.currentPosition = { latitude: lat, longitude: lng };
           const currentIcon = L.divIcon({
             className: 'current-location-marker',
             html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #7ab8ff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
@@ -1686,10 +1753,16 @@ app.component('shop-home-page', {
               .addTo(this.map)
               .bindPopup('現在地');
           }
+          this.updateMapPopup();
         },
         () => {},
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
+    },
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
   }
 });

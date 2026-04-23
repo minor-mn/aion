@@ -499,7 +499,9 @@ const app = createApp({
       const day = selectedDayData.value;
       if (!day || !day.events) return [];
 
-      const visibleShopIds = new Set(Array(day.staffs).map(staff => Number(staff.shop_id)));
+      const visibleShopIds = new Set(
+        selectedDayShopGroups.value.map(group => Number(group.shop_id))
+      );
       return day.events.filter(event => visibleShopIds.has(Number(event.shop_id)));
     });
 

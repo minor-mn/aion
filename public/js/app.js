@@ -498,7 +498,6 @@ const app = createApp({
     const selectedDayEvents = computed(() => {
       const day = selectedDayData.value;
       if (!day || !day.events) return [];
-      if (!currentUser.value) return day.events;
 
       const visibleShopIds = new Set(Array(day.staffs).map(staff => Number(staff.shop_id)));
       return day.events.filter(event => visibleShopIds.has(Number(event.shop_id)));

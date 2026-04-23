@@ -69,6 +69,7 @@ const app = createApp({
     const loading = ref(true);
     const error = ref('');
     const success = ref('');
+    const homeSlideFromLeft = ref(false);
 
     // Calendar state
     const calendarYear = ref(new Date().getFullYear());
@@ -1013,6 +1014,17 @@ const app = createApp({
       if (view === 'shiftImportPage') { loadShops(); loadStaffs(); }
     }
 
+    function navigateHomeFromHeader() {
+      if (currentView.value !== 'home') {
+        homeSlideFromLeft.value = true;
+      }
+      navigate('home');
+    }
+
+    function onHomeSlideAnimationEnd() {
+      homeSlideFromLeft.value = false;
+    }
+
     async function loadActiveCheckIn() {
       if (!currentUser.value) {
         activeCheckIn.value = null;
@@ -1254,6 +1266,7 @@ const app = createApp({
       registerPushSubscription, unregisterPushSubscription,
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
+      homeSlideFromLeft,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen, timelineModalOpen,
       dayModalOriginStyle, dayModalAnimating,
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
@@ -1265,7 +1278,7 @@ const app = createApp({
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
       editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl,
-      getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
+      getStaffName, navigate, navigateHomeFromHeader, onHomeSlideAnimationEnd, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
       isSmartPhone,
       scoreToGradient, formatEventTimeRange, formatSeatGauge, activeSeatScoreForStaff,

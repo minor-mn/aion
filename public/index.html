@@ -18,7 +18,7 @@
 <body>
   <div id="app">
     <!-- Header -->
-    <header class="header" @click="navigate('home')">
+    <header class="header" @click="navigateHomeFromHeader">
       <span class="header-logo">Okyuyote!</span>
       <div
         v-if="activeCheckIn"
@@ -134,7 +134,7 @@
       </template>
 
       <!-- Home Page -->
-      <div v-if="currentView === 'home'" class="container">
+      <div v-if="currentView === 'home'" class="container" :class="{ 'home-slide-in-left': homeSlideFromLeft }" @animationend="onHomeSlideAnimationEnd">
 
         <!-- Calendar -->
         <div class="calendar-section">

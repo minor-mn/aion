@@ -69,6 +69,7 @@ const app = createApp({
     const loading = ref(true);
     const error = ref('');
     const success = ref('');
+    const homeSlideFromLeft = ref(false);
 
     // Calendar state
     const calendarYear = ref(new Date().getFullYear());
@@ -78,6 +79,8 @@ const app = createApp({
     const modalOpen = ref(false);
     const timelineModalOpen = ref(false);
     const timelinePopup = ref(null);
+    const dayModalOriginStyle = ref({});
+    const dayModalAnimating = ref(false);
 
     // Today's data (for unauthenticated + bottom section)
     const todayShops = ref([]);
@@ -443,11 +446,31 @@ const app = createApp({
       }, 0);
     }
 
-    function openDayModal(cell) {
+    function openDayModal(cell, event) {
       if (cell.empty) return;
+      const clickX = event?.clientX ?? (window.innerWidth / 2);
+      const clickY = event?.clientY ?? (window.innerHeight / 2);
       selectedDate.value = cell.dateStr;
+      dayModalAnimating.value = false;
       modalOpen.value = true;
       document.body.classList.add('modal-open');
+      nextTick(() => {
+        const modalEl = document.querySelector('.day-detail-modal-content');
+        if (!modalEl) {
+          dayModalOriginStyle.value = {};
+          return;
+        }
+        const rect = modalEl.getBoundingClientRect();
+        const originX = Math.min(Math.max(clickX - rect.left, 0), rect.width);
+        const originY = Math.min(Math.max(clickY - rect.top, 0), rect.height);
+        dayModalOriginStyle.value = {
+          '--day-modal-origin-x': `${originX}px`,
+          '--day-modal-origin-y': `${originY}px`
+        };
+        requestAnimationFrame(() => {
+          dayModalAnimating.value = true;
+        });
+      });
     }
 
     async function openTodayTimelineModal() {
@@ -475,7 +498,11 @@ const app = createApp({
     const selectedDayEvents = computed(() => {
       const day = selectedDayData.value;
       if (!day || !day.events) return [];
-      return day.events;
+
+      const visibleShopIds = new Set(
+        selectedDayShopGroups.value.map(group => Number(group.shop_id))
+      );
+      return day.events.filter(event => visibleShopIds.has(Number(event.shop_id)));
     });
 
     const selectedDayShopGroups = computed(() => {
@@ -528,6 +555,8 @@ const app = createApp({
     function closeModal() {
       modalOpen.value = false;
       selectedDate.value = null;
+      dayModalOriginStyle.value = {};
+      dayModalAnimating.value = false;
       if (!timelineModalOpen.value) document.body.classList.remove('modal-open');
     }
 
@@ -725,6 +754,39 @@ const app = createApp({
       window.location.hash = `shop-${shopId}`;
     }
 
+    function extractXUsername(rawUrl) {
+      if (!rawUrl) return null;
+      try {
+        const url = new URL(rawUrl);
+        const host = url.hostname.toLowerCase();
+        const xHosts = [ "x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.x.com", "mobile.twitter.com" ];
+        if (!xHosts.includes(host)) return null;
+        const username = url.pathname.split("/").filter(Boolean)[0];
+        return username || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function openSiteUrl(url) {
+      if (!url) return;
+
+      const username = extractXUsername(url);
+      if (!username) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const webUrl = `https://x.com/${encodeURIComponent(username)}`;
+      if (!isSmartPhone()) {
+        window.open(webUrl, "_blank", "noopener,noreferrer");
+        return;
+      }
+
+      const appUrl = `twitter://user?screen_name=${encodeURIComponent(username)}`;
+      window.location.href = appUrl;
+    }
+
 
 
     // ========== Monthly Calendar (おきゅよて) ==========
@@ -869,10 +931,17 @@ const app = createApp({
       return normalized > 0 ? '🪑'.repeat(normalized) : '';
     }
 
+    function isSmartPhone() {
+      const ua = (navigator.userAgent || "").toLowerCase();
+      const mobileLike = /iphone|ipod|android.+mobile|windows phone/.test(ua);
+      const iPadOSLike = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+      return mobileLike || iPadOSLike;
+    }
+
     function formatCalendarSeatGauge(score) {
       const normalized = Number(score) || 0;
       if (normalized <= 0) return '';
-      return window.innerWidth <= 768 ? '🪑' : '🪑'.repeat(normalized);
+      return isSmartPhone() ? '🪑' : '🪑'.repeat(normalized);
     }
 
     // ========== Navigation ==========
@@ -933,6 +1002,17 @@ const app = createApp({
       if (view === 'eventForm') { loadShops(); }
       if (view === 'shiftBulkForm') { loadShops(); loadStaffs(); }
       if (view === 'shiftImportPage') { loadShops(); loadStaffs(); }
+    }
+
+    function navigateHomeFromHeader() {
+      if (currentView.value !== 'home') {
+        homeSlideFromLeft.value = true;
+      }
+      navigate('home');
+    }
+
+    function onHomeSlideAnimationEnd() {
+      homeSlideFromLeft.value = false;
     }
 
     async function loadActiveCheckIn() {
@@ -1176,7 +1256,9 @@ const app = createApp({
       registerPushSubscription, unregisterPushSubscription,
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
+      homeSlideFromLeft,
       calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen, timelineModalOpen,
+      dayModalOriginStyle, dayModalAnimating,
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
       staffHomeStaff, staffHomeLoading,
       editingShift, editingStaff, editingShop, shiftFormPreset,
@@ -1185,9 +1267,10 @@ const app = createApp({
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
-      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome,
-      getStaffName, navigate, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
+      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl,
+      getStaffName, navigate, navigateHomeFromHeader, onHomeSlideAnimationEnd, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
+      isSmartPhone,
       scoreToGradient, formatEventTimeRange, formatSeatGauge, activeSeatScoreForStaff,
       negativeScoreColor: SCORE_NEGATIVE_COLOR,
       positiveScoreColor: SCORE_POSITIVE_COLOR,
@@ -1206,14 +1289,28 @@ app.component('shop-home-page', {
       <div v-if="$root.shopHomeLoading" class="loading">読み込み中</div>
       <div v-else-if="!$root.shopHomeShop" class="no-data">店舗が見つかりません</div>
       <template v-else>
-        <a
-          v-if="shop.site_url"
-          :href="shop.site_url"
-          target="_blank"
-          rel="noopener noreferrer"
-          style="display:flex;align-items:center;gap:20px;text-decoration:none"
-        >
+        <div style="display:flex;align-items:center;gap:20px;min-width:0">
+          <a
+            v-if="shop.site_url"
+            href="#"
+            @click.prevent="$root.openSiteUrl(shop.site_url)"
+            style="text-decoration:none;display:block"
+            aria-label="店舗のXを開く"
+          >
+            <div
+              style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+            >
+              <img
+                v-if="$root.shopHomeShop.image_url"
+                :src="$root.shopHomeShop.image_url"
+                :alt="$root.shopHomeShop.name"
+                style="width:100%;height:100%;object-fit:cover;display:block"
+              >
+              <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+            </div>
+          </a>
           <div
+            v-else
             style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
           >
             <img
@@ -1224,21 +1321,7 @@ app.component('shop-home-page', {
             >
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
-          <h2 style="margin:0;color:#f3f3ff">{{ shop.name }}</h2>
-        </a>
-        <div v-else style="display:flex;align-items:center;gap:20px">
-          <div
-            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
-          >
-            <img
-              v-if="$root.shopHomeShop.image_url"
-              :src="$root.shopHomeShop.image_url"
-              :alt="$root.shopHomeShop.name"
-              style="width:100%;height:100%;object-fit:cover;display:block"
-            >
-            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
-          </div>
-          <h2 style="margin:0">{{ shop.name }}</h2>
+          <h2 style="margin:0;color:#f3f3ff;flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.3">{{ shop.name }}</h2>
         </div>
         <div v-if="showCheckInBlock" style="margin-top:20px;text-align:center">
           <button
@@ -1351,6 +1434,9 @@ app.component('shop-home-page', {
       map: null,
       marker: null,
       currentLocationMarker: null,
+      mapPopupEvents: [],
+      mapPopupStaffs: [],
+      popupAutoOpened: false,
       calendarYear: new Date().getFullYear(),
       calendarMonth: new Date().getMonth(),
       calendarDaysData: [],
@@ -1456,10 +1542,12 @@ app.component('shop-home-page', {
     }
   },
   watch: {
-    shop() {
+    async shop() {
       const today = new Date();
       this.calendarYear = today.getFullYear();
       this.calendarMonth = today.getMonth();
+      this.popupAutoOpened = false;
+      await this.loadMapPopupData();
       this.$nextTick(() => {
         this.renderMap();
         this.loadCalendarData();
@@ -1468,7 +1556,8 @@ app.component('shop-home-page', {
       });
     }
   },
-  mounted() {
+  async mounted() {
+    await this.loadMapPopupData();
     this.$nextTick(() => {
       this.renderMap();
       this.loadCalendarData();
@@ -1485,6 +1574,25 @@ app.component('shop-home-page', {
     }
   },
   methods: {
+    async loadMapPopupData() {
+      if (!this.shop?.id) {
+        this.mapPopupEvents = [];
+        this.mapPopupStaffs = [];
+        return;
+      }
+
+      try {
+        const data = await API.getNowSchedule();
+        const targetShop = (data.shops || []).find(s => Number(s.shop_id) === Number(this.shop.id));
+        this.mapPopupEvents = targetShop?.events || [];
+        this.mapPopupStaffs = targetShop?.staffs || [];
+      } catch (e) {
+        this.mapPopupEvents = [];
+        this.mapPopupStaffs = [];
+      }
+
+      this.updateMapPopup();
+    },
     acquirePosition() {
       if (!this.hasCoordinates || !this.$root.currentUser) return;
       if (!navigator.geolocation) {
@@ -1640,6 +1748,11 @@ app.component('shop-home-page', {
         } else {
           this.marker = L.marker([lat, lng]).addTo(this.map);
         }
+        this.updateMapPopup();
+        if (!this.popupAutoOpened) {
+          this.marker.openPopup();
+          this.popupAutoOpened = true;
+        }
         return;
       }
 
@@ -1661,7 +1774,47 @@ app.component('shop-home-page', {
       }).addTo(this.map);
 
       this.marker = L.marker([lat, lng]).addTo(this.map);
+      this.updateMapPopup();
+      this.marker.openPopup();
+      this.popupAutoOpened = true;
       this.getCurrentLocation();
+    },
+    updateMapPopup() {
+      if (!this.marker || !this.shop) return;
+
+      let popupHtml = '<strong><a href="#shop-' + this.shop.id + '" style="color:#000;text-decoration:none">' + this.escapeHtml(this.shop.name) + '</a></strong>';
+
+      if (this.mapPopupEvents.length > 0) {
+        popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
+        popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">開催中のイベント</div>';
+        for (const ev of this.mapPopupEvents) {
+          popupHtml += '<div style="font-size:0.8rem">';
+          if (ev.url) {
+            popupHtml += '<a href="' + this.escapeHtml(ev.url) + '" target="_blank" rel="noopener" style="color:#000;text-decoration:none">' + this.escapeHtml(ev.title) + '</a>';
+          } else {
+            popupHtml += this.escapeHtml(ev.title);
+          }
+          popupHtml += '</div>';
+        }
+      }
+
+      if (this.mapPopupStaffs.length > 0) {
+        popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid #3a3a5c">';
+        popupHtml += '<div style="font-size:0.8rem;color:#000;font-weight:bold">シフト中</div>';
+        for (const shift of this.mapPopupStaffs) {
+          const startTime = new Date(shift.start_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+          const endTime = new Date(shift.end_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+          popupHtml += '<div style="font-size:0.8rem">' + this.escapeHtml(shift.name) + ' <span style="color:#a0a0b8">' + startTime + '-' + endTime + '</span></div>';
+        }
+      }
+
+      if (this.currentPosition && this.hasCoordinates) {
+        const origin = this.currentPosition.latitude + ',' + this.currentPosition.longitude;
+        const destination = this.shop.latitude + ',' + this.shop.longitude;
+        popupHtml += '<div style="margin-top:6px"><a href="https://www.google.com/maps/dir/?api=1&origin=' + origin + '&destination=' + destination + '&travelmode=walking" target="_blank" rel="noopener" style="font-size:0.8rem;color:#a29bfe;text-decoration:none">Google Mapsでナビ</a></div>';
+      }
+
+      this.marker.bindPopup(popupHtml);
     },
     getCurrentLocation() {
       if (!navigator.geolocation || !this.map) return;
@@ -1672,6 +1825,7 @@ app.component('shop-home-page', {
 
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
+          this.currentPosition = { latitude: lat, longitude: lng };
           const currentIcon = L.divIcon({
             className: 'current-location-marker',
             html: '<div style="width:16px;height:16px;background:#4285f4;border:3px solid #7ab8ff;border-radius:50%;box-shadow:0 0 6px rgba(66,133,244,0.6)"></div>',
@@ -1686,10 +1840,16 @@ app.component('shop-home-page', {
               .addTo(this.map)
               .bindPopup('現在地');
           }
+          this.updateMapPopup();
         },
         () => {},
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
       );
+    },
+    escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
   }
 });
@@ -1701,14 +1861,28 @@ app.component('staff-home-page', {
       <div v-if="$root.staffHomeLoading" class="loading">読み込み中</div>
       <div v-else-if="!$root.staffHomeStaff" class="no-data">キャストが見つかりません</div>
       <template v-else>
-        <a
-          v-if="staff.site_url"
-          :href="staff.site_url"
-          target="_blank"
-          rel="noopener noreferrer"
-          style="display:flex;align-items:center;gap:20px;text-decoration:none"
-        >
+        <div style="display:flex;align-items:center;gap:20px;min-width:0">
+          <a
+            v-if="staff.site_url"
+            href="#"
+            @click.prevent="$root.openSiteUrl(staff.site_url)"
+            style="text-decoration:none;display:block"
+            aria-label="キャストのXを開く"
+          >
+            <div
+              style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
+            >
+              <img
+                v-if="staff.image_url"
+                :src="staff.image_url"
+                :alt="staff.name"
+                style="width:100%;height:100%;object-fit:cover;display:block"
+              >
+              <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
+            </div>
+          </a>
           <div
+            v-else
             style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
           >
             <img
@@ -1719,32 +1893,12 @@ app.component('staff-home-page', {
             >
             <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
           </div>
-          <div>
+          <div style="flex:1;min-width:0">
             <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
               <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
             </div>
-            <h2 style="margin:0;color:#f3f3ff">{{ staff.name }}</h2>
-            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
-          </div>
-        </a>
-        <div v-else style="display:flex;align-items:center;gap:20px">
-          <div
-            style="width:150px;height:150px;border-radius:50%;border:10px solid #2a2a44;overflow:hidden;flex-shrink:0;background:#2a2a44;display:flex;align-items:center;justify-content:center"
-          >
-            <img
-              v-if="staff.image_url"
-              :src="staff.image_url"
-              :alt="staff.name"
-              style="width:100%;height:100%;object-fit:cover;display:block"
-            >
-            <div v-else style="color:#a0a0b8;font-size:0.85rem;text-align:center;padding:12px">no image</div>
-          </div>
-          <div>
-            <div v-if="overallRateStars > 0" class="rating-stars" style="font-size:1.1rem;margin-bottom:4px">
-              <span v-for="n in 5" :key="n" class="rating-star" :class="{ filled: overallRateStars >= n }">{{ overallRateStars >= n ? '★' : '☆' }}</span>
-            </div>
-            <h2 style="margin:0">{{ staff.name }}</h2>
-            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
+            <h2 style="margin:0;color:#f3f3ff;overflow-wrap:anywhere;word-break:break-word;line-height:1.3">{{ staff.name }}</h2>
+            <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.stop.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
           </div>
         </div>
         <div v-if="$root.currentUser" style="margin-top:24px">
@@ -3076,7 +3230,7 @@ app.component('staff-form-page', {
 app.component('shift-form-page', {
   template: `
     <div class="register-container">
-      <h2>シフト管理</h2>
+      <h2>シフト新規登録</h2>
       <div v-if="localError" class="alert alert-error">{{ localError }}</div>
       <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
 
@@ -3136,8 +3290,6 @@ app.component('shift-form-page', {
             {{ submitting ? '登録中...' : 'シフトを新規登録' }}
           </button>
         </div>
-        <button class="btn btn-outline" @click="goBack">戻る</button>
-
         <div class="calendar-section" style="margin-top:30px">
           <div class="calendar-header">
             <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
@@ -3170,6 +3322,7 @@ app.component('shift-form-page', {
           </div>
         </div>
       </template>
+      <button v-if="selectedShopId" class="btn btn-outline" @click="goBack">戻る</button>
     </div>
   `,
   data() {
@@ -3293,6 +3446,8 @@ app.component('shift-form-page', {
     goBack() {
       if (this.selectedStaffId) {
         this.$root.openStaffHome(this.selectedStaffId);
+      } else if (this.selectedShopId) {
+        this.$root.openShopHome(this.selectedShopId);
       } else {
         this.$root.navigate('home');
       }

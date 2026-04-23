@@ -567,6 +567,31 @@ body.modal-open {
   border: 1px solid #3a3a5c;
 }
 
+.day-detail-modal-content {
+  transform-origin: var(--day-modal-origin-x, 50%) var(--day-modal-origin-y, 50%);
+}
+
+.day-detail-modal-content.day-detail-modal-animate {
+  animation: day-modal-zoom-in 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes day-modal-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-detail-modal-content.day-detail-modal-animate {
+    animation: none;
+  }
+}
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -838,6 +863,21 @@ body.modal-open {
   margin-bottom: 24px;
 }
 
+.home-slide-in-left {
+  animation: home-slide-in-left 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes home-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .no-data {
   color: #999;
   text-align: center;
@@ -1052,6 +1092,86 @@ body.modal-open {
   font-size: 0.8rem;
   color: #888;
   margin-left: 4px;
+}
+
+.modal-shift-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-shift-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  align-items: center;
+  column-gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #3a3a5c;
+  font-size: 0.9rem;
+}
+
+.modal-shift-list.with-score .modal-shift-row {
+  grid-template-columns: minmax(0, 1fr) 104px 52px;
+}
+
+.modal-shift-row:last-child {
+  border-bottom: none;
+}
+
+.modal-shift-name {
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.modal-shift-time {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.modal-shift-score {
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.modal-shift-score.positive {
+  color: var(--score-positive-color, #ff6b6b);
+}
+
+.modal-shift-score.negative {
+  color: var(--score-negative-color, #74b9ff);
+}
+
+.modal-shift-score.neutral {
+  color: var(--score-neutral-color, #888);
+}
+
+@media (max-width: 640px) {
+  .modal-shift-row {
+    grid-template-columns: minmax(0, 1fr) 64px;
+  }
+
+  .modal-shift-list.with-score .modal-shift-row {
+    grid-template-columns: minmax(0, 1fr) 64px 46px;
+  }
+
+  .modal-shift-time {
+    font-size: 0.75rem;
+    line-height: 1.15;
+  }
+
+  .modal-shift-sep {
+    display: none;
+  }
+
+  .modal-shift-start,
+  .modal-shift-end {
+    display: block;
+  }
 }
 
 .staff-detail-section {

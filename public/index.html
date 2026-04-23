@@ -18,7 +18,7 @@
 <body>
   <div id="app">
     <!-- Header -->
-    <header class="header" @click="navigate('home')">
+    <header class="header" @click="navigateHomeFromHeader">
       <span class="header-logo">Okyuyote!</span>
       <div
         v-if="activeCheckIn"
@@ -134,7 +134,7 @@
       </template>
 
       <!-- Home Page -->
-      <div v-if="currentView === 'home'" class="container">
+      <div v-if="currentView === 'home'" class="container" :class="{ 'home-slide-in-left': homeSlideFromLeft }" @animationend="onHomeSlideAnimationEnd">
 
         <!-- Calendar -->
         <div class="calendar-section">
@@ -143,13 +143,13 @@
             <h2>{{ calendarTitle }}</h2>
             <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
           </div>
-          <div class="calendar-grid">
+            <div class="calendar-grid">
             <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
             <div v-for="(cell, idx) in calendarDays" :key="idx"
                  class="calendar-cell"
                  :class="{ empty: cell.empty, today: cell.isToday }"
                  :style="{ background: cell.empty ? 'transparent' : cell.gradient }"
-                 @click="openDayModal(cell)">
+                 @click="openDayModal(cell, $event)">
               <template v-if="!cell.empty">
                 <span class="date-num" :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }">{{ cell.day }}</span>
                 <span v-if="cell.seatGauge" class="calendar-seat-gauge">{{ cell.seatGauge }}</span>
@@ -201,7 +201,7 @@
       <!-- Day Detail Modal -->
       <template v-if="modalOpen">
         <div class="modal-overlay" @click="closeModal">
-          <div class="modal-content" @click.stop>
+          <div class="modal-content day-detail-modal-content" :class="{ 'day-detail-modal-animate': dayModalAnimating }" :style="dayModalOriginStyle" @click.stop>
             <div class="modal-header">
               <div class="modal-title-row">
                 <h3>{{ selectedDate }}</h3>
@@ -234,11 +234,11 @@
                    :style="{ background: currentUser ? scoreToGradient(group.totalScore) : 'linear-gradient(135deg, #252547 0%, #2f335f 55%, #3b4378 100%)' }">
                 <div class="shop-block-name cast-name-link" @click.stop="openShopHome(group.shop_id)">{{ group.shop_name }}</div>
                 <div v-if="currentUser" class="shop-block-score">合計スコア: {{ group.totalScore }}</div>
-                <ul class="cast-list">
-                  <li v-for="staff in group.staffs" :key="staff.staff_id" class="cast-item">
-                    <span class="cast-name cast-name-link" @click.stop="openStaffHome(staff.staff_id)">{{ staff.name }}</span>
-                    <span class="cast-shift-time">
-                      {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                <div class="modal-shift-list" :class="{ 'with-score': currentUser }">
+                  <div v-for="staff in group.staffs" :key="staff.staff_id" class="modal-shift-row">
+                    <span class="modal-shift-name cast-name-link" @click.stop="openStaffHome(staff.staff_id)">{{ staff.name }}</span>
+                    <span class="modal-shift-time">
+                      <span class="modal-shift-start">{{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}</span><span class="modal-shift-sep">-</span><span class="modal-shift-end">{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}</span>
                       <template v-if="activeSeatScoreForStaff(staff) > 0">
                         <br>
                         <a
@@ -251,12 +251,12 @@
                         <template v-else>{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</template>
                       </template>
                     </span>
-                    <span v-if="currentUser" class="cast-score"
+                    <span v-if="currentUser" class="modal-shift-score"
                           :class="{ positive: staff.score > 0, negative: staff.score < 0, neutral: staff.score === 0 }">
                       {{ staff.score > 0 ? '+' : '' }}{{ staff.score }}
                     </span>
-                  </li>
-                </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

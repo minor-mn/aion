@@ -238,7 +238,7 @@
                   <div v-for="staff in group.staffs" :key="staff.staff_id" class="modal-shift-row">
                     <span class="modal-shift-name cast-name-link" @click.stop="openStaffHome(staff.staff_id)">{{ staff.name }}</span>
                     <span class="modal-shift-time">
-                      {{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}-{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}
+                      <span class="modal-shift-start">{{ new Date(staff.datetime_begin).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}</span><span class="modal-shift-sep">-</span><span class="modal-shift-end">{{ new Date(staff.datetime_end).toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}) }}</span>
                       <template v-if="activeSeatScoreForStaff(staff) > 0">
                         <br>
                         <a

@@ -783,20 +783,6 @@ const app = createApp({
       }
 
       const appUrl = `twitter://user?screen_name=${encodeURIComponent(username)}`;
-      let fallbackTimer = null;
-
-      const clearFallback = () => {
-        if (fallbackTimer) {
-          clearTimeout(fallbackTimer);
-          fallbackTimer = null;
-        }
-      };
-
-      document.addEventListener("visibilitychange", clearFallback, { once: true });
-      fallbackTimer = setTimeout(() => {
-        window.open(webUrl, "_blank", "noopener,noreferrer");
-      }, 700);
-
       window.location.href = appUrl;
     }
 

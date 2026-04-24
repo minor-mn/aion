@@ -155,6 +155,7 @@ module ShiftImports
       raw_text = tweet.fetch("text")
       posted_at = Time.zone.parse(tweet["created_at"].to_s) if tweet["created_at"].present?
       post_url = "https://x.com/i/web/status/#{post_id}"
+      image_urls = extract_image_urls(tweet, media_by_key)
 
       TwitterStreamLogger.info("tweet_process_start post_id=#{post_id} username=#{username || '-'}")
 
@@ -167,13 +168,13 @@ module ShiftImports
           username: username,
           shop: shop,
           staff: staff,
-          reason: "retweet"
+          reason: "retweet",
+          image_urls: image_urls
         )
         TwitterStreamLogger.info("tweet_process_skip post_id=#{post_id} reason=retweet username=#{username || '-'}")
         return { imported_count: 0, had_errors: false }
       end
 
-      image_urls = extract_image_urls(tweet, media_by_key)
       TwitterStreamLogger.info("tweet_process_tracked_username post_id=#{post_id} username=#{username || '-'} image_count=#{image_urls.size}")
 
       seat_result = record_seat_availability(
@@ -199,7 +200,8 @@ module ShiftImports
           username: username,
           shop: shop,
           staff: staff,
-          reason: "no_actions"
+          reason: "no_actions",
+          image_urls: image_urls
         )
         TwitterStreamLogger.info("tweet_process_skip post_id=#{post_id} reason=no_actions")
         return { imported_count: 0, had_errors: false }
@@ -323,7 +325,8 @@ module ShiftImports
         source_post_id: post_id,
         source_post_url: post_url,
         source_posted_at: posted_at,
-        raw_text: raw_text
+        raw_text: raw_text,
+        source_image_urls: image_urls
       )
     end
 
@@ -373,7 +376,7 @@ module ShiftImports
       scope.where("start_at >= ?", base_time).order(:start_at).first
     end
 
-    def log_skipped_tweet!(post_id:, post_url:, posted_at:, raw_text:, username:, shop:, staff:, reason:)
+    def log_skipped_tweet!(post_id:, post_url:, posted_at:, raw_text:, username:, shop:, staff:, reason:, image_urls: [])
       candidate = ShiftImportCandidate.new(
         action: "skip",
         shop: shop,
@@ -387,6 +390,7 @@ module ShiftImports
         source_post_url: post_url,
         source_posted_at: posted_at,
         raw_text: raw_text,
+        source_image_urls: image_urls,
         applied: false,
         result_message: reason
       )

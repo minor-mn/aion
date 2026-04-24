@@ -87,6 +87,20 @@
         white-space: pre-wrap;
         word-break: break-word;
       }
+      .recent-tweets-images {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+      }
+      .recent-tweets-image {
+        width: 100%;
+        max-width: 100%;
+        max-height: 300px;
+        object-fit: contain;
+        border-radius: 6px;
+        display: block;
+        background: #15152a;
+      }
       @media (max-width: 640px) {
         .recent-tweets-card-header {
           flex-wrap: wrap;
@@ -107,9 +121,14 @@
       </div>
     ` : '';
     const postLink = buildPostLink(post);
+    const imageUrls = Array.isArray(post.image_urls) ? post.image_urls.filter(Boolean) : [];
+    const images = imageUrls.length > 0
+      ? `<div class="recent-tweets-images">${imageUrls.map((url) => `<img class="recent-tweets-image" src="${escapeHtml(url)}" alt="" loading="lazy">`).join('')}</div>`
+      : '';
     const content = `
       ${header}
       <div class="recent-tweets-text">${escapeHtml(post.raw_text || '')}</div>
+      ${images}
     `;
 
     if (postLink) {

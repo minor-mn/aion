@@ -119,7 +119,8 @@ class V1::StaffsController < ApplicationController
           source_post_url: record.source_post_url,
           source_posted_at: (record.source_posted_at || record.created_at)&.iso8601,
           source_username: record.source_username,
-          raw_text: record.raw_text
+          raw_text: record.raw_text,
+          image_urls: Array(record.source_image_urls).compact
         }
       end
 

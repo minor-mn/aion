@@ -104,6 +104,7 @@ const app = createApp({
     // Staff home state
     const staffHomeStaff = ref(null);
     const staffHomeLoading = ref(false);
+    let recentTweetsScriptPromise = null;
 
 
     // Shift edit state
@@ -303,6 +304,7 @@ const app = createApp({
     }
 
     async function loadStaffHome(staffId) {
+      ensureRecentTweetsScript().catch(() => {});
       staffHomeLoading.value = true;
       staffHomeStaff.value = null;
       try {
@@ -311,6 +313,33 @@ const app = createApp({
         staffHomeStaff.value = null;
       }
       staffHomeLoading.value = false;
+    }
+
+    function ensureRecentTweetsScript() {
+      if (window.RecentTweetsRenderer) return Promise.resolve();
+      if (recentTweetsScriptPromise) return recentTweetsScriptPromise;
+
+      recentTweetsScriptPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-module="recent-tweets"]');
+        if (existing) {
+          existing.addEventListener('load', () => resolve(), { once: true });
+          existing.addEventListener('error', () => reject(new Error('recent-tweets.js load failed')), { once: true });
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = '/js/recent-tweets.js';
+        script.async = true;
+        script.dataset.module = 'recent-tweets';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('recent-tweets.js load failed'));
+        document.head.appendChild(script);
+      }).catch((e) => {
+        recentTweetsScriptPromise = null;
+        return Promise.reject(e);
+      });
+
+      return recentTweetsScriptPromise;
     }
 
     async function openStaffHome(staffId) {
@@ -1945,6 +1974,10 @@ app.component('staff-home-page', {
               </template>
             </div>
           </div>
+        </div>
+        <div style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">最近のポスト</div>
+          <div class="recent-tweets-root" :data-staff-id="staff.id" data-limit="3"></div>
         </div>
         <div v-if="hasRateSummary" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">みんなの評価</div>

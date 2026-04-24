@@ -98,6 +98,35 @@ class V1::StaffsController < ApplicationController
     render json: { staff_shifts: result, events: events_result }, status: :ok
   end
 
+  def recent_posts
+    size = params[:limit].to_i
+    size = 3 if size <= 0
+    size = 20 if size > 20
+
+    distinct_latest = ShiftImportCandidate
+      .where(staff_id: staff.id)
+      .where.not(source_post_id: [ nil, "" ])
+      .select("DISTINCT ON (source_post_id) shift_import_candidates.*")
+      .order(Arel.sql("source_post_id, id DESC"))
+
+    posts = ShiftImportCandidate
+      .from("(#{distinct_latest.to_sql}) AS shift_import_candidates")
+      .order(id: :desc)
+      .limit(size)
+      .map do |record|
+        {
+          source_post_id: record.source_post_id,
+          source_post_url: record.source_post_url,
+          source_posted_at: (record.source_posted_at || record.created_at)&.iso8601,
+          source_username: record.source_username,
+          raw_text: record.raw_text,
+          image_urls: Array(record.source_image_urls).compact
+        }
+      end
+
+    render json: { recent_posts: posts }, status: :ok
+  end
+
   def create
     new_staff = Staff.new(staff_params)
     new_staff.user = current_user

@@ -32,6 +32,7 @@ Rails.application.routes.draw do
       member do
         get :upcoming_shifts
         get :monthly_shifts
+        get :recent_posts
       end
     end
 

@@ -74,6 +74,8 @@ const app = createApp({
     // Calendar state
     const calendarYear = ref(new Date().getFullYear());
     const calendarMonth = ref(new Date().getMonth()); // 0-indexed
+    const calendarSlideDirection = ref(null); // prev | next | null
+    const homeCalendarLoading = ref(false);
     const scheduleData = ref([]);
     const selectedDate = ref(null);
     const modalOpen = ref(false);
@@ -89,6 +91,7 @@ const app = createApp({
     const lastHomeDataLoadedAt = ref(0);
     const homeDataRefreshing = ref(false);
     let homeDataRefreshPromise = null;
+    let homeCalendarRequestSeq = 0;
     let refreshTimer = null;
     let handleVisibilityChange = null;
 
@@ -104,6 +107,7 @@ const app = createApp({
     // Staff home state
     const staffHomeStaff = ref(null);
     const staffHomeLoading = ref(false);
+    let recentTweetsScriptPromise = null;
 
 
     // Shift edit state
@@ -242,17 +246,41 @@ const app = createApp({
       }
     }
 
+    async function fetchScheduleData(year, month) {
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0, 23, 59, 59);
+      const data = await API.getSchedules(start.toISOString(), end.toISOString());
+      return data.days || [];
+    }
+
     async function loadScheduleData() {
+      const requestSeq = ++homeCalendarRequestSeq;
+      homeCalendarLoading.value = true;
       try {
-        const year = calendarYear.value;
-        const month = calendarMonth.value;
-        const start = new Date(year, month, 1);
-        const end = new Date(year, month + 1, 0, 23, 59, 59);
-        const data = await API.getSchedules(start.toISOString(), end.toISOString());
-        scheduleData.value = data.days || [];
+        const days = await fetchScheduleData(calendarYear.value, calendarMonth.value);
+        if (requestSeq !== homeCalendarRequestSeq) return;
+        scheduleData.value = days;
       } catch (e) {
+        if (requestSeq !== homeCalendarRequestSeq) return;
         scheduleData.value = [];
+      } finally {
+        if (requestSeq === homeCalendarRequestSeq) {
+          homeCalendarLoading.value = false;
+        }
       }
+    }
+
+    function targetMonth(delta) {
+      let year = calendarYear.value;
+      let month = calendarMonth.value + delta;
+      if (month < 0) {
+        month = 11;
+        year -= 1;
+      } else if (month > 11) {
+        month = 0;
+        year += 1;
+      }
+      return { year: year, month: month };
     }
 
     async function loadShops() {
@@ -303,6 +331,7 @@ const app = createApp({
     }
 
     async function loadStaffHome(staffId) {
+      ensureRecentTweetsScript().catch(() => {});
       staffHomeLoading.value = true;
       staffHomeStaff.value = null;
       try {
@@ -311,6 +340,33 @@ const app = createApp({
         staffHomeStaff.value = null;
       }
       staffHomeLoading.value = false;
+    }
+
+    function ensureRecentTweetsScript() {
+      if (window.RecentTweetsRenderer) return Promise.resolve();
+      if (recentTweetsScriptPromise) return recentTweetsScriptPromise;
+
+      recentTweetsScriptPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-module="recent-tweets"]');
+        if (existing) {
+          existing.addEventListener('load', () => resolve(), { once: true });
+          existing.addEventListener('error', () => reject(new Error('recent-tweets.js load failed')), { once: true });
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.src = '/js/recent-tweets.js';
+        script.async = true;
+        script.dataset.module = 'recent-tweets';
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error('recent-tweets.js load failed'));
+        document.head.appendChild(script);
+      }).catch((e) => {
+        recentTweetsScriptPromise = null;
+        return Promise.reject(e);
+      });
+
+      return recentTweetsScriptPromise;
     }
 
     async function openStaffHome(staffId) {
@@ -359,24 +415,46 @@ const app = createApp({
     }
 
     // ========== Calendar Helpers ==========
-    function prevMonth() {
-      if (calendarMonth.value === 0) {
-        calendarMonth.value = 11;
-        calendarYear.value--;
-      } else {
-        calendarMonth.value--;
+    async function prevMonth() {
+      if (homeCalendarLoading.value) return;
+      const target = targetMonth(-1);
+      calendarSlideDirection.value = 'prev';
+      const requestSeq = ++homeCalendarRequestSeq;
+      homeCalendarLoading.value = true;
+      try {
+        const days = await fetchScheduleData(target.year, target.month);
+        if (requestSeq !== homeCalendarRequestSeq) return;
+        calendarYear.value = target.year;
+        calendarMonth.value = target.month;
+        scheduleData.value = days;
+      } catch (e) {
+        if (requestSeq !== homeCalendarRequestSeq) return;
+      } finally {
+        if (requestSeq === homeCalendarRequestSeq) {
+          homeCalendarLoading.value = false;
+        }
       }
-      loadScheduleData();
     }
 
-    function nextMonth() {
-      if (calendarMonth.value === 11) {
-        calendarMonth.value = 0;
-        calendarYear.value++;
-      } else {
-        calendarMonth.value++;
+    async function nextMonth() {
+      if (homeCalendarLoading.value) return;
+      const target = targetMonth(1);
+      calendarSlideDirection.value = 'next';
+      const requestSeq = ++homeCalendarRequestSeq;
+      homeCalendarLoading.value = true;
+      try {
+        const days = await fetchScheduleData(target.year, target.month);
+        if (requestSeq !== homeCalendarRequestSeq) return;
+        calendarYear.value = target.year;
+        calendarMonth.value = target.month;
+        scheduleData.value = days;
+      } catch (e) {
+        if (requestSeq !== homeCalendarRequestSeq) return;
+      } finally {
+        if (requestSeq === homeCalendarRequestSeq) {
+          homeCalendarLoading.value = false;
+        }
       }
-      loadScheduleData();
     }
 
     const calendarTitle = computed(() => {
@@ -766,6 +844,10 @@ const app = createApp({
       } catch (e) {
         return null;
       }
+    }
+
+    function isXSiteUrl(url) {
+      return !!extractXUsername(url);
     }
 
     function openSiteUrl(url) {
@@ -1257,7 +1339,7 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       homeSlideFromLeft,
-      calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen, timelineModalOpen,
+      calendarYear, calendarMonth, calendarSlideDirection, homeCalendarLoading, scheduleData, selectedDate, modalOpen, timelineModalOpen,
       dayModalOriginStyle, dayModalAnimating,
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
       staffHomeStaff, staffHomeLoading,
@@ -1267,7 +1349,7 @@ const app = createApp({
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
-      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl,
+      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl, isXSiteUrl,
       getStaffName, navigate, navigateHomeFromHeader, onHomeSlideAnimationEnd, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
       isSmartPhone,
@@ -1344,29 +1426,39 @@ app.component('shop-home-page', {
         </div>
         <div class="calendar-section" style="margin-top:30px">
           <div class="calendar-header">
-            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <button class="calendar-nav" @click="prevMonth" :disabled="monthSwitching">&laquo; 前月</button>
             <h2>{{ calendarTitle }}</h2>
-            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+            <button class="calendar-nav" @click="nextMonth" :disabled="monthSwitching">翌月 &raquo;</button>
           </div>
           <div v-if="calendarLoading" class="loading">読み込み中</div>
-          <div v-else class="calendar-grid shop-home-calendar-grid">
-            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
-            <div
-              v-for="(cell, idx) in calendarDays"
-              :key="idx"
-              class="calendar-cell shop-home-calendar-cell"
-              :class="{ empty: cell.empty, 'is-today': cell.isToday }"
-              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty) ? 'pointer' : 'default', textAlign:'center' }"
-              @click="$root.currentUser && !cell.empty && onDayClick(cell)"
-            >
-              <template v-if="!cell.empty">
-                <div
-                  class="date-num"
-                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
-                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
-                >{{ cell.day }}</div>
-                <div v-if="cell.label" class="shop-home-calendar-label">{{ cell.label }}</div>
-              </template>
+          <div
+            v-else
+            :key="calendarYear + '-' + calendarMonth"
+            :class="[
+              'shop-home-calendar-animated',
+              calendarSlideDirection === 'prev' ? 'calendar-grid-slide-from-left' : '',
+              calendarSlideDirection === 'next' ? 'calendar-grid-slide-from-right' : ''
+            ]"
+          >
+            <div class="calendar-grid shop-home-calendar-grid">
+              <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+              <div
+                v-for="(cell, idx) in calendarDays"
+                :key="idx"
+                class="calendar-cell shop-home-calendar-cell"
+                :class="{ empty: cell.empty, 'is-today': cell.isToday }"
+                :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty) ? 'pointer' : 'default', textAlign:'center' }"
+                @click="$root.currentUser && !cell.empty && onDayClick(cell)"
+              >
+                <template v-if="!cell.empty">
+                  <div
+                    class="date-num"
+                    :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
+                    :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                  >{{ cell.day }}</div>
+                  <div v-if="cell.label" class="shop-home-calendar-label">{{ cell.label }}</div>
+                </template>
+              </div>
             </div>
           </div>
         </div>
@@ -1441,6 +1533,8 @@ app.component('shop-home-page', {
       calendarMonth: new Date().getMonth(),
       calendarDaysData: [],
       calendarLoading: false,
+      calendarSlideDirection: null,
+      monthSwitching: false,
       preferences: {},
       draggingStaffId: null,
       draggingValue: 0,
@@ -1706,22 +1800,44 @@ app.component('shop-home-page', {
       this.calendarLoading = false;
     },
     async prevMonth() {
-      if (this.calendarMonth === 0) {
-        this.calendarMonth = 11;
-        this.calendarYear -= 1;
-      } else {
-        this.calendarMonth -= 1;
+      if (this.monthSwitching) return;
+      if (!this.shop?.id) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 0
+        ? { year: this.calendarYear - 1, month: 11 }
+        : { year: this.calendarYear,     month: this.calendarMonth - 1 };
+      try {
+        const data = await API.getShopMonthlyShifts(this.shop.id, target.year, target.month + 1);
+        this.calendarSlideDirection = 'prev';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = data.days || [];
+        this.$root.shopHomeEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
       }
-      await this.loadCalendarData();
     },
     async nextMonth() {
-      if (this.calendarMonth === 11) {
-        this.calendarMonth = 0;
-        this.calendarYear += 1;
-      } else {
-        this.calendarMonth += 1;
+      if (this.monthSwitching) return;
+      if (!this.shop?.id) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 11
+        ? { year: this.calendarYear + 1, month: 0 }
+        : { year: this.calendarYear,     month: this.calendarMonth + 1 };
+      try {
+        const data = await API.getShopMonthlyShifts(this.shop.id, target.year, target.month + 1);
+        this.calendarSlideDirection = 'next';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = data.days || [];
+        this.$root.shopHomeEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
       }
-      await this.loadCalendarData();
     },
     renderMap() {
       if (!this.hasCoordinates || !window.L) {
@@ -1917,32 +2033,42 @@ app.component('staff-home-page', {
         </div>
         <div class="calendar-section" style="margin-top:30px">
           <div class="calendar-header">
-            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <button class="calendar-nav" @click="prevMonth" :disabled="monthSwitching">&laquo; 前月</button>
             <h2>{{ calendarTitle }}</h2>
-            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+            <button class="calendar-nav" @click="nextMonth" :disabled="monthSwitching">翌月 &raquo;</button>
           </div>
           <div v-if="calendarLoading" class="loading">読み込み中</div>
-          <div v-else class="calendar-grid shop-home-calendar-grid">
-            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
-            <div
-              v-for="(cell, idx) in calendarDays"
-              :key="idx"
-              class="calendar-cell shop-home-calendar-cell"
-              :class="{ empty: cell.empty, 'is-today': cell.isToday }"
-              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
-              @click="$root.currentUser && !cell.empty && cell.shifts.length === 0 && onEmptyDayClick(cell)"
-            >
-              <template v-if="!cell.empty">
-                <div
-                  class="date-num"
-                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
-                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
-                >{{ cell.day }}</div>
-                <div v-for="shift in cell.shifts" :key="shift.id"
-                  :class="['shop-home-calendar-label', { 'cast-name-link': $root.currentUser }]"
-                  @click.stop="$root.currentUser && onShiftClick(shift)"
-                >{{ formatShiftTime(shift) }}</div>
-              </template>
+          <div
+            v-else
+            :key="calendarYear + '-' + calendarMonth"
+            :class="[
+              'shop-home-calendar-animated',
+              calendarSlideDirection === 'prev' ? 'calendar-grid-slide-from-left' : '',
+              calendarSlideDirection === 'next' ? 'calendar-grid-slide-from-right' : ''
+            ]"
+          >
+            <div class="calendar-grid shop-home-calendar-grid">
+              <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+              <div
+                v-for="(cell, idx) in calendarDays"
+                :key="idx"
+                class="calendar-cell shop-home-calendar-cell"
+                :class="{ empty: cell.empty, 'is-today': cell.isToday }"
+                :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: ($root.currentUser && !cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+                @click="$root.currentUser && !cell.empty && cell.shifts.length === 0 && onEmptyDayClick(cell)"
+              >
+                <template v-if="!cell.empty">
+                  <div
+                    class="date-num"
+                    :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
+                    :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                  >{{ cell.day }}</div>
+                  <div v-for="shift in cell.shifts" :key="shift.id"
+                    :class="['shop-home-calendar-label', { 'cast-name-link': $root.currentUser }]"
+                    @click.stop="$root.currentUser && onShiftClick(shift)"
+                  >{{ formatShiftTime(shift) }}</div>
+                </template>
+              </div>
             </div>
           </div>
         </div>
@@ -1971,6 +2097,10 @@ app.component('staff-home-page', {
             <div style="font-size:0.85rem;color:#d6d6e7;line-height:1.6">{{ formatEventRange(event.start_at, event.end_at) }}</div>
           </div>
         </div>
+        <div v-if="$root.isXSiteUrl(staff.site_url)" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">最近のポスト</div>
+          <div class="recent-tweets-root" :data-staff-id="staff.id" data-limit="3"></div>
+        </div>
         <div style="margin-top:30px;text-align:left">
           <div class="shop-block" style="background:#1e1e38">
             <div class="staff-detail-actions" style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
@@ -1990,6 +2120,8 @@ app.component('staff-home-page', {
       calendarDaysData: [],
       calendarEvents: [],
       calendarLoading: false,
+      calendarSlideDirection: null,
+      monthSwitching: false,
       preference: 0,
       prefDragging: false,
       prefDraggingValue: 0,
@@ -2095,27 +2227,30 @@ app.component('staff-home-page', {
       this.calendarLoading = true;
       try {
         const data = await API.getStaffMonthlyShifts(this.staff.id, this.calendarYear, this.calendarMonth + 1);
-        const shifts = data.staff_shifts || [];
-        const dayEntries = {};
-        for (const shift of shifts) {
-          const start = new Date(shift.start_at);
-          const end = new Date(shift.end_at);
-          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
-          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
-          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
-          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
-          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
-          dayEntries[dateStr].shifts.push(shift);
-        }
-        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
-          date, label: entry.labels.join('\n'), shifts: entry.shifts
-        }));
+        this.calendarDaysData = this._buildCalendarDays(data);
         this.calendarEvents = data.events || [];
       } catch (e) {
         this.calendarDaysData = [];
         this.calendarEvents = [];
       }
       this.calendarLoading = false;
+    },
+    _buildCalendarDays(data) {
+      const shifts = data.staff_shifts || [];
+      const dayEntries = {};
+      for (const shift of shifts) {
+        const start = new Date(shift.start_at);
+        const end = new Date(shift.end_at);
+        const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+        const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+        const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+        if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+        dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+        dayEntries[dateStr].shifts.push(shift);
+      }
+      return Object.entries(dayEntries).map(([date, entry]) => ({
+        date, label: entry.labels.join('\n'), shifts: entry.shifts
+      }));
     },
     async loadPreference() {
       if (!this.$root.currentUser || !this.staff?.id) return;
@@ -2175,22 +2310,44 @@ app.component('staff-home-page', {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async prevMonth() {
-      if (this.calendarMonth === 0) {
-        this.calendarMonth = 11;
-        this.calendarYear -= 1;
-      } else {
-        this.calendarMonth -= 1;
+      if (this.monthSwitching) return;
+      if (!this.staff?.id) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 0
+        ? { year: this.calendarYear - 1, month: 11 }
+        : { year: this.calendarYear,     month: this.calendarMonth - 1 };
+      try {
+        const data = await API.getStaffMonthlyShifts(this.staff.id, target.year, target.month + 1);
+        this.calendarSlideDirection = 'prev';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = this._buildCalendarDays(data);
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
       }
-      await this.loadCalendarData();
     },
     async nextMonth() {
-      if (this.calendarMonth === 11) {
-        this.calendarMonth = 0;
-        this.calendarYear += 1;
-      } else {
-        this.calendarMonth += 1;
+      if (this.monthSwitching) return;
+      if (!this.staff?.id) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 11
+        ? { year: this.calendarYear + 1, month: 0 }
+        : { year: this.calendarYear,     month: this.calendarMonth + 1 };
+      try {
+        const data = await API.getStaffMonthlyShifts(this.staff.id, target.year, target.month + 1);
+        this.calendarSlideDirection = 'next';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = this._buildCalendarDays(data);
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
       }
-      await this.loadCalendarData();
     },
     formatEventRange(startAt, endAt) {
       const start = new Date(startAt);
@@ -3292,32 +3449,42 @@ app.component('shift-form-page', {
         </div>
         <div class="calendar-section" style="margin-top:30px">
           <div class="calendar-header">
-            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <button class="calendar-nav" @click="prevMonth" :disabled="monthSwitching">&laquo; 前月</button>
             <h2>{{ calendarTitle }}</h2>
-            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+            <button class="calendar-nav" @click="nextMonth" :disabled="monthSwitching">翌月 &raquo;</button>
           </div>
           <div v-if="calendarLoading" class="loading">読み込み中</div>
-          <div v-else class="calendar-grid shop-home-calendar-grid">
-            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
-            <div
-              v-for="(cell, idx) in calendarDays"
-              :key="idx"
-              class="calendar-cell shop-home-calendar-cell"
-              :class="{ empty: cell.empty }"
-              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
-              @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
-            >
-              <template v-if="!cell.empty">
-                <div
-                  class="date-num"
-                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
-                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
-                >{{ cell.day }}</div>
-                <div v-for="shift in cell.shifts" :key="shift.id"
-                  class="shop-home-calendar-label cast-name-link"
-                  @click.stop="$root.editShift(shift)"
-                >{{ formatShiftTime(shift) }}</div>
-              </template>
+          <div
+            v-else
+            :key="calendarYear + '-' + calendarMonth"
+            :class="[
+              'shop-home-calendar-animated',
+              calendarSlideDirection === 'prev' ? 'calendar-grid-slide-from-left' : '',
+              calendarSlideDirection === 'next' ? 'calendar-grid-slide-from-right' : ''
+            ]"
+          >
+            <div class="calendar-grid shop-home-calendar-grid">
+              <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+              <div
+                v-for="(cell, idx) in calendarDays"
+                :key="idx"
+                class="calendar-cell shop-home-calendar-cell"
+                :class="{ empty: cell.empty }"
+                :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+                @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
+              >
+                <template v-if="!cell.empty">
+                  <div
+                    class="date-num"
+                    :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
+                    :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                  >{{ cell.day }}</div>
+                  <div v-for="shift in cell.shifts" :key="shift.id"
+                    class="shop-home-calendar-label cast-name-link"
+                    @click.stop="$root.editShift(shift)"
+                  >{{ formatShiftTime(shift) }}</div>
+                </template>
+              </div>
             </div>
           </div>
         </div>
@@ -3340,7 +3507,9 @@ app.component('shift-form-page', {
       calendarMonth: today.getMonth(),
       calendarDaysData: [],
       calendarEvents: [],
-      calendarLoading: false
+      calendarLoading: false,
+      calendarSlideDirection: null,
+      monthSwitching: false
     };
   },
   computed: {
@@ -3530,21 +3699,7 @@ app.component('shift-form-page', {
       this.calendarLoading = true;
       try {
         const data = await API.getStaffMonthlyShifts(this.selectedStaffId, this.calendarYear, this.calendarMonth + 1);
-        const shifts = data.staff_shifts || [];
-        const dayEntries = {};
-        for (const shift of shifts) {
-          const start = new Date(shift.start_at);
-          const end = new Date(shift.end_at);
-          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
-          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
-          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
-          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
-          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
-          dayEntries[dateStr].shifts.push(shift);
-        }
-        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
-          date, label: entry.labels.join('\n'), shifts: entry.shifts
-        }));
+        this.calendarDaysData = this._buildCalendarDays(data);
         this.calendarEvents = data.events || [];
       } catch (e) {
         this.calendarDaysData = [];
@@ -3552,23 +3707,62 @@ app.component('shift-form-page', {
       }
       this.calendarLoading = false;
     },
-    async prevMonth() {
-      if (this.calendarMonth === 0) {
-        this.calendarMonth = 11;
-        this.calendarYear -= 1;
-      } else {
-        this.calendarMonth -= 1;
+    _buildCalendarDays(data) {
+      const shifts = data.staff_shifts || [];
+      const dayEntries = {};
+      for (const shift of shifts) {
+        const start = new Date(shift.start_at);
+        const end = new Date(shift.end_at);
+        const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+        const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+        const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+        if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+        dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+        dayEntries[dateStr].shifts.push(shift);
       }
-      await this.loadCalendarData();
+      return Object.entries(dayEntries).map(([date, entry]) => ({
+        date, label: entry.labels.join('\n'), shifts: entry.shifts
+      }));
+    },
+    async prevMonth() {
+      if (this.monthSwitching) return;
+      if (!this.selectedStaffId) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 0
+        ? { year: this.calendarYear - 1, month: 11 }
+        : { year: this.calendarYear,     month: this.calendarMonth - 1 };
+      try {
+        const data = await API.getStaffMonthlyShifts(this.selectedStaffId, target.year, target.month + 1);
+        this.calendarSlideDirection = 'prev';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = this._buildCalendarDays(data);
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
+      }
     },
     async nextMonth() {
-      if (this.calendarMonth === 11) {
-        this.calendarMonth = 0;
-        this.calendarYear += 1;
-      } else {
-        this.calendarMonth += 1;
+      if (this.monthSwitching) return;
+      if (!this.selectedStaffId) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 11
+        ? { year: this.calendarYear + 1, month: 0 }
+        : { year: this.calendarYear,     month: this.calendarMonth + 1 };
+      try {
+        const data = await API.getStaffMonthlyShifts(this.selectedStaffId, target.year, target.month + 1);
+        this.calendarSlideDirection = 'next';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = this._buildCalendarDays(data);
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
       }
-      await this.loadCalendarData();
     },
     formatShiftTime(shift) {
       const start = new Date(shift.start_at);
@@ -3655,32 +3849,42 @@ app.component('shift-edit-page', {
 
       <div v-if="shift && shift.staff_id" class="calendar-section" style="margin-top:30px">
         <div class="calendar-header">
-          <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+          <button class="calendar-nav" @click="prevMonth" :disabled="monthSwitching">&laquo; 前月</button>
           <h2>{{ calendarTitle }}</h2>
-          <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+          <button class="calendar-nav" @click="nextMonth" :disabled="monthSwitching">翌月 &raquo;</button>
         </div>
         <div v-if="calendarLoading" class="loading">読み込み中</div>
-        <div v-else class="calendar-grid shop-home-calendar-grid">
-          <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
-          <div
-            v-for="(cell, idx) in calendarDays"
-            :key="idx"
-            class="calendar-cell shop-home-calendar-cell"
-            :class="{ empty: cell.empty }"
-            :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
-            @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
-          >
-            <template v-if="!cell.empty">
-              <div
-                class="date-num"
-                :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
-                :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
-              >{{ cell.day }}</div>
-              <div v-for="s in cell.shifts" :key="s.id"
-                class="shop-home-calendar-label cast-name-link"
-                @click.stop="$root.editShift(s)"
-              >{{ formatShiftTime(s) }}</div>
-            </template>
+        <div
+          v-else
+          :key="calendarYear + '-' + calendarMonth"
+          :class="[
+            'shop-home-calendar-animated',
+            calendarSlideDirection === 'prev' ? 'calendar-grid-slide-from-left' : '',
+            calendarSlideDirection === 'next' ? 'calendar-grid-slide-from-right' : ''
+          ]"
+        >
+          <div class="calendar-grid shop-home-calendar-grid">
+            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+            <div
+              v-for="(cell, idx) in calendarDays"
+              :key="idx"
+              class="calendar-cell shop-home-calendar-cell"
+              :class="{ empty: cell.empty }"
+              :style="{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-start', padding:'6px', cursor: (!cell.empty && cell.shifts.length === 0) ? 'pointer' : 'default', textAlign:'center' }"
+              @click="!cell.empty && cell.shifts.length === 0 && onCalendarEmptyDayClick(cell)"
+            >
+              <template v-if="!cell.empty">
+                <div
+                  class="date-num"
+                  :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
+                  :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                >{{ cell.day }}</div>
+                <div v-for="s in cell.shifts" :key="s.id"
+                  class="shop-home-calendar-label cast-name-link"
+                  @click.stop="$root.editShift(s)"
+                >{{ formatShiftTime(s) }}</div>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -3696,7 +3900,9 @@ app.component('shift-edit-page', {
       calendarMonth: new Date().getMonth(),
       calendarDaysData: [],
       calendarEvents: [],
-      calendarLoading: false
+      calendarLoading: false,
+      calendarSlideDirection: null,
+      monthSwitching: false
     };
   },
   computed: {
@@ -3857,21 +4063,7 @@ app.component('shift-edit-page', {
       this.calendarLoading = true;
       try {
         const data = await API.getStaffMonthlyShifts(staffId, this.calendarYear, this.calendarMonth + 1);
-        const shifts = data.staff_shifts || [];
-        const dayEntries = {};
-        for (const s of shifts) {
-          const start = new Date(s.start_at);
-          const end = new Date(s.end_at);
-          const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
-          const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
-          const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
-          if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
-          dayEntries[dateStr].labels.push(`${sh}-${eh}`);
-          dayEntries[dateStr].shifts.push(s);
-        }
-        this.calendarDaysData = Object.entries(dayEntries).map(([date, entry]) => ({
-          date, label: entry.labels.join('\n'), shifts: entry.shifts
-        }));
+        this.calendarDaysData = this._buildCalendarDays(data);
         this.calendarEvents = data.events || [];
       } catch (e) {
         this.calendarDaysData = [];
@@ -3879,23 +4071,64 @@ app.component('shift-edit-page', {
       }
       this.calendarLoading = false;
     },
-    async prevMonth() {
-      if (this.calendarMonth === 0) {
-        this.calendarMonth = 11;
-        this.calendarYear -= 1;
-      } else {
-        this.calendarMonth -= 1;
+    _buildCalendarDays(data) {
+      const shifts = data.staff_shifts || [];
+      const dayEntries = {};
+      for (const s of shifts) {
+        const start = new Date(s.start_at);
+        const end = new Date(s.end_at);
+        const dateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+        const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
+        const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+        if (!dayEntries[dateStr]) dayEntries[dateStr] = { labels: [], shifts: [] };
+        dayEntries[dateStr].labels.push(`${sh}-${eh}`);
+        dayEntries[dateStr].shifts.push(s);
       }
-      await this.loadCalendarData();
+      return Object.entries(dayEntries).map(([date, entry]) => ({
+        date, label: entry.labels.join('\n'), shifts: entry.shifts
+      }));
+    },
+    async prevMonth() {
+      if (this.monthSwitching) return;
+      const staffId = this.shift?.staff_id;
+      if (!staffId) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 0
+        ? { year: this.calendarYear - 1, month: 11 }
+        : { year: this.calendarYear,     month: this.calendarMonth - 1 };
+      try {
+        const data = await API.getStaffMonthlyShifts(staffId, target.year, target.month + 1);
+        this.calendarSlideDirection = 'prev';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = this._buildCalendarDays(data);
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
+      }
     },
     async nextMonth() {
-      if (this.calendarMonth === 11) {
-        this.calendarMonth = 0;
-        this.calendarYear += 1;
-      } else {
-        this.calendarMonth += 1;
+      if (this.monthSwitching) return;
+      const staffId = this.shift?.staff_id;
+      if (!staffId) return;
+      this.monthSwitching = true;
+      const target = this.calendarMonth === 11
+        ? { year: this.calendarYear + 1, month: 0 }
+        : { year: this.calendarYear,     month: this.calendarMonth + 1 };
+      try {
+        const data = await API.getStaffMonthlyShifts(staffId, target.year, target.month + 1);
+        this.calendarSlideDirection = 'next';
+        this.calendarYear = target.year;
+        this.calendarMonth = target.month;
+        this.calendarDaysData = this._buildCalendarDays(data);
+        this.calendarEvents = data.events || [];
+      } catch (e) {
+        // 失敗時は現在の月を維持してチラつかせない
+      } finally {
+        this.monthSwitching = false;
       }
-      await this.loadCalendarData();
     },
     formatShiftTime(shift) {
       const start = new Date(shift.start_at);

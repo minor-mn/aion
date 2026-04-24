@@ -146,14 +146,18 @@
     const images = imageUrls.length > 0
       ? `<div class="recent-tweets-images">${imageUrls.map((url) => `<img class="recent-tweets-image" src="${escapeHtml(url)}" alt="" loading="lazy">`).join('')}</div>`
       : '';
-    const content = `
+    const textContent = `
       ${header}
       <div class="recent-tweets-text">${escapeHtml(displayText)}</div>
+    `;
+
+    const content = `
+      ${textContent}
       ${images}
     `;
 
     const body = postLink
-      ? `<a class="recent-tweets-body-link" href="${escapeHtml(postLink)}" target="_blank" rel="noopener noreferrer">${content}</a>`
+      ? `<a class="recent-tweets-body-link" href="${escapeHtml(postLink)}" target="_blank" rel="noopener noreferrer">${textContent}</a>${images}`
       : content;
 
     return `<article class="recent-tweets-card">${body}</article>`;

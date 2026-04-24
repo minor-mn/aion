@@ -142,7 +142,6 @@ RSpec.describe "Staffs", type: :request do
       expect(body["recent_posts"].map { |post| post["source_post_id"] }).to eq(%w[400 300 200])
       expect(body["recent_posts"].first["raw_text"]).to eq("最新（重複）")
     end
-
   end
 
   describe "PATCH /v1/staffs/:id" do

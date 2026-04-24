@@ -74,6 +74,8 @@ const app = createApp({
     // Calendar state
     const calendarYear = ref(new Date().getFullYear());
     const calendarMonth = ref(new Date().getMonth()); // 0-indexed
+    const calendarSlideDirection = ref(null); // prev | next | null
+    const homeCalendarLoading = ref(false);
     const scheduleData = ref([]);
     const selectedDate = ref(null);
     const modalOpen = ref(false);
@@ -89,6 +91,7 @@ const app = createApp({
     const lastHomeDataLoadedAt = ref(0);
     const homeDataRefreshing = ref(false);
     let homeDataRefreshPromise = null;
+    let homeCalendarRequestSeq = 0;
     let refreshTimer = null;
     let handleVisibilityChange = null;
 
@@ -243,17 +246,41 @@ const app = createApp({
       }
     }
 
+    async function fetchScheduleData(year, month) {
+      const start = new Date(year, month, 1);
+      const end = new Date(year, month + 1, 0, 23, 59, 59);
+      const data = await API.getSchedules(start.toISOString(), end.toISOString());
+      return data.days || [];
+    }
+
     async function loadScheduleData() {
+      const requestSeq = ++homeCalendarRequestSeq;
+      homeCalendarLoading.value = true;
       try {
-        const year = calendarYear.value;
-        const month = calendarMonth.value;
-        const start = new Date(year, month, 1);
-        const end = new Date(year, month + 1, 0, 23, 59, 59);
-        const data = await API.getSchedules(start.toISOString(), end.toISOString());
-        scheduleData.value = data.days || [];
+        const days = await fetchScheduleData(calendarYear.value, calendarMonth.value);
+        if (requestSeq !== homeCalendarRequestSeq) return;
+        scheduleData.value = days;
       } catch (e) {
+        if (requestSeq !== homeCalendarRequestSeq) return;
         scheduleData.value = [];
+      } finally {
+        if (requestSeq === homeCalendarRequestSeq) {
+          homeCalendarLoading.value = false;
+        }
       }
+    }
+
+    function targetMonth(delta) {
+      let year = calendarYear.value;
+      let month = calendarMonth.value + delta;
+      if (month < 0) {
+        month = 11;
+        year -= 1;
+      } else if (month > 11) {
+        month = 0;
+        year += 1;
+      }
+      return { year: year, month: month };
     }
 
     async function loadShops() {
@@ -388,24 +415,46 @@ const app = createApp({
     }
 
     // ========== Calendar Helpers ==========
-    function prevMonth() {
-      if (calendarMonth.value === 0) {
-        calendarMonth.value = 11;
-        calendarYear.value--;
-      } else {
-        calendarMonth.value--;
+    async function prevMonth() {
+      if (homeCalendarLoading.value) return;
+      const target = targetMonth(-1);
+      calendarSlideDirection.value = 'prev';
+      const requestSeq = ++homeCalendarRequestSeq;
+      homeCalendarLoading.value = true;
+      try {
+        const days = await fetchScheduleData(target.year, target.month);
+        if (requestSeq !== homeCalendarRequestSeq) return;
+        calendarYear.value = target.year;
+        calendarMonth.value = target.month;
+        scheduleData.value = days;
+      } catch (e) {
+        if (requestSeq !== homeCalendarRequestSeq) return;
+      } finally {
+        if (requestSeq === homeCalendarRequestSeq) {
+          homeCalendarLoading.value = false;
+        }
       }
-      loadScheduleData();
     }
 
-    function nextMonth() {
-      if (calendarMonth.value === 11) {
-        calendarMonth.value = 0;
-        calendarYear.value++;
-      } else {
-        calendarMonth.value++;
+    async function nextMonth() {
+      if (homeCalendarLoading.value) return;
+      const target = targetMonth(1);
+      calendarSlideDirection.value = 'next';
+      const requestSeq = ++homeCalendarRequestSeq;
+      homeCalendarLoading.value = true;
+      try {
+        const days = await fetchScheduleData(target.year, target.month);
+        if (requestSeq !== homeCalendarRequestSeq) return;
+        calendarYear.value = target.year;
+        calendarMonth.value = target.month;
+        scheduleData.value = days;
+      } catch (e) {
+        if (requestSeq !== homeCalendarRequestSeq) return;
+      } finally {
+        if (requestSeq === homeCalendarRequestSeq) {
+          homeCalendarLoading.value = false;
+        }
       }
-      loadScheduleData();
     }
 
     const calendarTitle = computed(() => {
@@ -1290,7 +1339,7 @@ const app = createApp({
       resetPasswordToken,
       currentUser, currentView, menuOpen, loading, error, success,
       homeSlideFromLeft,
-      calendarYear, calendarMonth, scheduleData, selectedDate, modalOpen, timelineModalOpen,
+      calendarYear, calendarMonth, calendarSlideDirection, homeCalendarLoading, scheduleData, selectedDate, modalOpen, timelineModalOpen,
       dayModalOriginStyle, dayModalAnimating,
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
       staffHomeStaff, staffHomeLoading,

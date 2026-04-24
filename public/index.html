@@ -67,59 +67,61 @@
 
     <!-- Main Content -->
     <template v-else>
-      <!-- Login Page -->
-      <login-page v-if="currentView === 'login'"></login-page>
+      <div v-if="currentView !== 'home'" :key="currentView" class="view-slide-in-right">
+        <!-- Login Page -->
+        <login-page v-if="currentView === 'login'"></login-page>
 
-      <!-- Forgot Password Page -->
-      <forgot-password-page v-if="currentView === 'forgotPassword'"></forgot-password-page>
+        <!-- Forgot Password Page -->
+        <forgot-password-page v-if="currentView === 'forgotPassword'"></forgot-password-page>
 
-      <!-- Reset Password Page -->
-      <reset-password-page v-if="currentView === 'resetPassword'"></reset-password-page>
+        <!-- Reset Password Page -->
+        <reset-password-page v-if="currentView === 'resetPassword'"></reset-password-page>
 
-      <!-- Register Page -->
-      <register-page v-if="currentView === 'register'"></register-page>
+        <!-- Register Page -->
+        <register-page v-if="currentView === 'register'"></register-page>
 
-      <!-- Shop Form -->
-      <shop-form-page v-if="currentView === 'shopForm'"></shop-form-page>
+        <!-- Shop Form -->
+        <shop-form-page v-if="currentView === 'shopForm'"></shop-form-page>
 
-      <!-- User List -->
-      <user-list-page v-if="currentView === 'userList'"></user-list-page>
+        <!-- User List -->
+        <user-list-page v-if="currentView === 'userList'"></user-list-page>
 
-      <!-- Staff Form -->
-      <staff-form-page v-if="currentView === 'staffForm'"></staff-form-page>
+        <!-- Staff Form -->
+        <staff-form-page v-if="currentView === 'staffForm'"></staff-form-page>
 
-      <!-- Shift Form -->
-      <shift-form-page v-if="currentView === 'shiftForm'"></shift-form-page>
+        <!-- Shift Form -->
+        <shift-form-page v-if="currentView === 'shiftForm'"></shift-form-page>
 
-      <!-- Shift Bulk Form -->
-      <shift-bulk-form-page v-if="currentView === 'shiftBulkForm'"></shift-bulk-form-page>
+        <!-- Shift Bulk Form -->
+        <shift-bulk-form-page v-if="currentView === 'shiftBulkForm'"></shift-bulk-form-page>
 
-      <!-- Shift Import Page -->
-      <shift-import-page v-if="currentView === 'shiftImportPage'"></shift-import-page>
+        <!-- Shift Import Page -->
+        <shift-import-page v-if="currentView === 'shiftImportPage'"></shift-import-page>
 
-      <!-- Shift Edit -->
-      <shift-edit-page v-if="currentView === 'shiftEdit'"></shift-edit-page>
+        <!-- Shift Edit -->
+        <shift-edit-page v-if="currentView === 'shiftEdit'"></shift-edit-page>
 
-      <!-- Event Form -->
-      <event-form-page v-if="currentView === 'eventForm'"></event-form-page>
+        <!-- Event Form -->
+        <event-form-page v-if="currentView === 'eventForm'"></event-form-page>
 
-      <!-- My Page -->
-      <my-page v-if="currentView === 'myPage'"></my-page>
+        <!-- My Page -->
+        <my-page v-if="currentView === 'myPage'"></my-page>
 
-      <!-- Map View -->
-      <map-view-page v-if="currentView === 'mapView'"></map-view-page>
+        <!-- Map View -->
+        <map-view-page v-if="currentView === 'mapView'"></map-view-page>
 
-      <!-- Shop Home -->
-      <shop-home-page v-if="currentView === 'shopHome'"></shop-home-page>
+        <!-- Shop Home -->
+        <shop-home-page v-if="currentView === 'shopHome'"></shop-home-page>
 
-      <!-- Staff Home -->
-      <staff-home-page v-if="currentView === 'staffHome'"></staff-home-page>
+        <!-- Staff Home -->
+        <staff-home-page v-if="currentView === 'staffHome'"></staff-home-page>
 
-      <!-- Introduction -->
-      <introduction-page v-if="currentView === 'introduction'"></introduction-page>
+        <!-- Introduction -->
+        <introduction-page v-if="currentView === 'introduction'"></introduction-page>
 
-      <!-- Check-In Rating -->
-      <check-in-rating-page v-if="currentView === 'checkInRating'"></check-in-rating-page>
+        <!-- Check-In Rating -->
+        <check-in-rating-page v-if="currentView === 'checkInRating'"></check-in-rating-page>
+      </div>
 
       <!-- Thank You Modal -->
       <template v-if="thankYouOpen">
@@ -139,22 +141,31 @@
         <!-- Calendar -->
         <div class="calendar-section">
           <div class="calendar-header">
-            <button class="calendar-nav" @click="prevMonth">&laquo; 前月</button>
+            <button class="calendar-nav" @click="prevMonth" :disabled="homeCalendarLoading">&laquo; 前月</button>
             <h2>{{ calendarTitle }}</h2>
-            <button class="calendar-nav" @click="nextMonth">翌月 &raquo;</button>
+            <button class="calendar-nav" @click="nextMonth" :disabled="homeCalendarLoading">翌月 &raquo;</button>
           </div>
+          <div
+            :key="`${calendarYear}-${calendarMonth}`"
+            :class="[
+              'calendar-grid-animated',
+              calendarSlideDirection === 'prev' ? 'calendar-grid-slide-from-left' : '',
+              calendarSlideDirection === 'next' ? 'calendar-grid-slide-from-right' : ''
+            ]"
+          >
             <div class="calendar-grid">
-            <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
-            <div v-for="(cell, idx) in calendarDays" :key="idx"
-                 class="calendar-cell"
-                 :class="{ empty: cell.empty, today: cell.isToday }"
-                 :style="{ background: cell.empty ? 'transparent' : cell.gradient }"
-                 @click="openDayModal(cell, $event)">
-              <template v-if="!cell.empty">
-                <span class="date-num" :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }">{{ cell.day }}</span>
-                <span v-if="cell.seatGauge" class="calendar-seat-gauge">{{ cell.seatGauge }}</span>
-              </template>
-              <span v-if="cell.hasEvents" class="event-crown">👑</span>
+              <div class="calendar-dow" v-for="dow in ['日','月','火','水','木','金','土']" :key="dow">{{ dow }}</div>
+              <div v-for="(cell, idx) in calendarDays" :key="idx"
+                   class="calendar-cell"
+                   :class="{ empty: cell.empty, today: cell.isToday }"
+                   :style="{ background: cell.empty ? 'transparent' : cell.gradient }"
+                   @click="openDayModal(cell, $event)">
+                <template v-if="!cell.empty">
+                  <span class="date-num" :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }">{{ cell.day }}</span>
+                  <span v-if="cell.seatGauge" class="calendar-seat-gauge">{{ cell.seatGauge }}</span>
+                </template>
+                <span v-if="cell.hasEvents" class="event-crown">👑</span>
+              </div>
             </div>
           </div>
         </div>

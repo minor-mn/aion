@@ -227,7 +227,6 @@
     if (!image) return;
     image.src = url;
     modal.classList.add('open');
-    document.body.classList.add('modal-open');
   }
 
   function closeImageModal() {
@@ -236,7 +235,6 @@
     const image = modal.querySelector('img');
     if (image) image.src = '';
     modal.classList.remove('open');
-    document.body.classList.remove('modal-open');
   }
 
   function render(target, options) {

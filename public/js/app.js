@@ -797,6 +797,10 @@ const app = createApp({
       }
     }
 
+    function isXSiteUrl(url) {
+      return !!extractXUsername(url);
+    }
+
     function openSiteUrl(url) {
       if (!url) return;
 
@@ -1296,7 +1300,7 @@ const app = createApp({
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
-      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl,
+      editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl, isXSiteUrl,
       getStaffName, navigate, navigateHomeFromHeader, onHomeSlideAnimationEnd, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
       isSmartPhone,
@@ -1975,7 +1979,7 @@ app.component('staff-home-page', {
             </div>
           </div>
         </div>
-        <div style="margin-top:30px;text-align:left">
+        <div v-if="$root.isXSiteUrl(staff.site_url)" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">最近のポスト</div>
           <div class="recent-tweets-root" :data-staff-id="staff.id" data-limit="3"></div>
         </div>

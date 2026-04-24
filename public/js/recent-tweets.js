@@ -24,6 +24,21 @@
     });
   }
 
+  function isSmartPhone() {
+    const ua = navigator.userAgent || '';
+    const mobileLike = /iPhone|iPod|Android.*Mobile|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(ua);
+    const iPadOSLike = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+    return mobileLike || iPadOSLike;
+  }
+
+  function buildPostLink(post) {
+    if (post.source_post_id) {
+      if (isSmartPhone()) return `twitter://status?id=${encodeURIComponent(post.source_post_id)}`;
+      return `https://x.com/i/web/status/${encodeURIComponent(post.source_post_id)}`;
+    }
+    return post.source_post_url || '';
+  }
+
   function ensureStyles() {
     if (document.getElementById(STYLE_TAG_ID)) return;
     const style = document.createElement('style');
@@ -93,8 +108,9 @@
         <span class="recent-tweets-time">${escapeHtml(postedAt)}</span>
       </div>
     ` : '';
-    const link = post.source_post_url
-      ? `<a class="recent-tweets-link" href="${escapeHtml(post.source_post_url)}" target="_blank" rel="noopener noreferrer">ポストを開く</a>`
+    const postLink = buildPostLink(post);
+    const link = postLink
+      ? `<a class="recent-tweets-link" href="${escapeHtml(postLink)}" target="_blank" rel="noopener noreferrer">ポストを開く</a>`
       : '';
 
     return `

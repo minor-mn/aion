@@ -1979,10 +1979,6 @@ app.component('staff-home-page', {
             </div>
           </div>
         </div>
-        <div v-if="$root.isXSiteUrl(staff.site_url)" style="margin-top:30px;text-align:left">
-          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">最近のポスト</div>
-          <div class="recent-tweets-root" :data-staff-id="staff.id" data-limit="3"></div>
-        </div>
         <div v-if="hasRateSummary" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">みんなの評価</div>
           <table class="rate-summary-table" style="width:100%;border-collapse:collapse">
@@ -2007,6 +2003,10 @@ app.component('staff-home-page', {
             </div>
             <div style="font-size:0.85rem;color:#d6d6e7;line-height:1.6">{{ formatEventRange(event.start_at, event.end_at) }}</div>
           </div>
+        </div>
+        <div v-if="$root.isXSiteUrl(staff.site_url)" style="margin-top:30px;text-align:left">
+          <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">最近のポスト</div>
+          <div class="recent-tweets-root" :data-staff-id="staff.id" data-limit="3"></div>
         </div>
         <div style="margin-top:30px;text-align:left">
           <div class="shop-block" style="background:#1e1e38">

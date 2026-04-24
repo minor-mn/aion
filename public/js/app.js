@@ -418,12 +418,12 @@ const app = createApp({
     async function prevMonth() {
       if (homeCalendarLoading.value) return;
       const target = targetMonth(-1);
-      calendarSlideDirection.value = 'prev';
       const requestSeq = ++homeCalendarRequestSeq;
       homeCalendarLoading.value = true;
       try {
         const days = await fetchScheduleData(target.year, target.month);
         if (requestSeq !== homeCalendarRequestSeq) return;
+        calendarSlideDirection.value = 'prev';
         calendarYear.value = target.year;
         calendarMonth.value = target.month;
         scheduleData.value = days;
@@ -439,12 +439,12 @@ const app = createApp({
     async function nextMonth() {
       if (homeCalendarLoading.value) return;
       const target = targetMonth(1);
-      calendarSlideDirection.value = 'next';
       const requestSeq = ++homeCalendarRequestSeq;
       homeCalendarLoading.value = true;
       try {
         const days = await fetchScheduleData(target.year, target.month);
         if (requestSeq !== homeCalendarRequestSeq) return;
+        calendarSlideDirection.value = 'next';
         calendarYear.value = target.year;
         calendarMonth.value = target.month;
         scheduleData.value = days;

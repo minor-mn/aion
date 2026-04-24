@@ -24,6 +24,13 @@
     });
   }
 
+  function stripTcoUrls(text) {
+    return String(text || '')
+      .replace(/https:\/\/t\.co\/[\w.-]+/g, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim();
+  }
+
   function isSmartPhone() {
     const ua = navigator.userAgent || '';
     const mobileLike = /iPhone|iPod|Android.*Mobile|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(ua);
@@ -125,6 +132,7 @@
   }
 
   function postCard(post) {
+    const displayText = stripTcoUrls(post.raw_text || '');
     const username = post.source_username ? '@' + escapeHtml(post.source_username) : '';
     const postedAt = formatPostedAt(post.source_posted_at);
     const header = username || postedAt ? `
@@ -140,7 +148,7 @@
       : '';
     const content = `
       ${header}
-      <div class="recent-tweets-text">${escapeHtml(post.raw_text || '')}</div>
+      <div class="recent-tweets-text">${escapeHtml(displayText)}</div>
       ${images}
     `;
 

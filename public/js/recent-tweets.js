@@ -2,6 +2,7 @@
   const stateByRoot = new WeakMap();
   const EMPTY_TEXT = '最近のポストはありません';
   const STYLE_TAG_ID = 'recent-tweets-style';
+  const IMAGE_MODAL_ID = 'recent-tweets-image-modal';
 
   function escapeHtml(value) {
     return String(value || '')
@@ -120,6 +121,40 @@
         border-radius: 6px;
         display: block;
         background: #15152a;
+        cursor: zoom-in;
+      }
+      .recent-tweets-image-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 20000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.86);
+        padding: 16px;
+      }
+      .recent-tweets-image-modal.open {
+        display: flex;
+      }
+      .recent-tweets-image-modal img {
+        max-width: min(96vw, 1600px);
+        max-height: 92vh;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+      }
+      .recent-tweets-image-modal-close {
+        position: absolute;
+        top: 10px;
+        right: 14px;
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 28px;
+        line-height: 1;
+        cursor: pointer;
       }
       @media (max-width: 640px) {
         .recent-tweets-card-header {
@@ -161,6 +196,47 @@
       : content;
 
     return `<article class="recent-tweets-card">${body}</article>`;
+  }
+
+  function ensureImageModal() {
+    let modal = document.getElementById(IMAGE_MODAL_ID);
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = IMAGE_MODAL_ID;
+    modal.className = 'recent-tweets-image-modal';
+    modal.innerHTML = `
+      <button type="button" class="recent-tweets-image-modal-close" aria-label="閉じる">&times;</button>
+      <img src="" alt="">
+    `;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal || event.target.classList.contains('recent-tweets-image-modal-close')) {
+        closeImageModal();
+      }
+    });
+
+    return modal;
+  }
+
+  function openImageModal(url) {
+    if (!url) return;
+    const modal = ensureImageModal();
+    const image = modal.querySelector('img');
+    if (!image) return;
+    image.src = url;
+    modal.classList.add('open');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeImageModal() {
+    const modal = document.getElementById(IMAGE_MODAL_ID);
+    if (!modal) return;
+    const image = modal.querySelector('img');
+    if (image) image.src = '';
+    modal.classList.remove('open');
+    document.body.classList.remove('modal-open');
   }
 
   function render(target, options) {
@@ -241,6 +317,7 @@
 
   function init() {
     ensureStyles();
+    ensureImageModal();
     scanRoots();
     const observer = new MutationObserver((mutations) => {
       let shouldRescan = false;
@@ -260,6 +337,18 @@
       subtree: true,
       attributes: true,
       attributeFilter: [ 'data-staff-id', 'data-limit' ]
+    });
+
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.classList.contains('recent-tweets-image')) return;
+      const src = target.getAttribute('src');
+      openImageModal(src);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeImageModal();
     });
   }
 

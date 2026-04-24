@@ -63,6 +63,14 @@
       .recent-tweets-card-link:hover {
         border-color: #59598a;
       }
+      .recent-tweets-body-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+      }
+      .recent-tweets-body-link:hover {
+        opacity: 0.95;
+      }
       .recent-tweets-card-header {
         display: flex;
         align-items: center;
@@ -89,13 +97,18 @@
       }
       .recent-tweets-images {
         margin-top: 10px;
-        display: grid;
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
         gap: 8px;
+        padding-bottom: 2px;
       }
       .recent-tweets-image {
-        width: 100%;
-        max-width: 100%;
-        max-height: 300px;
+        width: auto;
+        height: auto;
+        max-width: 220px;
+        max-height: 220px;
+        flex: 0 0 auto;
         object-fit: contain;
         border-radius: 6px;
         display: block;
@@ -131,15 +144,11 @@
       ${images}
     `;
 
-    if (postLink) {
-      return `
-        <a class="recent-tweets-card recent-tweets-card-link" href="${escapeHtml(postLink)}" target="_blank" rel="noopener noreferrer">
-          ${content}
-        </a>
-      `;
-    }
+    const body = postLink
+      ? `<a class="recent-tweets-body-link" href="${escapeHtml(postLink)}" target="_blank" rel="noopener noreferrer">${content}</a>`
+      : content;
 
-    return `<article class="recent-tweets-card">${content}</article>`;
+    return `<article class="recent-tweets-card">${body}</article>`;
   }
 
   function render(target, options) {

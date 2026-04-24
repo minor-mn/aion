@@ -55,6 +55,14 @@
         background: #1e1e38;
         padding: 12px 14px;
       }
+      .recent-tweets-card-link {
+        display: block;
+        color: inherit;
+        text-decoration: none;
+      }
+      .recent-tweets-card-link:hover {
+        border-color: #59598a;
+      }
       .recent-tweets-card-header {
         display: flex;
         align-items: center;
@@ -79,16 +87,6 @@
         white-space: pre-wrap;
         word-break: break-word;
       }
-      .recent-tweets-link {
-        display: inline-block;
-        margin-top: 10px;
-        font-size: 0.82rem;
-        color: #a29bfe;
-        text-decoration: none;
-      }
-      .recent-tweets-link:hover {
-        text-decoration: underline;
-      }
       @media (max-width: 640px) {
         .recent-tweets-card-header {
           flex-wrap: wrap;
@@ -109,17 +107,20 @@
       </div>
     ` : '';
     const postLink = buildPostLink(post);
-    const link = postLink
-      ? `<a class="recent-tweets-link" href="${escapeHtml(postLink)}" target="_blank" rel="noopener noreferrer">ポストを開く</a>`
-      : '';
-
-    return `
-      <article class="recent-tweets-card">
-        ${header}
-        <div class="recent-tweets-text">${escapeHtml(post.raw_text || '')}</div>
-        ${link}
-      </article>
+    const content = `
+      ${header}
+      <div class="recent-tweets-text">${escapeHtml(post.raw_text || '')}</div>
     `;
+
+    if (postLink) {
+      return `
+        <a class="recent-tweets-card recent-tweets-card-link" href="${escapeHtml(postLink)}" target="_blank" rel="noopener noreferrer">
+          ${content}
+        </a>
+      `;
+    }
+
+    return `<article class="recent-tweets-card">${content}</article>`;
   }
 
   function render(target, options) {

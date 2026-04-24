@@ -146,5 +146,67 @@ RSpec.describe ShiftImports::ImportFromXList do
       expect(StaffShift.where(id: first_shift.id)).to be_empty
       expect(StaffShift.order(:start_at).first.start_at.to_i).to eq(Time.zone.parse("2026-04-23 12:00").to_i)
     end
+
+    it "defaults end_at to 23:00 when start time is 17-18 and end time is missing" do
+      allow(parser).to receive(:parse_post).and_return(
+        {
+          "shop_name" => "Test Shop",
+          "staff_name" => "Staff A",
+          "actions" => [
+            {
+              "action" => "add",
+              "date" => "2026-04-26",
+              "start_time" => "18:00",
+              "end_time" => nil
+            }
+          ]
+        }
+      )
+
+      result = service.send(
+        :import_tweet,
+        { "id" => "1004", "text" => "26日の18:00~お給仕", "created_at" => "2026-04-21T07:00:00Z" },
+        media_by_key: {},
+        username: "staff_a",
+        staff: staff,
+        shop: shop
+      )
+
+      expect(result).to eq(imported_count: 1, had_errors: false)
+      shift = StaffShift.order(:id).last
+      expect(shift.start_at.to_i).to eq(Time.zone.parse("2026-04-26 18:00").to_i)
+      expect(shift.end_at.to_i).to eq(Time.zone.parse("2026-04-26 23:00").to_i)
+    end
+
+    it "defaults end_at to next day 05:00 when start time is 20:00 or later and end time is missing" do
+      allow(parser).to receive(:parse_post).and_return(
+        {
+          "shop_name" => "Test Shop",
+          "staff_name" => "Staff A",
+          "actions" => [
+            {
+              "action" => "add",
+              "date" => "2026-04-26",
+              "start_time" => "20:30",
+              "end_time" => nil
+            }
+          ]
+        }
+      )
+
+      result = service.send(
+        :import_tweet,
+        { "id" => "1005", "text" => "26日の20:30~お給仕", "created_at" => "2026-04-21T07:00:00Z" },
+        media_by_key: {},
+        username: "staff_a",
+        staff: staff,
+        shop: shop
+      )
+
+      expect(result).to eq(imported_count: 1, had_errors: false)
+      shift = StaffShift.order(:id).last
+      expect(shift.start_at.to_i).to eq(Time.zone.parse("2026-04-26 20:30").to_i)
+      expect(shift.end_at.to_i).to eq(Time.zone.parse("2026-04-27 05:00").to_i)
+    end
   end
 end

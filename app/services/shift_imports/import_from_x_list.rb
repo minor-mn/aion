@@ -218,6 +218,7 @@ module ShiftImports
           post_id: post_id,
           post_url: post_url,
           posted_at: posted_at,
+          image_urls: image_urls,
           username: username,
           parsed: parsed,
           shop: shop,
@@ -279,12 +280,29 @@ module ShiftImports
     def build_times(action_data, normalized_action)
       date = action_data.fetch("date")
       start_at = Time.zone.parse("#{date} #{action_data['start_time'].presence || '00:00'}")
-      end_at = if normalized_action != "delete" && action_data["end_time"].present?
-        parsed_end_at = Time.zone.parse("#{date} #{action_data['end_time']}")
-        parsed_end_at += 1.day if parsed_end_at <= start_at
-        parsed_end_at
+      end_at = nil
+
+      if normalized_action != "delete"
+        if action_data["end_time"].present?
+          end_at = Time.zone.parse("#{date} #{action_data['end_time']}")
+          end_at += 1.day if end_at <= start_at
+        else
+          end_at = default_end_at_for(start_at)
+        end
       end
+
       [ start_at, end_at ]
+    end
+
+    def default_end_at_for(start_at)
+      if (17..18).cover?(start_at.hour)
+        return Time.zone.parse("#{start_at.to_date} 23:00")
+      end
+      if start_at.hour >= 20
+        return Time.zone.parse("#{start_at.to_date} 05:00") + 1.day
+      end
+
+      nil
     end
 
     def normalize_action(value)
@@ -312,7 +330,7 @@ module ShiftImports
       end
     end
 
-    def build_candidate(action:, raw_text:, post_id:, post_url:, posted_at:, username:, parsed:, shop:, staff:, start_at:, end_at:)
+    def build_candidate(action:, raw_text:, post_id:, post_url:, posted_at:, image_urls:, username:, parsed:, shop:, staff:, start_at:, end_at:)
       ShiftImportCandidate.new(
         action: action,
         shop: shop,

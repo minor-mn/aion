@@ -44,5 +44,5 @@ start_process() {
   return 1
 }
 
-start_process "rails server" "$SERVER_PID_FILE" "$SERVER_LOG_FILE" bundle exec rails s -b 127.0.0.1
+start_process "puma" "$SERVER_PID_FILE" "$SERVER_LOG_FILE" bundle exec puma -C config/puma.rb
 start_process "jobs" "$JOBS_PID_FILE" "$JOBS_LOG_FILE" bundle exec bin/jobs

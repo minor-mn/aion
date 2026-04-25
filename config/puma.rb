@@ -31,7 +31,6 @@ threads threads_count, threads_count
 # In production with nginx, bind to unix socket for better performance.
 if ENV["RAILS_ENV"] == "production" && ENV["PUMA_BIND"]
   bind ENV["PUMA_BIND"]
-  umask 0000
 else
   port ENV.fetch("PORT", 3000)
 end

@@ -4,7 +4,7 @@ set -euo pipefail
 APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_ROOT"
 
-mkdir -p log tmp/pids
+mkdir -p log tmp/pids tmp/sockets
 touch log/server.log log/jobs.log
 
 SERVER_PID_FILE="tmp/pids/rails_server.pid"

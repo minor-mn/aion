@@ -254,9 +254,9 @@
                         <br>
                         <a
                           v-if="staff.seat_score_url"
-                          :href="staff.seat_score_url"
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          :href="seatScoreUrlForDevice(staff.seat_score_url)"
+                          :target="seatScoreLinkTarget(staff.seat_score_url)"
+                          :rel="seatScoreLinkRel(staff.seat_score_url)"
                           style="color:inherit;text-decoration:none"
                         >{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</a>
                         <template v-else>{{ formatSeatGauge(activeSeatScoreForStaff(staff)) }}</template>

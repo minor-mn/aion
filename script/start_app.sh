@@ -4,7 +4,7 @@ set -euo pipefail
 APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_ROOT"
 
-mkdir -p log tmp/pids
+mkdir -p log tmp/pids tmp/sockets
 touch log/server.log log/jobs.log
 
 SERVER_PID_FILE="tmp/pids/rails_server.pid"
@@ -44,5 +44,5 @@ start_process() {
   return 1
 }
 
-start_process "rails server" "$SERVER_PID_FILE" "$SERVER_LOG_FILE" bundle exec rails s -b 127.0.0.1
+start_process "rails server" "$SERVER_PID_FILE" "$SERVER_LOG_FILE" bundle exec rails s
 start_process "jobs" "$JOBS_PID_FILE" "$JOBS_LOG_FILE" bundle exec bin/jobs

@@ -247,9 +247,28 @@ const app = createApp({
     }
 
     async function fetchScheduleData(year, month) {
+      const formatClientDateTime = (date) => {
+        const pad = (n) => String(n).padStart(2, '0');
+        const y = date.getFullYear();
+        const m = pad(date.getMonth() + 1);
+        const d = pad(date.getDate());
+        const hh = pad(date.getHours());
+        const mm = pad(date.getMinutes());
+        const ss = pad(date.getSeconds());
+        const tz = -date.getTimezoneOffset();
+        const sign = tz >= 0 ? '+' : '-';
+        const tzAbs = Math.abs(tz);
+        const tzH = pad(Math.floor(tzAbs / 60));
+        const tzM = pad(tzAbs % 60);
+        return `${y}-${m}-${d}T${hh}:${mm}:${ss}${sign}${tzH}:${tzM}`;
+      };
+
       const start = new Date(year, month, 1);
       const end = new Date(year, month + 1, 0, 23, 59, 59);
-      const data = await API.getSchedules(start.toISOString(), end.toISOString());
+      const data = await API.getSchedules(
+        formatClientDateTime(start),
+        formatClientDateTime(end)
+      );
       return data.days || [];
     }
 
@@ -316,12 +335,11 @@ const app = createApp({
       shopHomeStaffs.value = [];
       shopHomeEvents.value = [];
       try {
-        const [shopsData, staffsData] = await Promise.all([
-          API.getShops(),
+        const [shopData, staffsData] = await Promise.all([
+          API.getShop(shopId),
           API.getStaffs(shopId)
         ]);
-        const allShops = shopsData.shops || [];
-        shopHomeShop.value = allShops.find(shop => shop.id == shopId) || null;
+        shopHomeShop.value = shopData || null;
         shopHomeStaffs.value = staffsData.staffs || [];
       } catch (e) {
         shopHomeShop.value = null;
@@ -1111,9 +1129,6 @@ const app = createApp({
       if (view === 'home') { loadHomeData(true); window.scrollTo(0, 0); }
       if (view === 'shiftEdit') { loadShops(); }
       if (view === 'mapView') { loadShops(); }
-      if (view === 'eventForm') { loadShops(); }
-      if (view === 'shiftBulkForm') { loadShops(); loadStaffs(); }
-      if (view === 'shiftImportPage') { loadShops(); loadStaffs(); }
     }
 
     function navigateHomeFromHeader() {
@@ -1239,13 +1254,11 @@ const app = createApp({
       const staffMatch = hash.match(/^staff-(\d+)$/);
       if (staffMatch) {
         const staffId = Number(staffMatch[1]);
-        if (currentView.value !== 'staffHome' || staffHomeStaff.value?.id !== staffId) {
-          currentView.value = 'staffHome';
-          menuOpen.value = false;
-          error.value = '';
-          success.value = '';
-          loadStaffHome(staffId);
-        }
+        currentView.value = 'staffHome';
+        menuOpen.value = false;
+        error.value = '';
+        success.value = '';
+        loadStaffHome(staffId);
         return;
       }
       const view = hashToView[hash];
@@ -1567,6 +1580,7 @@ app.component('shop-home-page', {
       calendarSlideDirection: null,
       monthSwitching: false,
       preferences: {},
+      preferencesLoadedForShopId: null,
       draggingStaffId: null,
       draggingValue: 0,
       tooltipStyle: {},
@@ -1707,8 +1721,8 @@ app.component('shop-home-page', {
       }
 
       try {
-        const data = await API.getNowSchedule();
-        const targetShop = (data.shops || []).find(s => Number(s.shop_id) === Number(this.shop.id));
+        const data = await API.getNowSchedule(this.shop.id);
+        const targetShop = (data.shops || [])[0];
         this.mapPopupEvents = targetShop?.events || [];
         this.mapPopupStaffs = targetShop?.staffs || [];
       } catch (e) {
@@ -1757,7 +1771,14 @@ app.component('shop-home-page', {
       return this.preferences[staffId] !== undefined ? this.preferences[staffId] : 0;
     },
     async loadPreferences() {
-      if (!this.$root.currentUser) return;
+      if (!this.$root.currentUser) {
+        this.preferences = {};
+        this.preferencesLoadedForShopId = null;
+        return;
+      }
+      const shopId = Number(this.shop?.id || 0);
+      if (!shopId) return;
+      if (this.preferencesLoadedForShopId === shopId) return;
       try {
         const data = await API.getPreferences();
         const prefs = {};
@@ -1765,6 +1786,7 @@ app.component('shop-home-page', {
           prefs[p.staff_id] = p.score;
         }
         this.preferences = prefs;
+        this.preferencesLoadedForShopId = shopId;
       } catch (e) { /* ignore */ }
     },
     onSliderInput(staffId, event) {
@@ -2220,21 +2242,22 @@ app.component('staff-home-page', {
     }
   },
   watch: {
-    staff() {
+    staff: {
+      immediate: true,
+      handler() {
+      if (!this.staff) {
+        this.preference = 0;
+        return;
+      }
       const today = new Date();
       this.calendarYear = today.getFullYear();
       this.calendarMonth = today.getMonth();
+      this.preference = Number(this.staff.staff_preference_score ?? 0);
       this.$nextTick(() => {
         this.loadCalendarData();
-        this.loadPreference();
       });
+      }
     }
-  },
-  mounted() {
-    this.$nextTick(() => {
-      this.loadCalendarData();
-      this.loadPreference();
-    });
   },
   methods: {
     starsFor(field) {
@@ -2282,14 +2305,6 @@ app.component('staff-home-page', {
       return Object.entries(dayEntries).map(([date, entry]) => ({
         date, label: entry.labels.join('\n'), shifts: entry.shifts
       }));
-    },
-    async loadPreference() {
-      if (!this.$root.currentUser || !this.staff?.id) return;
-      try {
-        const data = await API.getPreferences();
-        const pref = (data.staff_preferences || []).find(p => p.staff_id == this.staff.id);
-        this.preference = pref ? pref.score : 0;
-      } catch (e) { /* ignore */ }
     },
     onSliderInput(event) {
       const val = parseInt(event.target.value);

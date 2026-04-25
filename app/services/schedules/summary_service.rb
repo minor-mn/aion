@@ -1,9 +1,10 @@
-module Schedules
+  module Schedules
   class SummaryService
-    def initialize(user:, datetime_begin:, datetime_end:)
+    def initialize(user:, datetime_begin:, datetime_end:, shop_id: nil)
       @user = user
       @datetime_begin_param = datetime_begin
       @datetime_end_param = datetime_end
+      @shop_id = parse_shop_id(shop_id)
     end
 
     def call
@@ -28,6 +29,7 @@ module Schedules
           .where("start_at <= ? AND end_at >= ?", datetime_end, datetime_begin)
           .includes(:shop, staff: :shop)
       end
+      shifts = shifts.where(shop_id: @shop_id) if @shop_id
 
       # Filter out orphaned shifts (staff or shop deleted)
       shifts = shifts.select { |sh| sh.staff.present? && sh.staff.shop.present? }
@@ -126,5 +128,12 @@ module Schedules
       return nil if param.blank?
       Time.zone.parse(param)
     end
+
+    def parse_shop_id(param)
+      return nil if param.blank?
+      Integer(param, 10)
+    rescue ArgumentError, TypeError
+      raise ParameterError, "Invalid shop_id"
+    end
   end
-end
+  end

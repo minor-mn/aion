@@ -5,7 +5,8 @@ class V1::SchedulesController < ApplicationController
     service = Schedules::SummaryService.new(
       user: current_user,
       datetime_begin: params[:datetime_begin],
-      datetime_end: params[:datetime_end]
+      datetime_end: params[:datetime_end],
+      shop_id: params[:shop_id]
     )
     days = service.call
     render json: { days: days }, status: :ok
@@ -14,13 +15,13 @@ class V1::SchedulesController < ApplicationController
   end
 
   def today
-    service = Schedules::TodayService.new(user: current_user)
+    service = Schedules::TodayService.new(user: current_user, shop_id: params[:shop_id])
     shops = service.call
     render json: { shops: shops }, status: :ok
   end
 
   def now
-    service = Schedules::NowService.new(user: current_user)
+    service = Schedules::NowService.new(user: current_user, shop_id: params[:shop_id])
     shops = service.call
     render json: { shops: shops }, status: :ok
   end

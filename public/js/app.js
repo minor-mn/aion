@@ -470,6 +470,8 @@ const app = createApp({
       timelineModalOpen.value = false;
       timelinePopup.value = null;
       document.body.classList.remove('modal-open');
+      staffHomeLoading.value = true;
+      staffHomeStaff.value = null;
       currentView.value = 'staffHome';
       error.value = '';
       success.value = '';
@@ -922,6 +924,8 @@ const app = createApp({
       timelineModalOpen.value = false;
       timelinePopup.value = null;
       document.body.classList.remove('modal-open');
+      shopHomeLoading.value = true;
+      shopHomeShop.value = null;
       currentView.value = 'shopHome';
       error.value = '';
       success.value = '';

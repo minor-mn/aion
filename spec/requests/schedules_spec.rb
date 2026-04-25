@@ -62,7 +62,6 @@ RSpec.describe "Schedules", type: :request do
       raw_text: "おせきあります 💺"
     )
   end
-
   let!(:headers) do
     post "/users/sign_in", params: {
       user: {
@@ -92,6 +91,31 @@ RSpec.describe "Schedules", type: :request do
       expect(body["days"].first["staffs"].find { |staff| staff["name"] == "Bob" }["seat_score"]).to eq(0)
       expect(body["days"].map { |day| day["date"] }).to eq([ "2024-05-01", "2024-05-02", "2024-05-03" ])
       expect(body["days"].map { |day| day["events"].map { |event| event["id"] } }).to eq([ [ multi_day_event.id ], [ multi_day_event.id ], [ multi_day_event.id ] ])
+    end
+
+    it "filters staffs by shop_id when provided" do
+      other_shop = Shop.create!(name: "Other Shop")
+      other_staff = Staff.create!(name: "Zed", shop_id: other_shop.id)
+      StaffPreference.create!(user: user, staff: other_staff, score: 4)
+      StaffShift.create!(
+        staff: other_staff,
+        shop_id: other_shop.id,
+        start_at: Time.zone.parse("2024-05-01 17:00"),
+        end_at: Time.zone.parse("2024-05-01 23:00")
+      )
+
+      get "/v1/schedules", params: {
+        datetime_begin: "2024-05-01T00:00:00",
+        datetime_end: "2024-05-01T23:59:59",
+        shop_id: shop.id
+      }, headers: headers
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      staffs = body.fetch("days").flat_map { |day| day.fetch("staffs") }
+      expect(staffs.map { |staff| staff["shop_id"] }.uniq).to eq([ shop.id ])
+      expect(staffs.map { |staff| staff["name"] }).to include("Alice", "Bob")
+      expect(staffs.map { |staff| staff["name"] }).not_to include("Zed")
     end
   end
 end

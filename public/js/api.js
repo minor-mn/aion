@@ -97,6 +97,10 @@ const API = {
     return this.request('GET', '/v1/shops');
   },
 
+  getShop(id) {
+    return this.request('GET', `/v1/shops/${id}`);
+  },
+
   createShop(data) {
     return this.request('POST', '/v1/shops', data);
   },
@@ -200,8 +204,9 @@ const API = {
     return this.request('GET', '/v1/schedules/today');
   },
 
-  getNowSchedule() {
-    return this.request('GET', '/v1/schedules/now');
+  getNowSchedule(shopId = null) {
+    const query = shopId ? `?shop_id=${shopId}` : '';
+    return this.request('GET', `/v1/schedules/now${query}`);
   },
 
   getSchedules(datetimeBegin, datetimeEnd) {

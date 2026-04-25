@@ -1,7 +1,8 @@
 module Schedules
   class TodayService
-    def initialize(user:)
+    def initialize(user:, shop_id: nil)
       @user = user
+      @shop_id = parse_shop_id(shop_id)
     end
 
     def call
@@ -11,6 +12,7 @@ module Schedules
       shifts = StaffShift
         .where(start_at: today_begin..today_end)
         .includes(staff: :shop)
+      shifts = shifts.where(shop_id: @shop_id) if @shop_id
 
       # Filter out orphaned shifts (staff or shop deleted)
       shifts = shifts.select { |sh| sh.staff.present? && sh.staff.shop.present? }
@@ -27,6 +29,7 @@ module Schedules
       # Load today's events
       events = Event.where("(start_at BETWEEN ? AND ?) OR (end_at BETWEEN ? AND ?) OR (start_at <= ? AND end_at >= ?)",
         today_begin, today_end, today_begin, today_end, today_begin, today_end)
+      events = events.where(shop_id: @shop_id) if @shop_id
 
       events_by_shop = events.group_by(&:shop_id)
 
@@ -66,6 +69,15 @@ module Schedules
           events: shop_events
         }
       end.sort_by { |g| [ g[:staffs].first[:start_at], g[:shop_name].to_s ] }
+    end
+
+    private
+
+    def parse_shop_id(param)
+      return nil if param.blank?
+      Integer(param, 10)
+    rescue ArgumentError, TypeError
+      raise ParameterError, "Invalid shop_id"
     end
   end
 end

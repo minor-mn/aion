@@ -850,6 +850,36 @@ const app = createApp({
       return !!extractXUsername(url);
     }
 
+    function extractXStatusId(rawUrl) {
+      if (!rawUrl) return null;
+      try {
+        const url = new URL(rawUrl);
+        const host = url.hostname.toLowerCase();
+        const xHosts = [ "x.com", "www.x.com", "twitter.com", "www.twitter.com", "mobile.x.com", "mobile.twitter.com" ];
+        if (!xHosts.includes(host)) return null;
+        const match = url.pathname.match(/\/status\/(\d+)/);
+        return match ? match[1] : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function seatScoreUrlForDevice(url) {
+      if (!url) return '';
+      if (!isSmartPhone()) return url;
+      const statusId = extractXStatusId(url);
+      return statusId ? `twitter://status?id=${encodeURIComponent(statusId)}` : url;
+    }
+
+    function seatScoreLinkTarget(url) {
+      const targetUrl = seatScoreUrlForDevice(url);
+      return /^https?:\/\//.test(targetUrl) ? '_blank' : null;
+    }
+
+    function seatScoreLinkRel(url) {
+      return seatScoreLinkTarget(url) ? 'noopener noreferrer' : null;
+    }
+
     function openSiteUrl(url) {
       if (!url) return;
 
@@ -1350,6 +1380,7 @@ const app = createApp({
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
       editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl, isXSiteUrl,
+      seatScoreUrlForDevice, seatScoreLinkTarget, seatScoreLinkRel,
       getStaffName, navigate, navigateHomeFromHeader, onHomeSlideAnimationEnd, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
       loadScheduleData, loadTodayData,
       isSmartPhone,

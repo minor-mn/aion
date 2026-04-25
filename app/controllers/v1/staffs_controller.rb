@@ -13,17 +13,15 @@ class V1::StaffsController < ApplicationController
   end
 
   def show
-    json = staff.as_json.merge(shop_name: staff.shop&.name, staff_preference_score: nil)
+    json = staff.as_json.merge(shop_name: staff.shop&.name)
     if current_user
       tr = TotalRate.find_by(staff_id: staff.id, year: Time.current.year)
-      pref = StaffPreference.find_by(user_id: current_user.id, staff_id: staff.id)
       json.merge!(
         overall_rate_total: tr&.total_overall_rate.to_i,
         appearance_rate_total: tr&.total_appearance_rate.to_i,
         service_rate_total: tr&.total_service_rate.to_i,
         mood_rate_total: tr&.total_mood_rate.to_i,
-        check_in_count: tr&.check_in_count.to_i,
-        staff_preference_score: pref&.score
+        check_in_count: tr&.check_in_count.to_i
       )
     end
     render json: json

@@ -51,15 +51,6 @@ RSpec.describe "Staffs", type: :request do
       get "/v1/staffs/#{staff.id}", params: { shop_id: shop.id }
       expect(response).to have_http_status(:ok)
       expect(JSON.parse(response.body)["name"]).to eq("Existing Staff")
-      expect(JSON.parse(response.body)["staff_preference_score"]).to be_nil
-    end
-
-    it "returns current user's staff preference score when signed in" do
-      StaffPreference.create!(user: basic_user, staff: staff, score: 4)
-
-      get "/v1/staffs/#{staff.id}", params: { shop_id: shop.id }, headers: basic_auth_headers
-      expect(response).to have_http_status(:ok)
-      expect(JSON.parse(response.body)["staff_preference_score"]).to eq(4)
     end
   end
 

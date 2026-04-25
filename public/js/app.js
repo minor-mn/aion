@@ -2,6 +2,7 @@ const { createApp, ref, reactive, computed, onMounted, onBeforeUnmount, nextTick
 const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
+const STAFF_PREFERENCES_CACHE_VERSION = 1;
 
 // ========== 日本の祝日判定 ==========
 function getNthMonday(year, month, n) {
@@ -186,7 +187,10 @@ const app = createApp({
         currentView.value = 'home';
         history.replaceState(null, '', window.location.pathname + window.location.search);
         success.value = 'サインインしました';
-        await loadHomeData(true);
+        await Promise.all([
+          loadHomeData(true),
+          loadStaffPreferences(true)
+        ]);
         loadConfig();
         loadActiveCheckIn();
       } catch (e) {
@@ -329,6 +333,80 @@ const app = createApp({
       }
     }
 
+    function staffPreferencesStorageKey() {
+      const userId = Number(currentUser.value?.id || 0);
+      if (!userId) return null;
+      return `staff_preferences:v${STAFF_PREFERENCES_CACHE_VERSION}:user:${userId}`;
+    }
+
+    function readCachedStaffPreferences() {
+      const key = staffPreferencesStorageKey();
+      if (!key) return null;
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || !parsed.by_staff_id || typeof parsed.by_staff_id !== 'object') {
+          return null;
+        }
+        return parsed.by_staff_id;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function writeCachedStaffPreferences(byStaffId) {
+      const key = staffPreferencesStorageKey();
+      if (!key) return;
+      const normalized = {};
+      for (const [staffId, score] of Object.entries(byStaffId || {})) {
+        normalized[String(staffId)] = Number(score) || 0;
+      }
+      try {
+        localStorage.setItem(key, JSON.stringify({
+          by_staff_id: normalized,
+          updated_at: new Date().toISOString()
+        }));
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    function normalizeStaffPreferencesResponse(data) {
+      const prefs = {};
+      for (const p of (data?.staff_preferences || [])) {
+        if (p?.staff_id == null) continue;
+        prefs[String(p.staff_id)] = Number(p.score) || 0;
+      }
+      return prefs;
+    }
+
+    async function loadStaffPreferences(force = false) {
+      if (!currentUser.value) return {};
+
+      const cached = readCachedStaffPreferences();
+      if (!force && cached) return cached;
+
+      try {
+        const data = await API.getPreferences();
+        const prefs = normalizeStaffPreferencesResponse(data);
+        writeCachedStaffPreferences(prefs);
+        return readCachedStaffPreferences() || {};
+      } catch (e) {
+        return cached || {};
+      }
+    }
+
+    async function setStaffPreference(staffId, score) {
+      const targetStaffId = Number(staffId);
+      const targetScore = Number(score) || 0;
+      await API.setPreference(targetStaffId, targetScore);
+      const currentPrefs = readCachedStaffPreferences() || {};
+      currentPrefs[String(targetStaffId)] = targetScore;
+      writeCachedStaffPreferences(currentPrefs);
+      return currentPrefs;
+    }
+
     async function loadShopHome(shopId) {
       shopHomeLoading.value = true;
       shopHomeShop.value = null;
@@ -392,6 +470,8 @@ const app = createApp({
       timelineModalOpen.value = false;
       timelinePopup.value = null;
       document.body.classList.remove('modal-open');
+      staffHomeLoading.value = true;
+      staffHomeStaff.value = null;
       currentView.value = 'staffHome';
       error.value = '';
       success.value = '';
@@ -844,6 +924,8 @@ const app = createApp({
       timelineModalOpen.value = false;
       timelinePopup.value = null;
       document.body.classList.remove('modal-open');
+      shopHomeLoading.value = true;
+      shopHomeShop.value = null;
       currentView.value = 'shopHome';
       error.value = '';
       success.value = '';
@@ -1340,6 +1422,7 @@ const app = createApp({
 
       await checkAuth();
       if (currentUser.value) {
+        loadStaffPreferences(true);
         loadConfig();
         loadActiveCheckIn();
       }
@@ -1395,6 +1478,7 @@ const app = createApp({
       editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl, isXSiteUrl,
       seatScoreUrlForDevice, seatScoreLinkTarget, seatScoreLinkRel,
       getStaffName, navigate, navigateHomeFromHeader, onHomeSlideAnimationEnd, loadShops, loadStaffs, loadUsers, loadShopHome, loadStaffHome, loadHomeData,
+      loadStaffPreferences, setStaffPreference,
       loadScheduleData, loadTodayData,
       isSmartPhone,
       scoreToGradient, formatEventTimeRange, formatSeatGauge, activeSeatScoreForStaff,
@@ -1580,7 +1664,6 @@ app.component('shop-home-page', {
       calendarSlideDirection: null,
       monthSwitching: false,
       preferences: {},
-      preferencesLoadedForShopId: null,
       draggingStaffId: null,
       draggingValue: 0,
       tooltipStyle: {},
@@ -1773,20 +1856,10 @@ app.component('shop-home-page', {
     async loadPreferences() {
       if (!this.$root.currentUser) {
         this.preferences = {};
-        this.preferencesLoadedForShopId = null;
         return;
       }
-      const shopId = Number(this.shop?.id || 0);
-      if (!shopId) return;
-      if (this.preferencesLoadedForShopId === shopId) return;
       try {
-        const data = await API.getPreferences();
-        const prefs = {};
-        for (const p of (data.staff_preferences || [])) {
-          prefs[p.staff_id] = p.score;
-        }
-        this.preferences = prefs;
-        this.preferencesLoadedForShopId = shopId;
+        this.preferences = await this.$root.loadStaffPreferences();
       } catch (e) { /* ignore */ }
     },
     onSliderInput(staffId, event) {
@@ -1815,7 +1888,7 @@ app.component('shop-home-page', {
     },
     async savePreference(staffId, score) {
       try {
-        await API.setPreference(staffId, parseInt(score));
+        this.preferences = await this.$root.setStaffPreference(staffId, parseInt(score));
       } catch (e) { /* ignore */ }
     },
     formatEventRange(startAt, endAt) {
@@ -2244,18 +2317,29 @@ app.component('staff-home-page', {
   watch: {
     staff: {
       immediate: true,
-      handler() {
-      if (!this.staff) {
-        this.preference = 0;
-        return;
-      }
-      const today = new Date();
-      this.calendarYear = today.getFullYear();
-      this.calendarMonth = today.getMonth();
-      this.preference = Number(this.staff.staff_preference_score ?? 0);
-      this.$nextTick(() => {
-        this.loadCalendarData();
-      });
+      async handler() {
+        if (!this.staff) {
+          this.preference = 0;
+          return;
+        }
+        const today = new Date();
+        this.calendarYear = today.getFullYear();
+        this.calendarMonth = today.getMonth();
+
+        let initialPreference = Number(this.staff.staff_preference_score ?? 0);
+        if (this.$root.currentUser) {
+          try {
+            const cached = await this.$root.loadStaffPreferences();
+            const cachedValue = cached?.[String(this.staff.id)];
+            if (cachedValue !== undefined) initialPreference = Number(cachedValue) || 0;
+          } catch (e) {
+            // ignore
+          }
+        }
+        this.preference = initialPreference;
+        this.$nextTick(() => {
+          this.loadCalendarData();
+        });
       }
     }
   },
@@ -2332,7 +2416,7 @@ app.component('staff-home-page', {
     },
     async savePreference(score) {
       try {
-        await API.setPreference(this.staff.id, parseInt(score));
+        await this.$root.setStaffPreference(this.staff.id, parseInt(score));
       } catch (e) { /* ignore */ }
     },
     formatShiftTime(shift) {
@@ -3297,12 +3381,7 @@ app.component('staff-form-page', {
     async loadPreferences() {
       if (!this.$root.currentUser) return;
       try {
-        const data = await API.getPreferences();
-        const prefs = {};
-        for (const p of (data.staff_preferences || [])) {
-          prefs[p.staff_id] = p.score;
-        }
-        this.preferences = prefs;
+        this.preferences = await this.$root.loadStaffPreferences();
       } catch (e) {
         // ignore
       }
@@ -3333,7 +3412,7 @@ app.component('staff-form-page', {
     },
     async savePreference(staffId, score) {
       try {
-        await API.setPreference(staffId, parseInt(score));
+        this.preferences = await this.$root.setStaffPreference(staffId, parseInt(score));
       } catch (e) {
         this.localError = 'スコアの設定に失敗しました';
       }

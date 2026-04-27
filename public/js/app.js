@@ -192,7 +192,7 @@ const app = createApp({
         success.value = 'サインインしました';
         await Promise.all([
           loadHomeData(true),
-          loadStaffPreferences(true)
+          loadStaffPreferences()
         ]);
         loadConfig();
       } catch (e) {
@@ -1454,7 +1454,7 @@ const app = createApp({
 
       await checkAuth();
       if (currentUser.value) {
-        loadStaffPreferences(true);
+        loadStaffPreferences();
         loadConfig();
       }
 

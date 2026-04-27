@@ -64,6 +64,7 @@ const app = createApp({
   setup() {
     // ========== State ==========
     const currentUser = ref(null);
+    const authResolved = ref(false);
     const currentView = ref('home'); // home, login, register, forgotPassword, resetPassword, shopForm, staffForm, shiftForm, shiftImportPage, shiftBulkForm, shiftEdit
     const resetPasswordToken = ref(null);
     const menuOpen = ref(false);
@@ -148,6 +149,7 @@ const app = createApp({
     function checkAuth() {
       if (!API.isLoggedIn()) {
         loading.value = false;
+        authResolved.value = true;
         return;
       }
       const payload = decodeJwtPayload(API.token);
@@ -163,6 +165,7 @@ const app = createApp({
         currentUser.value = null;
       }
       loading.value = false;
+      authResolved.value = true;
     }
 
     async function handleLogin(email, password) {
@@ -1463,7 +1466,7 @@ const app = createApp({
     return {
       registerPushSubscription, unregisterPushSubscription,
       resetPasswordToken,
-      currentUser, currentView, menuOpen, loading, error, success,
+      currentUser, currentView, menuOpen, loading, authResolved, error, success,
       homeSlideFromLeft,
       calendarYear, calendarMonth, calendarSlideDirection, homeCalendarLoading, scheduleData, selectedDate, modalOpen, timelineModalOpen,
       dayModalOriginStyle, dayModalAnimating,

@@ -33,8 +33,7 @@
         <span class="checkin-banner-line2">{{ activeCheckIn.shop_name }}</span>
       </div>
       <div class="header-right" @click.stop>
-        <button v-if="currentUser" class="btn-signin" @click="handleLogout">サインアウト</button>
-        <button v-else class="btn-signin" @click="navigate('login')">サインイン</button>
+        <button v-cloak v-if="authResolved && !currentUser" class="btn-signin" @click="navigate('login')">サインイン</button>
         <button class="hamburger-btn" @click="menuOpen = true">&#9776;</button>
       </div>
     </header>
@@ -55,6 +54,7 @@
           <button v-if="currentUser.role === 'admin' || currentUser.role === 'operator'" class="menu-item" @click="navigate('shiftImportPage')">シフト管理(自動登録)</button>
           <button v-if="currentUser.role === 'admin' || currentUser.role === 'operator'" class="menu-item" @click="navigate('shiftBulkForm')">シフト一括登録</button>
           <button class="menu-item" @click="navigate('eventForm')">イベント管理</button>
+          <button class="menu-item" @click="handleLogout">サインアウト</button>
         </template>
         <template v-else>
           <button v-if="currentView === 'mapView'" class="menu-item" @click="navigate('home')">カレンダーで見る</button>

@@ -195,7 +195,6 @@ const app = createApp({
           loadStaffPreferences(true)
         ]);
         loadConfig();
-        loadActiveCheckIn();
       } catch (e) {
         error.value = e.data?.error || 'サインインに失敗しました';
       }
@@ -370,6 +369,33 @@ const app = createApp({
           by_staff_id: normalized,
           updated_at: new Date().toISOString()
         }));
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    function configStorageKey() {
+      const userId = Number(currentUser.value?.id || 0);
+      if (!userId) return null;
+      return `config:v1:user:${userId}`;
+    }
+
+    function applyConfigData(data) {
+      if (data && data.limit_meters) {
+        limitMeters.value = Number(data.limit_meters);
+      }
+      activeCheckIn.value = data?.checked_in || null;
+    }
+
+    function updateCachedConfigCheckedIn(checkedIn) {
+      const key = configStorageKey();
+      if (!key) return;
+      try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : {};
+        const nextConfig = (parsed && typeof parsed === 'object') ? parsed : {};
+        nextConfig.checked_in = checkedIn;
+        localStorage.setItem(key, JSON.stringify(nextConfig));
       } catch (e) {
         // ignore
       }
@@ -1227,26 +1253,28 @@ const app = createApp({
       homeSlideFromLeft.value = false;
     }
 
-    async function loadActiveCheckIn() {
-      if (!currentUser.value) {
-        activeCheckIn.value = null;
-        return;
-      }
-      try {
-        const data = await API.getCurrentCheckIn();
-        activeCheckIn.value = data?.check_in || null;
-      } catch (e) {
-        activeCheckIn.value = null;
-      }
-    }
-
     async function loadConfig() {
+      const key = configStorageKey();
+      if (key) {
+        const raw = localStorage.getItem(key);
+        if (raw !== null) {
+          try {
+            applyConfigData(JSON.parse(raw));
+          } catch (e) {
+            activeCheckIn.value = null;
+          }
+          return;
+        }
+      }
+
       try {
         const data = await API.getConfig();
-        if (data && data.limit_meters) {
-          limitMeters.value = Number(data.limit_meters);
+        applyConfigData(data);
+        if (key) {
+          localStorage.setItem(key, JSON.stringify(data || {}));
         }
       } catch (e) {
+        activeCheckIn.value = null;
         // keep default
       }
     }
@@ -1293,6 +1321,7 @@ const app = createApp({
         ratingCheckIn.value = data.check_in;
         ratingCandidateStaffs.value = data.staffs || [];
         activeCheckIn.value = null;
+        updateCachedConfigCheckedIn(null);
         navigate('checkInRating');
       } catch (e) {
         error.value = e?.data?.error || 'チェックアウトに失敗しました';
@@ -1427,7 +1456,6 @@ const app = createApp({
       if (currentUser.value) {
         loadStaffPreferences(true);
         loadConfig();
-        loadActiveCheckIn();
       }
 
       // Handle initial hash route (e.g. #map)
@@ -1491,7 +1519,7 @@ const app = createApp({
       monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
       openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown,
       activeCheckIn, ratingCheckIn, ratingCandidateStaffs, limitMeters, thankYouOpen,
-      loadActiveCheckIn, performCheckIn, performCheckOut, submitCheckInRates, closeThankYouModal
+      performCheckIn, performCheckOut, submitCheckInRates, closeThankYouModal
     };
   }
 });
@@ -4668,6 +4696,15 @@ app.component('my-page', {
           </button>
         </div>
 
+        <!-- Local Storage -->
+        <div class="mypage-card">
+          <h3 class="mypage-card-title">ローカルストレージ</h3>
+          <div v-if="storageMsg" class="alert" :class="storageMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ storageMsg }}</div>
+          <button class="btn btn-danger btn-block" @click="clearLocalStorageForCurrentUser" :disabled="clearingStorage">
+            {{ clearingStorage ? '初期化中...' : '初期化' }}
+          </button>
+        </div>
+
       </div>
     </div>
   `,
@@ -4699,7 +4736,11 @@ app.component('my-page', {
       savingNotif: false,
       sendingTestNotification: false,
       notifMsg: '',
-      notifMsgType: ''
+      notifMsgType: '',
+      // Local storage
+      clearingStorage: false,
+      storageMsg: '',
+      storageMsgType: ''
     };
   },
   async mounted() {
@@ -4851,6 +4892,40 @@ app.component('my-page', {
         await this.scrollToNotificationMessage();
       }
       this.sendingTestNotification = false;
+    },
+    clearLocalStorageForCurrentUser() {
+      this.clearingStorage = true;
+      this.storageMsg = '';
+
+      try {
+        const userId = Number(this.$root.currentUser?.id || 0);
+        if (!userId) {
+          this.storageMsg = 'ログイン中ユーザが見つかりません';
+          this.storageMsgType = 'error';
+          return;
+        }
+
+        const targetKeys = [];
+        const userToken = `:user:${userId}`;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          if (key.includes(userToken) || key === `staff_preferences:user:${userId}`) {
+            targetKeys.push(key);
+          }
+        }
+
+        targetKeys.forEach((key) => localStorage.removeItem(key));
+        this.storageMsg = targetKeys.length > 0
+          ? `${targetKeys.length}件のローカルストレージを初期化しました`
+          : '初期化対象のローカルストレージはありません';
+        this.storageMsgType = 'success';
+      } catch (e) {
+        this.storageMsg = 'ローカルストレージの初期化に失敗しました';
+        this.storageMsgType = 'error';
+      } finally {
+        this.clearingStorage = false;
+      }
     }
   }
 });

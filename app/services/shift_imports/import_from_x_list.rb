@@ -1,7 +1,7 @@
 module ShiftImports
   class ImportFromXList
     TWITTER_NOT_FOUND_DELETE_THRESHOLD = 25
-    DELETE_INTENT_REGEX = /(いませ|やすみ|居ませ)/.freeze
+    DELETE_INTENT_REGEX = /(いませ|やすみ|休み|居ませ)/.freeze
 
     def initialize(client: XListClient.new, parser: ShiftImports::OpenaiShiftParser.new, matcher: CandidateMatcher.new)
       @client = client

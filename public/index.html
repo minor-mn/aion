@@ -223,7 +223,7 @@
               </div>
               <button class="modal-close" @click="closeModal">&times;</button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body day-detail-modal-body" @touchstart="rememberDayModalTouchPosition" @touchmove="guardDayModalBoundaryScroll" @wheel="guardDayModalWheel">
               <div v-if="selectedDayShopGroups.length === 0 && (!selectedDayEvents || selectedDayEvents.length === 0)" class="no-data">
                 この日のデータはありません
               </div>

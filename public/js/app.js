@@ -85,6 +85,7 @@ const app = createApp({
     const timelinePopup = ref(null);
     const dayModalOriginStyle = ref({});
     const dayModalAnimating = ref(false);
+    let dayModalTouchY = 0;
 
     // Today's data (for unauthenticated + bottom section)
     const todayShops = ref([]);
@@ -763,6 +764,39 @@ const app = createApp({
       dayModalOriginStyle.value = {};
       dayModalAnimating.value = false;
       if (!timelineModalOpen.value) document.body.classList.remove('modal-open');
+    }
+
+    function rememberDayModalTouchPosition(event) {
+      dayModalTouchY = event.touches?.[0]?.clientY ?? 0;
+    }
+
+    function guardDayModalBoundaryScroll(event) {
+      const scroller = event.currentTarget;
+      const currentY = event.touches?.[0]?.clientY;
+      if (!scroller || currentY == null || scroller.scrollHeight <= scroller.clientHeight) return;
+
+      const deltaY = currentY - dayModalTouchY;
+      dayModalTouchY = currentY;
+      guardScrollBoundary(event, scroller, deltaY);
+    }
+
+    function guardDayModalWheel(event) {
+      const scroller = event.currentTarget;
+      if (!scroller || scroller.scrollHeight <= scroller.clientHeight) return;
+
+      guardScrollBoundary(event, scroller, -event.deltaY);
+    }
+
+    function guardScrollBoundary(event, scroller, deltaY) {
+      if (deltaY === 0) return;
+
+      const maxScrollTop = scroller.scrollHeight - scroller.clientHeight;
+      const atTop = scroller.scrollTop <= 0;
+      const atBottom = scroller.scrollTop >= maxScrollTop - 1;
+
+      if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+        event.preventDefault();
+      }
     }
 
     async function openTimelineModal() {
@@ -1504,6 +1538,7 @@ const app = createApp({
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
+      rememberDayModalTouchPosition, guardDayModalBoundaryScroll, guardDayModalWheel,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
       editStaff, confirmDeleteStaff, editShop, openShopHome, openStaffHome, openSiteUrl, isXSiteUrl,

@@ -608,7 +608,8 @@ body.modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow-y: auto;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .modal-content {
@@ -621,6 +622,7 @@ body.modal-open {
   flex-direction: column;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   border: 1px solid #3a3a5c;
+  overflow: hidden;
 }
 
 .day-detail-modal-content {
@@ -693,6 +695,9 @@ body.modal-open {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
 

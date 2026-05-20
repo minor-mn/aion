@@ -37,6 +37,34 @@ RSpec.describe ShiftImports::ImportFromXList do
       expect(staff.reload.name).to eq("New Name")
       expect(staff.image_url).to eq("https://example.com/new.jpg")
     end
+
+    it "skips a staff and records not found when X lookup returns no data" do
+      shop = Shop.create!(name: "Test Shop")
+      staff = Staff.create!(
+        shop: shop,
+        name: "Missing Staff",
+        site_url: "https://x.com/missing_staff",
+        twitter_user_id: "42"
+      )
+
+      client = instance_double(ShiftImports::XListClient)
+      parser = instance_double(ShiftImports::OpenaiShiftParser)
+      matcher = instance_double(ShiftImports::CandidateMatcher)
+
+      allow(matcher).to receive(:username_from_site_url).with(staff.site_url).and_return("missing_staff")
+      allow(client).to receive(:fetch_user_by_username).with(username: "missing_staff").and_return(
+        "errors" => [ { "title" => "Not Found Error" } ]
+      )
+
+      service = described_class.new(client: client, parser: parser, matcher: matcher)
+
+      expect(client).not_to receive(:fetch_user_tweets)
+
+      result = service.send(:import_staff_timeline, staff)
+
+      expect(result).to eq(imported_count: 0, had_errors: false)
+      expect(staff.reload.twitter_not_found_count).to eq(1)
+    end
   end
 
   describe "#import_tweet" do

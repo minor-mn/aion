@@ -43,7 +43,7 @@ module ShiftImports
       return { imported_count: 0, had_errors: false } if username.blank?
 
       TwitterStreamLogger.info("staff_import_start staff_id=#{staff.id} username=#{username}")
-      sync_staff_profile_from_x!(staff, username)
+      return { imported_count: 0, had_errors: false } unless sync_staff_profile_from_x!(staff, username)
 
       response = fetch_staff_tweets(staff, username)
       tweets = response.fetch("data", [])
@@ -85,7 +85,10 @@ module ShiftImports
     def sync_staff_profile_from_x!(staff, username)
       response = @client.fetch_user_by_username(username: username)
       twitter_user_id = response.dig("data", "id")
-      raise "X user lookup returned no data for @#{username}" if twitter_user_id.blank?
+      if twitter_user_id.blank?
+        handle_twitter_not_found!(staff, username)
+        return false
+      end
 
       attributes = {}
       if staff.twitter_user_id != twitter_user_id
@@ -117,11 +120,12 @@ module ShiftImports
           "staff_import_sync_profile staff_id=#{staff.id} username=#{username} changed=#{attributes.keys.join(',')}"
         )
       end
+      true
     rescue XListClient::RequestError => e
       raise unless e.status == 404
 
       handle_twitter_not_found!(staff, username)
-      raise
+      false
     end
 
     def fetch_staff_tweets(staff, username)

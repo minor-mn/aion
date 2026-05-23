@@ -441,10 +441,7 @@ module ShiftImports
 
       return unless next_count >= TWITTER_NOT_FOUND_DELETE_THRESHOLD
 
-      Staff.transaction do
-        staff.staff_shifts.delete_all
-        staff.destroy!
-      end
+      staff.destroy!
       TwitterStreamLogger.warn(
         "staff_import_deleted_staff staff_id=#{staff.id} username=#{username} reason=twitter_not_found_threshold"
       )

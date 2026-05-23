@@ -67,6 +67,43 @@ RSpec.describe ShiftImports::ImportFromXList do
     end
   end
 
+  describe "#handle_twitter_not_found!" do
+    it "destroys the staff and dependent shifts when the not-found threshold is reached" do
+      shop = Shop.create!(name: "Test Shop")
+      staff = Staff.create!(
+        shop: shop,
+        name: "Missing Staff",
+        site_url: "https://x.com/missing_staff",
+        twitter_not_found_count: 24
+      )
+      shift = StaffShift.create!(
+        shop: shop,
+        staff: staff,
+        start_at: Time.zone.parse("2026-04-01 17:00"),
+        end_at: Time.zone.parse("2026-04-01 23:00")
+      )
+      candidate = ShiftImportCandidate.create!(
+        shop: shop,
+        staff: staff,
+        action: "skip",
+        start_at: Time.zone.parse("2026-04-01 17:00"),
+        end_at: Time.zone.parse("2026-04-01 23:00"),
+        source_post_id: "missing-staff-1",
+        source_post_url: "https://x.com/i/web/status/missing-staff-1",
+        raw_text: "削除テスト"
+      )
+
+      service = described_class.new
+
+      expect do
+        service.send(:handle_twitter_not_found!, staff, "missing_staff")
+      end.to change(Staff, :count).by(-1)
+
+      expect(StaffShift.where(id: shift.id)).to be_empty
+      expect(candidate.reload.staff_id).to be_nil
+    end
+  end
+
   describe "#import_tweet" do
     let(:shop) { Shop.create!(name: "Test Shop") }
     let(:staff) { Staff.create!(shop: shop, name: "Staff A", site_url: "https://x.com/staff_a") }

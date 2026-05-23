@@ -178,6 +178,31 @@ RSpec.describe "Staffs", type: :request do
       expect(response).to have_http_status(:no_content)
     end
 
+    it "deletes dependent records and preserves import candidates without a staff reference" do
+      shift = StaffShift.create!(
+        staff: staff,
+        shop: shop,
+        start_at: Time.zone.parse("2026-04-01 17:00"),
+        end_at: Time.zone.parse("2026-04-01 23:00")
+      )
+      candidate = ShiftImportCandidate.create!(
+        staff: staff,
+        shop: shop,
+        action: "skip",
+        start_at: Time.zone.parse("2026-04-01 17:00"),
+        end_at: Time.zone.parse("2026-04-01 23:00"),
+        source_post_id: "staff-delete-1",
+        source_post_url: "https://x.com/i/web/status/staff-delete-1",
+        raw_text: "削除テスト"
+      )
+
+      delete "/v1/staffs/#{staff.id}", params: { shop_id: shop.id }, headers: auth_headers
+
+      expect(response).to have_http_status(:no_content)
+      expect(StaffShift.where(id: shift.id)).to be_empty
+      expect(candidate.reload.staff_id).to be_nil
+    end
+
     it "rejects a different basic user" do
       delete "/v1/staffs/#{staff.id}", params: { shop_id: shop.id }, headers: other_auth_headers
       expect(response).to have_http_status(:forbidden)

@@ -159,7 +159,7 @@ RSpec.describe "Shops", type: :request do
         delete "/v1/shops/#{shop.id}", headers: auth_headers
       }.to change(Shop, :count).by(-1)
       expect(response).to have_http_status(:no_content)
-      
+
       expect(candidate.reload.shop_id).to be_nil
       expect(log.reload.shop_id).to be_nil
     end

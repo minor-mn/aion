@@ -143,6 +143,27 @@ RSpec.describe "Shops", type: :request do
       expect(response).to have_http_status(:no_content)
     end
 
+    it "deletes a shop even with associated ShiftImportCandidate and ActionLog" do
+      candidate = ShiftImportCandidate.create!(
+        shop: shop,
+        action: "add",
+        start_at: Time.current,
+        end_at: Time.current + 1.hour,
+        source_post_id: "123",
+        source_post_url: "https://x.com/post/123",
+        raw_text: "test"
+      )
+      log = ActionLog.create!(user: user, action_type: "update", target_type: "Shop", target_id: shop.id, shop: shop)
+
+      expect {
+        delete "/v1/shops/#{shop.id}", headers: auth_headers
+      }.to change(Shop, :count).by(-1)
+      expect(response).to have_http_status(:no_content)
+
+      expect(candidate.reload.shop_id).to be_nil
+      expect(log.reload.shop_id).to be_nil
+    end
+
     it "rejects a different basic user" do
       delete "/v1/shops/#{shop.id}", headers: other_auth_headers
       expect(response).to have_http_status(:forbidden)

@@ -505,7 +505,10 @@ const app = createApp({
       currentView.value = 'staffHome';
       error.value = '';
       success.value = '';
-      window.location.hash = `staff-${staffId}`;
+      const targetHash = `staff-${staffId}`;
+      const hashUnchanged = window.location.hash.replace('#', '') === targetHash;
+      window.location.hash = targetHash;
+      if (hashUnchanged) loadStaffHome(staffId);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1025,7 +1028,10 @@ const app = createApp({
       currentView.value = 'shopHome';
       error.value = '';
       success.value = '';
-      window.location.hash = `shop-${shopId}`;
+      const targetHash = `shop-${shopId}`;
+      const hashUnchanged = window.location.hash.replace('#', '') === targetHash;
+      window.location.hash = targetHash;
+      if (hashUnchanged) loadShopHome(shopId);
     }
 
     function extractXUsername(rawUrl) {

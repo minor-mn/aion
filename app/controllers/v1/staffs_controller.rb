@@ -175,7 +175,7 @@ class V1::StaffsController < ApplicationController
   end
 
   def staff_params
-    params.except(:id, :format, :controller, :action).permit(:name, :shop_id, :image_url, :site_url)
+    params.except(:id, :format, :controller, :action).permit(:name, :shop_id, :image_url, :x_url, :birth_year, :birth_month, :birth_day, :instagram_url, :tiktok_url)
   end
 
   def authorize_staff_management!
@@ -188,7 +188,7 @@ class V1::StaffsController < ApplicationController
     return unless record.name.blank? || record.image_url.blank?
 
     matcher = ShiftImports::CandidateMatcher.new
-    username = matcher.username_from_site_url(record.site_url)
+    username = matcher.username_from_site_url(record.x_url)
     return unless username.present?
 
     client = ShiftImports::XListClient.new

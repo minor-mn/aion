@@ -596,6 +596,16 @@ const app = createApp({
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const today = new Date();
 
+      // Collect birthday days for staffs appearing anywhere in this month's schedule
+      const birthdayDays = new Set();
+      for (const day of scheduleData.value) {
+        for (const s of day.staffs || []) {
+          if (s.birth_month === (month + 1) && s.birth_day) {
+            birthdayDays.add(s.birth_day);
+          }
+        }
+      }
+
       const cells = [];
       // Empty cells for days before the 1st
       for (let i = 0; i < firstDay; i++) {
@@ -611,6 +621,7 @@ const app = createApp({
 
         const hasEvents = scheduleDay && scheduleDay.events && scheduleDay.events.length > 0;
         const hasStaffs = scheduleDay && scheduleDay.staffs && scheduleDay.staffs.length > 0;
+        const hasBirthday = birthdayDays.has(d);
 
         const gradient = hasStaffs
                     ? (currentUser.value ? scoreToGradient(totalScore) : 'linear-gradient(135deg, #252547 0%, #2f335f 55%, #3b4378 100%)')
@@ -624,6 +635,7 @@ const app = createApp({
           totalScore,
           hasData: !!scheduleDay,
           hasEvents,
+          hasBirthday,
           gradient,
           seatGauge: formatCalendarSeatGauge(maxSeatScore)
         });
@@ -709,6 +721,27 @@ const app = createApp({
         selectedDayShopGroups.value.map(group => Number(group.shop_id))
       );
       return day.events.filter(event => visibleShopIds.has(Number(event.shop_id)));
+    });
+
+    const selectedDayBirthdays = computed(() => {
+      if (!selectedDate.value) return [];
+      const [, mStr, dStr] = selectedDate.value.split('-');
+      const m = Number(mStr);
+      const d = Number(dStr);
+      if (!m || !d) return [];
+
+      const seen = new Set();
+      const result = [];
+      for (const day of scheduleData.value) {
+        for (const s of day.staffs || []) {
+          if (s.birth_month === m && s.birth_day === d && !seen.has(s.staff_id)) {
+            seen.add(s.staff_id);
+            result.push(s);
+          }
+        }
+      }
+      result.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'));
+      return result;
     });
 
     const selectedDayShopGroups = computed(() => {
@@ -1537,7 +1570,7 @@ const app = createApp({
       editingShift, editingStaff, editingShop, shiftFormPreset,
       handleLogin, handleRegister, handleLogout,
       prevMonth, nextMonth, calendarTitle, calendarDays,
-      openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, closeModal,
+      openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, selectedDayBirthdays, closeModal,
       rememberDayModalTouchPosition, guardDayModalBoundaryScroll, guardDayModalWheel,
       openTimelineModal, closeTimelineModal, timelinePopup, openTimelinePopup, closeTimelinePopup, timelineHourLabels, timelineHourSlots, currentTimelineHourLabel, timelineShopColumns,
       editShift, canManageOwnedRecord, isOperatorOrAdmin,
@@ -2171,9 +2204,9 @@ app.component('staff-home-page', {
       <template v-else>
         <div style="display:flex;align-items:center;gap:20px;min-width:0">
           <a
-            v-if="staff.site_url"
+            v-if="staff.x_url"
             href="#"
-            @click.prevent="$root.openSiteUrl(staff.site_url)"
+            @click.prevent="$root.openSiteUrl(staff.x_url)"
             style="text-decoration:none;display:block"
             aria-label="キャストのXを開く"
           >
@@ -2207,7 +2240,22 @@ app.component('staff-home-page', {
             </div>
             <h2 style="margin:0;color:#f3f3ff;overflow-wrap:anywhere;word-break:break-word;line-height:1.3">{{ staff.name }}</h2>
             <div v-if="staff.shop_name" class="cast-name-link" style="margin-top:6px;font-size:0.85rem;color:#a0a0b8" @click.stop.prevent="$root.openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
+            <div v-if="birthdayLabel" style="margin-top:4px;font-size:0.85rem;color:#a0a0b8">birth {{ birthdayLabel }}</div>
           </div>
+        </div>
+        <div v-if="staff.x_url || staff.instagram_url || staff.tiktok_url" class="staff-social-row" style="display:flex;justify-content:flex-start;gap:14px;margin-top:20px">
+          <a v-if="staff.x_url" href="#" @click.prevent="$root.openSiteUrl(staff.x_url)" aria-label="X"
+             class="staff-social-icon" style="color:#f3f3ff;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:#1a1a2e;border-radius:50%;text-decoration:none">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a v-if="staff.instagram_url" href="#" @click.prevent="$root.openSiteUrl(staff.instagram_url)" aria-label="Instagram"
+             class="staff-social-icon" style="color:#f3f3ff;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:#1a1a2e;border-radius:50%;text-decoration:none">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+          </a>
+          <a v-if="staff.tiktok_url" href="#" @click.prevent="$root.openSiteUrl(staff.tiktok_url)" aria-label="TikTok"
+             class="staff-social-icon" style="color:#f3f3ff;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:#1a1a2e;border-radius:50%;text-decoration:none">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+          </a>
         </div>
         <div v-if="$root.currentUser" style="margin-top:24px">
           <div class="pref-slider-container" style="justify-content:center">
@@ -2253,7 +2301,7 @@ app.component('staff-home-page', {
                   <div
                     class="date-num"
                     :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }"
-                    :style="{ position: 'static', marginBottom: '6px', borderBottom: cell.hasEvent ? '2px solid #e8d040' : 'none' }"
+                    :style="{ position: 'static', marginBottom: '6px', borderBottom: isBirthdayCell(cell) ? '2px solid #ff69b4' : (cell.hasEvent ? '2px solid #e8d040' : 'none') }"
                   >{{ cell.day }}</div>
                   <div v-for="shift in cell.shifts" :key="shift.id"
                     :class="['shop-home-calendar-label', { 'cast-name-link': $root.currentUser }]"
@@ -2289,7 +2337,7 @@ app.component('staff-home-page', {
             <div style="font-size:0.85rem;color:#d6d6e7;line-height:1.6">{{ formatEventRange(event.start_at, event.end_at) }}</div>
           </div>
         </div>
-        <div v-if="$root.isXSiteUrl(staff.site_url)" style="margin-top:30px;text-align:left">
+        <div v-if="$root.isXSiteUrl(staff.x_url)" style="margin-top:30px;text-align:left">
           <div style="margin-bottom:12px;font-size:1rem;font-weight:700;color:#f3f3ff">最近のポスト</div>
           <div class="recent-tweets-root" :data-staff-id="staff.id" data-limit="3"></div>
         </div>
@@ -2324,6 +2372,14 @@ app.component('staff-home-page', {
   computed: {
     staff() {
       return this.$root.staffHomeStaff;
+    },
+    birthdayLabel() {
+      if (!this.staff) return '';
+      const y = this.staff.birth_year;
+      const m = this.staff.birth_month;
+      const d = this.staff.birth_day;
+      if (!m || !d) return '';
+      return y ? `${y}.${m}.${d}` : `${m}.${d}`;
     },
     overallRateStars() {
       return this.starsFor('overall_rate_total');
@@ -2491,6 +2547,11 @@ app.component('staff-home-page', {
       const sh = String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
       const eh = String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
       return `${sh}\n${eh}`;
+    },
+    isBirthdayCell(cell) {
+      if (!cell || cell.empty) return false;
+      if (!this.staff || !this.staff.birth_month || !this.staff.birth_day) return false;
+      return this.staff.birth_month === (this.calendarMonth + 1) && this.staff.birth_day === cell.day;
     },
     onShiftClick(shift) {
       this.$root.editShift(shift);
@@ -3327,8 +3388,30 @@ app.component('staff-form-page', {
         </select>
       </div>
       <div class="form-group">
-        <label>サイトURL (𝕏なら自動更新されます)</label>
-        <input v-model="form.site_url" type="url" placeholder="https://x.com/zzzz">
+        <label>𝕏のURL (自動更新されます)</label>
+        <input v-model="form.x_url" type="url" placeholder="https://x.com/zzzz">
+      </div>
+      <div class="form-group">
+        <label>InstagramのURL</label>
+        <input v-model="form.instagram_url" type="url" placeholder="https://www.instagram.com/zzzz">
+      </div>
+      <div class="form-group">
+        <label>TikTokのURL</label>
+        <input v-model="form.tiktok_url" type="url" placeholder="https://www.tiktok.com/@zzzz">
+      </div>
+      <div class="form-group">
+        <label>誕生日 (年は任意)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input v-model.number="form.birth_year" type="number" min="1900" :max="currentYear" placeholder="年 (任意)" style="flex:2">
+          <select v-model.number="form.birth_month" style="flex:1">
+            <option :value="null">月</option>
+            <option v-for="m in 12" :key="m" :value="m">{{ m }}</option>
+          </select>
+          <select v-model.number="form.birth_day" style="flex:1">
+            <option :value="null">日</option>
+            <option v-for="d in 31" :key="d" :value="d">{{ d }}</option>
+          </select>
+        </div>
       </div>
       <div class="form-group">
         <label>画像URL</label>
@@ -3387,7 +3470,7 @@ app.component('staff-form-page', {
   `,
   data() {
     return {
-      form: { name: '', shop_id: '', site_url: '', image_url: '' },
+      form: { name: '', shop_id: '', x_url: '', instagram_url: '', tiktok_url: '', birth_year: null, birth_month: null, birth_day: null, image_url: '' },
       editMode: false,
       editStaffId: null,
       submitting: false,
@@ -3405,6 +3488,9 @@ app.component('staff-form-page', {
     filteredStaffs() {
       if (!this.filterShopId) return this.$root.staffs;
       return this.$root.staffs.filter(s => s.shop_id == this.filterShopId);
+    },
+    currentYear() {
+      return new Date().getFullYear();
     }
   },
   async mounted() {
@@ -3417,7 +3503,12 @@ app.component('staff-form-page', {
       this.form = {
         name: es.name || '',
         shop_id: es.shop_id || '',
-        site_url: es.site_url || '',
+        x_url: es.x_url || '',
+        instagram_url: es.instagram_url || '',
+        tiktok_url: es.tiktok_url || '',
+        birth_year: es.birth_year ?? null,
+        birth_month: es.birth_month ?? null,
+        birth_day: es.birth_day ?? null,
         image_url: es.image_url || ''
       };
       this.editMode = true;
@@ -3487,7 +3578,12 @@ app.component('staff-form-page', {
       this.form = {
         name: staff.name || '',
         shop_id: staff.shop_id || '',
-        site_url: staff.site_url || '',
+        x_url: staff.x_url || '',
+        instagram_url: staff.instagram_url || '',
+        tiktok_url: staff.tiktok_url || '',
+        birth_year: staff.birth_year ?? null,
+        birth_month: staff.birth_month ?? null,
+        birth_day: staff.birth_day ?? null,
         image_url: staff.image_url || ''
       };
       this.editMode = true;
@@ -3499,7 +3595,7 @@ app.component('staff-form-page', {
     cancelEdit() {
       this.editMode = false;
       this.editStaffId = null;
-      this.form = { name: '', shop_id: '', site_url: '', image_url: '' };
+      this.form = { name: '', shop_id: '', x_url: '', instagram_url: '', tiktok_url: '', birth_year: null, birth_month: null, birth_day: null, image_url: '' };
       this.localError = '';
       this.localSuccess = '';
     },
@@ -3508,8 +3604,8 @@ app.component('staff-form-page', {
         this.localError = '所属店舗は必須です';
         return;
       }
-      if (!this.form.name && !this.form.site_url) {
-        this.localError = 'キャスト名またはサイトURLを入力してください';
+      if (!this.form.name && !this.form.x_url) {
+        this.localError = 'キャスト名または𝕏のURLを入力してください';
         return;
       }
       this.submitting = true;
@@ -3518,7 +3614,7 @@ app.component('staff-form-page', {
       try {
         await API.createStaff(this.form);
         this.localSuccess = 'キャストを登録しました';
-        this.form = { name: '', shop_id: '', site_url: '', image_url: '' };
+        this.form = { name: '', shop_id: '', x_url: '', instagram_url: '', tiktok_url: '', birth_year: null, birth_month: null, birth_day: null, image_url: '' };
         await this.$root.loadStaffs();
         this.resetFilterShopId();
       } catch (e) {
@@ -3532,8 +3628,8 @@ app.component('staff-form-page', {
         this.localError = '所属店舗は必須です';
         return;
       }
-      if (!this.form.name && !this.form.site_url) {
-        this.localError = 'キャスト名またはサイトURLを入力してください';
+      if (!this.form.name && !this.form.x_url) {
+        this.localError = 'キャスト名または𝕏のURLを入力してください';
         return;
       }
       this.submitting = true;
@@ -3544,7 +3640,7 @@ app.component('staff-form-page', {
         this.localSuccess = 'キャストを更新しました';
         this.editMode = false;
         this.editStaffId = null;
-        this.form = { name: '', shop_id: '', site_url: '', image_url: '' };
+        this.form = { name: '', shop_id: '', x_url: '', instagram_url: '', tiktok_url: '', birth_year: null, birth_month: null, birth_day: null, image_url: '' };
         await this.$root.loadStaffs();
         this.resetFilterShopId();
       } catch (e) {

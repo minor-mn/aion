@@ -41,7 +41,12 @@ module Schedules
             user_id: shift.staff.user_id,
             name: shift.staff.name,
             image_url: shift.staff.image_url,
-            site_url: shift.staff.site_url,
+            x_url: shift.staff.x_url,
+            instagram_url: shift.staff.instagram_url,
+            tiktok_url: shift.staff.tiktok_url,
+            birth_year: shift.staff.birth_year,
+            birth_month: shift.staff.birth_month,
+            birth_day: shift.staff.birth_day,
             start_at: shift.start_at.iso8601,
             end_at: shift.end_at.iso8601,
             score: pref&.score || 0

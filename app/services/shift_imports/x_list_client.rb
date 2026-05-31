@@ -20,29 +20,6 @@ module ShiftImports
       @bearer_token = bearer_token
     end
 
-    def fetch_list_posts(list_id:, since_id: nil, max_results: 100)
-      raise "X_BEARER_TOKEN is not configured" if @bearer_token.blank?
-
-      params = default_params.merge("max_results" => max_results.to_s)
-      params["since_id"] = since_id if since_id.present?
-
-      uri = URI("#{API_BASE}/2/lists/#{list_id}/tweets")
-      uri.query = URI.encode_www_form(params)
-
-      TwitterStreamLogger.info("x_request_start list_id=#{list_id} since_id=#{since_id || '-'} max_results=#{max_results}")
-      request = Net::HTTP::Get.new(uri)
-      request["Authorization"] = "Bearer #{@bearer_token}"
-
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: 30, open_timeout: 10) do |http|
-        http.request(request)
-      end
-
-      TwitterStreamLogger.info("x_request_finish status=#{response.code}")
-      raise RequestError.new(status: response.code, body: response.body) unless response.is_a?(Net::HTTPSuccess)
-
-      JSON.parse(response.body)
-    end
-
     def fetch_user_by_username(username:)
       raise "X_BEARER_TOKEN is not configured" if @bearer_token.blank?
 

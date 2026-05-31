@@ -8,7 +8,7 @@ RSpec.describe ShiftImports::ImportFromXList do
         shop: shop,
         name: "Old Name",
         image_url: "https://example.com/old.jpg",
-        site_url: "https://x.com/test_staff",
+        x_url: "https://x.com/test_staff",
         twitter_user_id: "42"
       )
 
@@ -16,7 +16,7 @@ RSpec.describe ShiftImports::ImportFromXList do
       parser = instance_double(ShiftImports::OpenaiShiftParser)
       matcher = instance_double(ShiftImports::CandidateMatcher)
 
-      allow(matcher).to receive(:username_from_site_url).with(staff.site_url).and_return("test_staff")
+      allow(matcher).to receive(:username_from_site_url).with(staff.x_url).and_return("test_staff")
       allow(client).to receive(:fetch_user_by_username).with(username: "test_staff").and_return(
         "data" => {
           "id" => "42",
@@ -43,7 +43,7 @@ RSpec.describe ShiftImports::ImportFromXList do
       staff = Staff.create!(
         shop: shop,
         name: "Missing Staff",
-        site_url: "https://x.com/missing_staff",
+        x_url: "https://x.com/missing_staff",
         twitter_user_id: "42"
       )
 
@@ -51,7 +51,7 @@ RSpec.describe ShiftImports::ImportFromXList do
       parser = instance_double(ShiftImports::OpenaiShiftParser)
       matcher = instance_double(ShiftImports::CandidateMatcher)
 
-      allow(matcher).to receive(:username_from_site_url).with(staff.site_url).and_return("missing_staff")
+      allow(matcher).to receive(:username_from_site_url).with(staff.x_url).and_return("missing_staff")
       allow(client).to receive(:fetch_user_by_username).with(username: "missing_staff").and_return(
         "errors" => [ { "title" => "Not Found Error" } ]
       )
@@ -73,7 +73,7 @@ RSpec.describe ShiftImports::ImportFromXList do
       staff = Staff.create!(
         shop: shop,
         name: "Missing Staff",
-        site_url: "https://x.com/missing_staff",
+        x_url: "https://x.com/missing_staff",
         twitter_not_found_count: 24
       )
       shift = StaffShift.create!(
@@ -106,7 +106,7 @@ RSpec.describe ShiftImports::ImportFromXList do
 
   describe "#import_tweet" do
     let(:shop) { Shop.create!(name: "Test Shop") }
-    let(:staff) { Staff.create!(shop: shop, name: "Staff A", site_url: "https://x.com/staff_a") }
+    let(:staff) { Staff.create!(shop: shop, name: "Staff A", x_url: "https://x.com/staff_a") }
     let(:client) { instance_double(ShiftImports::XListClient) }
     let(:parser) { instance_double(ShiftImports::OpenaiShiftParser) }
     let(:matcher) { instance_double(ShiftImports::CandidateMatcher) }

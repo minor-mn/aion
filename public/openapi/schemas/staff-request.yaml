@@ -10,9 +10,31 @@ properties:
     type: string
     format: uri
     example: "https://example.com/staff_image.png"
-  site_url:
+  x_url:
     type: string
     format: uri
-    example: "https://example.com/staff_profile"
+    example: "https://x.com/staff_account"
+  instagram_url:
+    type: string
+    format: uri
+    example: "https://www.instagram.com/staff_account"
+  tiktok_url:
+    type: string
+    format: uri
+    example: "https://www.tiktok.com/@staff_account"
+  birth_year:
+    type: integer
+    nullable: true
+    example: 1995
+  birth_month:
+    type: integer
+    minimum: 1
+    maximum: 12
+    example: 4
+  birth_day:
+    type: integer
+    minimum: 1
+    maximum: 31
+    example: 1
 required:
   - name

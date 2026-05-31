@@ -574,6 +574,15 @@ body {
   z-index: 1;
 }
 
+.calendar-cell .birthday-heart {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  font-size: 0.55rem;
+  line-height: 1;
+  z-index: 1;
+}
+
 @media (max-width: 640px) {
   .shop-home-calendar-grid {
     gap: 2px;

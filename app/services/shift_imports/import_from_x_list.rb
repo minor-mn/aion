@@ -34,12 +34,12 @@ module ShiftImports
     private
 
     def tracked_staffs
-      Staff.where.not(site_url: [ nil, "" ]).to_a
-        .select { |staff| @matcher.username_from_site_url(staff.site_url).present? }
+      Staff.where.not(x_url: [ nil, "" ]).to_a
+        .select { |staff| @matcher.username_from_site_url(staff.x_url).present? }
     end
 
     def import_staff_timeline(staff)
-      username = @matcher.username_from_site_url(staff.site_url)
+      username = @matcher.username_from_site_url(staff.x_url)
       return { imported_count: 0, had_errors: false } if username.blank?
 
       TwitterStreamLogger.info("staff_import_start staff_id=#{staff.id} username=#{username}")

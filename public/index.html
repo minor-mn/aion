@@ -165,6 +165,7 @@
                   <span class="date-num" :class="{ 'weekend-date-num': $isHolidayOrWeekend(calendarYear, calendarMonth + 1, cell.day) }">{{ cell.day }}</span>
                   <span v-if="cell.seatGauge" class="calendar-seat-gauge">{{ cell.seatGauge }}</span>
                 </template>
+                <span v-if="cell.hasBirthday" class="birthday-heart">💗</span>
                 <span v-if="cell.hasEvents" class="event-crown">👑</span>
               </div>
             </div>
@@ -224,8 +225,16 @@
               <button class="modal-close" @click="closeModal">&times;</button>
             </div>
             <div class="modal-body day-detail-modal-body" @touchstart="rememberDayModalTouchPosition" @touchmove="guardDayModalBoundaryScroll" @wheel="guardDayModalWheel">
-              <div v-if="selectedDayShopGroups.length === 0 && (!selectedDayEvents || selectedDayEvents.length === 0)" class="no-data">
+              <div v-if="selectedDayShopGroups.length === 0 && (!selectedDayEvents || selectedDayEvents.length === 0) && (!selectedDayBirthdays || selectedDayBirthdays.length === 0)" class="no-data">
                 この日のデータはありません
+              </div>
+              <!-- Birthdays for this day -->
+              <div v-if="selectedDayBirthdays && selectedDayBirthdays.length > 0" style="margin-bottom:16px">
+                <div class="section-title" style="font-size:0.95rem;margin-bottom:8px">誕生日</div>
+                <div v-for="staff in selectedDayBirthdays" :key="'bd-' + staff.staff_id" class="shop-block" style="background:#3a1a2e">
+                  <div class="shop-block-name cast-name-link" @click.stop="openStaffHome(staff.staff_id)">{{ staff.name }}</div>
+                  <div class="cast-name-link" style="font-size:0.8rem;color:#a0a0b8" @click.stop="openShopHome(staff.shop_id)">{{ staff.shop_name }}</div>
+                </div>
               </div>
               <!-- Events for this day -->
               <div v-if="selectedDayEvents && selectedDayEvents.length > 0" style="margin-bottom:16px">

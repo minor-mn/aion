@@ -37,8 +37,8 @@ module ShiftImports
     private
 
     def tracked_usernames
-      @tracked_usernames ||= Staff.where.not(site_url: [ nil, "" ]).pluck(:site_url).filter_map do |site_url|
-        username_from_site_url(site_url)
+      @tracked_usernames ||= Staff.where.not(x_url: [ nil, "" ]).pluck(:x_url).filter_map do |x_url|
+        username_from_site_url(x_url)
       end.to_set
     end
 
@@ -48,7 +48,7 @@ module ShiftImports
       scope = shop ? shop.staffs : Staff.all
       normalized = normalize_username(username)
       scope.detect do |staff|
-        normalize_username(extract_username_from_url(staff.site_url)) == normalized
+        normalize_username(extract_username_from_url(staff.x_url)) == normalized
       end
     end
 

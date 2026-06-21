@@ -30,7 +30,8 @@ RSpec.describe "StaffPreferences", type: :request do
     it "creates a staff preference" do
       post "/v1/staff_preferences", params: { staff_id: staff.id, score: 5 }, headers: headers
       expect(response).to have_http_status(:created)
-      expect(JSON.parse(response.body)["staff_preference"]["score"]).to eq(5)
+      body = JSON.parse(response.body)
+      expect(body["staff_preference"]["score"]).to eq(5)
     end
   end
 
@@ -40,7 +41,8 @@ RSpec.describe "StaffPreferences", type: :request do
     it "updates the staff preference" do
       put "/v1/staff_preferences/#{staff.id}", params: { score: 8 }, headers: headers
       expect(response).to have_http_status(:ok)
-      expect(JSON.parse(response.body)["staff_preference"]["score"]).to eq(8)
+      body = JSON.parse(response.body)
+      expect(body["staff_preference"]["score"]).to eq(8)
     end
   end
 

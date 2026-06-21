@@ -50,6 +50,14 @@ const API = {
 
     if (res.status === 204) return null;
     const data = await res.json();
+    if (data && typeof data === 'object') {
+      Object.defineProperty(data, '__headers', {
+        value: {
+          server_data_updated_at: res.headers.get('X-Server-Data-Updated-At')
+        },
+        enumerable: false
+      });
+    }
     if (!res.ok) {
       throw { status: res.status, data };
     }

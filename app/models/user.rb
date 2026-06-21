@@ -18,6 +18,12 @@ class User < ApplicationRecord
     admin? || operator?
   end
 
+  def server_data_updated_at
+    [
+      staff_preferences.maximum(:updated_at)
+    ].compact.max
+  end
+
   def jwt_payload
     {
       nickname: nickname,

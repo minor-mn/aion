@@ -51,4 +51,8 @@ class ApplicationController < ActionController::API
 
     render json: { error: I18n.t("errors.forbidden") }, status: :forbidden
   end
+
+  def current_user_server_data_updated_at
+    current_user&.server_data_updated_at&.iso8601
+  end
 end

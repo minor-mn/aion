@@ -24,6 +24,12 @@ get:
   responses:
     "200":
       description: 期間内シフトとスコアのリスト
+      headers:
+        X-Server-Data-Updated-At:
+          description: 認証ユーザーに紐づくサーバ側キャッシュ対象データ全体の最終更新日時。現状はキャスト評価の最終更新日時。
+          schema:
+            type: string
+            format: date-time
       content:
         application/json:
           schema:

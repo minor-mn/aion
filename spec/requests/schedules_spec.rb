@@ -82,6 +82,7 @@ RSpec.describe "Schedules", type: :request do
       }, headers: headers
 
       expect(response).to have_http_status(:ok)
+      expect(response.headers["X-Server-Data-Updated-At"]).to eq(user.server_data_updated_at.iso8601)
       body = JSON.parse(response.body)
       expect(body["days"].size).to eq(3)
       expect(body["days"].first["total_score"]).to eq(5)

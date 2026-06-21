@@ -276,6 +276,7 @@ const app = createApp({
         formatClientDateTime(start),
         formatClientDateTime(end)
       );
+      await refreshServerCachedDataIfStale(data?.__headers?.server_data_updated_at);
       return data.days || [];
     }
 
@@ -343,6 +344,10 @@ const app = createApp({
     }
 
     function readCachedStaffPreferences() {
+      return readCachedStaffPreferencesEntry()?.by_staff_id || null;
+    }
+
+    function readCachedStaffPreferencesEntry() {
       const key = staffPreferencesStorageKey();
       if (!key) return null;
       try {
@@ -352,13 +357,16 @@ const app = createApp({
         if (!parsed || typeof parsed !== 'object' || !parsed.by_staff_id || typeof parsed.by_staff_id !== 'object') {
           return null;
         }
-        return parsed.by_staff_id;
+        return {
+          by_staff_id: parsed.by_staff_id,
+          updated_at: parsed.updated_at || null
+        };
       } catch (e) {
         return null;
       }
     }
 
-    function writeCachedStaffPreferences(byStaffId) {
+    function writeCachedStaffPreferences(byStaffId, updatedAt = null) {
       const key = staffPreferencesStorageKey();
       if (!key) return;
       const normalized = {};
@@ -368,7 +376,7 @@ const app = createApp({
       try {
         localStorage.setItem(key, JSON.stringify({
           by_staff_id: normalized,
-          updated_at: new Date().toISOString()
+          updated_at: updatedAt || new Date().toISOString()
         }));
       } catch (e) {
         // ignore
@@ -411,11 +419,16 @@ const app = createApp({
       return prefs;
     }
 
+    function preferenceCacheTimestamp(value) {
+      const time = Date.parse(value || '');
+      return Number.isNaN(time) ? 0 : time;
+    }
+
     async function loadStaffPreferences(force = false) {
       if (!currentUser.value) return {};
 
-      const cached = readCachedStaffPreferences();
-      if (!force && cached) return cached;
+      const cached = readCachedStaffPreferencesEntry();
+      if (!force && cached) return cached.by_staff_id;
 
       try {
         const data = await API.getPreferences();
@@ -423,14 +436,23 @@ const app = createApp({
         writeCachedStaffPreferences(prefs);
         return readCachedStaffPreferences() || {};
       } catch (e) {
-        return cached || {};
+        return cached?.by_staff_id || {};
       }
+    }
+
+    async function refreshServerCachedDataIfStale(serverUpdatedAt) {
+      if (!currentUser.value || !serverUpdatedAt) return;
+
+      const cached = readCachedStaffPreferencesEntry();
+      if (cached && preferenceCacheTimestamp(cached.updated_at) >= preferenceCacheTimestamp(serverUpdatedAt)) return;
+
+      await loadStaffPreferences(true);
     }
 
     async function setStaffPreference(staffId, score) {
       const targetStaffId = Number(staffId);
       const targetScore = Number(score) || 0;
-      await API.setPreference(targetStaffId, targetScore);
+      const data = await API.setPreference(targetStaffId, targetScore);
       const currentPrefs = readCachedStaffPreferences() || {};
       currentPrefs[String(targetStaffId)] = targetScore;
       writeCachedStaffPreferences(currentPrefs);

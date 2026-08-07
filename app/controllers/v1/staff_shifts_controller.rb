@@ -18,10 +18,6 @@ class V1::StaffShiftsController < ApplicationController
     shift.shop_id = params[:shop_id]
     shift.user = current_user
     if shift.save
-      # Schedule notifications for same-day shifts
-      if shift.start_at.to_date == Date.current
-        ScheduleShiftNotificationsJob.perform_later(shift.id)
-      end
       render json: { staff_shift: shift }, status: :created
     else
       render json: { errors: shift.errors.full_messages }, status: :unprocessable_entity
@@ -58,12 +54,6 @@ class V1::StaffShiftsController < ApplicationController
     end
 
     return render json: { errors: errors }, status: :unprocessable_entity if errors.any?
-
-    created_shifts.each do |shift|
-      next unless shift.start_at.to_date == Date.current
-
-      ScheduleShiftNotificationsJob.perform_later(shift.id)
-    end
 
     render json: { staff_shifts: created_shifts }, status: :created
   end

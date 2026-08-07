@@ -1,27 +1,11 @@
 production:
-  daily_notification_scheduler:
-    class: DailyNotificationSchedulerJob
-    queue: default
-    schedule: "every week on sun,mon,tue,wed,thu,fri,sat at 5:00"
-  cleanup_transient_records:
-    class: CleanupTransientRecordsJob
-    queue: default
-    schedule: "every 4 hours"
-  import_shifts_from_x_list:
-    class: ImportShiftsFromXListJob
+  small_worker:
+    class: SmallWorkerJob
     queue: default
     schedule: "every 30 minutes"
 
 development:
-  daily_notification_scheduler:
-    class: DailyNotificationSchedulerJob
-    queue: default
-    schedule: "every week on sun,mon,tue,wed,thu,fri,sat at 5:00"
-  cleanup_transient_records:
-    class: CleanupTransientRecordsJob
-    queue: default
-    schedule: "every 4 hours"
-  import_shifts_from_x_list:
-    class: ImportShiftsFromXListJob
+  small_worker:
+    class: SmallWorkerJob
     queue: default
     schedule: "every 30 minutes"

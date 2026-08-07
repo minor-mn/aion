@@ -5,7 +5,8 @@ APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_ROOT"
 
 SERVER_PID_FILE="tmp/pids/rails_server.pid"
-JOBS_PID_FILE="tmp/pids/jobs.pid"
+SMALL_WORKER_PID_FILE="tmp/pids/small_worker.pid"
+LEGACY_JOBS_PID_FILE="tmp/pids/jobs.pid"
 
 stop_process() {
   local name="$1"
@@ -46,5 +47,6 @@ stop_process() {
   echo "force stopped $name"
 }
 
-stop_process "jobs" "$JOBS_PID_FILE"
+stop_process "small worker" "$SMALL_WORKER_PID_FILE"
+stop_process "legacy jobs" "$LEGACY_JOBS_PID_FILE"
 stop_process "rails server" "$SERVER_PID_FILE"

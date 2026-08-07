@@ -5,12 +5,12 @@ APP_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_ROOT"
 
 mkdir -p log tmp/pids tmp/sockets
-touch log/server.log log/jobs.log
+touch log/server.log log/small_worker.log
 
 SERVER_PID_FILE="tmp/pids/rails_server.pid"
-JOBS_PID_FILE="tmp/pids/jobs.pid"
+SMALL_WORKER_PID_FILE="tmp/pids/small_worker.pid"
 SERVER_LOG_FILE="log/server.log"
-JOBS_LOG_FILE="log/jobs.log"
+SMALL_WORKER_LOG_FILE="log/small_worker.log"
 
 start_process() {
   local name="$1"
@@ -45,4 +45,4 @@ start_process() {
 }
 
 start_process "rails server" "$SERVER_PID_FILE" "$SERVER_LOG_FILE" bundle exec rails s
-start_process "jobs" "$JOBS_PID_FILE" "$JOBS_LOG_FILE" bundle exec bin/jobs
+start_process "small worker" "$SMALL_WORKER_PID_FILE" "$SMALL_WORKER_LOG_FILE" "$APP_ROOT/script/small_worker_loop.sh"

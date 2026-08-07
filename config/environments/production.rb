@@ -46,9 +46,8 @@ Rails.application.configure do
   # Replace the default in-process memory cache store with a durable alternative.
   config.cache_store = :solid_cache_store
 
-  # Replace the default in-process and non-durable queuing backend for Active Job.
-  config.active_job.queue_adapter = :solid_queue
-  config.solid_queue.connects_to = { database: { writing: :queue } }
+  # Background work is run by the small worker command instead of a queue daemon.
+  config.active_job.queue_adapter = :inline
 
   # Raise delivery errors so issues are caught early.
   config.action_mailer.raise_delivery_errors = true

@@ -57,7 +57,7 @@ class PopBeforeSmtpInterceptor
   end
 end
 
-if ENV["POP_ADDRESS"].present?
+if ENV["POP_ADDRESS"].present? && !Rails.env.test?
   ActionMailer::Base.register_interceptor(PopBeforeSmtpInterceptor)
   Rails.logger.info("[POP before SMTP] Enabled — POP3 server: #{ENV['POP_ADDRESS']}")
 end

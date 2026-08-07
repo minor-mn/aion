@@ -31,7 +31,6 @@ module ShiftImports
         end_at: @end_at,
         user: user
       )
-      ScheduleShiftNotificationsJob.perform_later(staff_shift.id) if staff_shift.start_at.to_date == Date.current
 
       { action: "add", applied: true, message: "shift added", staff_shift: staff_shift }
     end

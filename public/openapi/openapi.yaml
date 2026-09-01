@@ -11,6 +11,19 @@ components:
       scheme: bearer
       bearerFormat: JWT
 paths:
+  /api/v1/debug:
+    post:
+      summary: デバッグログ保存
+      description: リクエストボディをタイムスタンプ付きのログファイルとして保存します
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        "200":
+          description: 保存成功
   /v1/schedules:
     $ref: "./paths/v1/schedules.yaml"
   /v1/shops:

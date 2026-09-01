@@ -1,4 +1,6 @@
 Rails.application.routes.draw do
+  post "/api/v1/debug", to: "v1/debug#create", defaults: { format: :json }
+
   devise_for :users,
     defaults: { format: :json },
     controllers: {

@@ -35,6 +35,7 @@ registry:
 env:
   secret:
     - RAILS_MASTER_KEY
+    - CARTO_API_KEY
   clear:
     # Jobs are handled by the small worker command run every 30 minutes.
     SOLID_QUEUE_IN_PUMA: false

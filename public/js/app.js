@@ -3,6 +3,13 @@ const DEFAULT_PAGE_SIZE = 10;
 const HOME_DATA_REFRESH_INTERVAL_MS = 60 * 1000;
 const HOME_DATA_STALE_AFTER_MS = 30 * 60 * 1000;
 const STAFF_PREFERENCES_CACHE_VERSION = 1;
+const CONFIG_CACHE_VERSION = 2;
+const CARTO_TILE_URL = 'https://basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png';
+
+function cartoTileUrl(apiKey) {
+  const key = String(apiKey || '').trim();
+  return key ? `${CARTO_TILE_URL}?key=${encodeURIComponent(key)}` : CARTO_TILE_URL;
+}
 
 // ========== 日本の祝日判定 ==========
 function getNthMonday(year, month, n) {
@@ -130,6 +137,7 @@ const app = createApp({
     const ratingCheckIn = ref(null);
     const ratingCandidateStaffs = ref([]);
     const limitMeters = ref(50);
+    const cartoApiKey = ref('');
     const thankYouOpen = ref(false);
 
     // ========== Auth ==========
@@ -386,13 +394,14 @@ const app = createApp({
     function configStorageKey() {
       const userId = Number(currentUser.value?.id || 0);
       if (!userId) return null;
-      return `config:v1:user:${userId}`;
+      return `config:v${CONFIG_CACHE_VERSION}:user:${userId}`;
     }
 
     function applyConfigData(data) {
       if (data && data.limit_meters) {
         limitMeters.value = Number(data.limit_meters);
       }
+      cartoApiKey.value = data?.carto_api_key || '';
       activeCheckIn.value = data?.checked_in || null;
     }
 
@@ -1548,10 +1557,8 @@ const app = createApp({
       }
 
       await checkAuth();
-      if (currentUser.value) {
-        loadStaffPreferences();
-        loadConfig();
-      }
+      await loadConfig();
+      if (currentUser.value) loadStaffPreferences();
 
       // Handle initial hash route (e.g. #map)
       const initialHash = window.location.hash.replace('#', '');
@@ -1615,6 +1622,7 @@ const app = createApp({
       monthlyMonthName, monthlyShifts, monthlyLoading, monthlyCalendarCells,
       openMonthlyCalendar, closeMonthlyCalendar, changeMonth, monthlyMouseDown,
       activeCheckIn, ratingCheckIn, ratingCandidateStaffs, limitMeters, thankYouOpen,
+      cartoApiKey,
       performCheckIn, performCheckOut, submitCheckInRates, closeThankYouModal
     };
   }
@@ -2136,9 +2144,8 @@ app.component('shop-home-page', {
         touchZoom: true
       }).setView([lat, lng], 16);
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
+      L.tileLayer(cartoTileUrl(this.$root.cartoApiKey), {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/">CARTO</a>',
         maxZoom: 20
       }).addTo(this.map);
 
@@ -3068,9 +3075,8 @@ app.component('shop-form-page', {
       const lng = parseFloat(this.form.longitude) || 139.6503;
       const zoom = (this.form.latitude && this.form.longitude) ? 16 : 5;
       this.map = L.map('shop-map').setView([lat, lng], zoom);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
+      L.tileLayer(cartoTileUrl(this.$root.cartoApiKey), {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/">CARTO</a>',
         maxZoom: 20
       }).addTo(this.map);
       if (this.form.latitude && this.form.longitude) {
@@ -5666,9 +5672,8 @@ app.component('map-view-page', {
       const mapEl = document.getElementById('map-view');
       if (!mapEl || !window.L) return;
       this.map = L.map('map-view').setView([35.6762, 139.6503], 5);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
+      L.tileLayer(cartoTileUrl(this.$root.cartoApiKey), {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> &copy; <a href="https://carto.com/">CARTO</a>',
         maxZoom: 20
       }).addTo(this.map);
       this.addShopMarkers();

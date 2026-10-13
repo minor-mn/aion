@@ -512,7 +512,7 @@ const app = createApp({
         }
 
         const script = document.createElement('script');
-        script.src = '/js/recent-tweets.js';
+        script.src = 'js/recent-tweets.js';
         script.async = true;
         script.dataset.module = 'recent-tweets';
         script.onload = () => resolve();
@@ -1545,15 +1545,15 @@ const app = createApp({
       if (params.get('confirmed') === 'true') {
         success.value = 'メールアドレスが確認されました。サインインしてください。';
         currentView.value = 'login';
-        window.history.replaceState({}, '', '/');
+        window.history.replaceState({}, '', window.location.pathname);
       } else if (params.get('confirmation_error')) {
         error.value = params.get('confirmation_error');
         currentView.value = 'login';
-        window.history.replaceState({}, '', '/');
+        window.history.replaceState({}, '', window.location.pathname);
       } else if (params.get('reset_password_token')) {
         resetPasswordToken.value = params.get('reset_password_token');
         currentView.value = 'resetPassword';
-        window.history.replaceState({}, '', '/');
+        window.history.replaceState({}, '', window.location.pathname);
       }
 
       await checkAuth();
@@ -2654,7 +2654,7 @@ app.component('staff-home-page', {
 
 // ========== Introduction Component (async) ==========
 app.component('introduction-page', defineAsyncComponent(() =>
-  fetch('/introduction.html').then(r => r.text()).then(html => ({ template: html }))
+  fetch('introduction.html').then(r => r.text()).then(html => ({ template: html }))
 ));
 
 // ========== Check-In Rating Component ==========

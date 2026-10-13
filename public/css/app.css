@@ -41,7 +41,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: #0f0f1a url('/images/header-bg.webp') no-repeat right center;
+  background: #0f0f1a url('../images/header-bg.webp') no-repeat right center;
   background-size: cover;
   opacity: 0.85;
   z-index: -1;

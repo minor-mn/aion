@@ -7,10 +7,10 @@ class Users::ConfirmationsController < Devise::ConfirmationsController
     self.resource = resource_class.confirm_by_token(params[:confirmation_token])
 
     if resource.errors.empty?
-      redirect_to "/?confirmed=true", allow_other_host: false
+      redirect_to "#{Rails.configuration.x.base_path}/?confirmed=true", allow_other_host: false
     else
       error_message = URI.encode_www_form_component(resource.errors.full_messages.join(", "))
-      redirect_to "/?confirmation_error=#{error_message}", allow_other_host: false
+      redirect_to "#{Rails.configuration.x.base_path}/?confirmation_error=#{error_message}", allow_other_host: false
     end
   end
 

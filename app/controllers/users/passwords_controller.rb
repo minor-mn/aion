@@ -16,7 +16,7 @@ class Users::PasswordsController < Devise::PasswordsController
 
   # GET /users/password/edit?reset_password_token=xxx — redirect to SPA
   def edit
-    redirect_to "/?reset_password_token=#{params[:reset_password_token]}", allow_other_host: false
+    redirect_to "#{Rails.configuration.x.base_path}/?reset_password_token=#{params[:reset_password_token]}", allow_other_host: false
   end
 
   # PUT /users/password — reset password with token

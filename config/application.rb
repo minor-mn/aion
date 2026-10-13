@@ -31,5 +31,9 @@ module Aion
 
     config.i18n.default_locale = :ja
     config.autoload_paths << Rails.root.join("app/errors")
+
+    # Public URL prefix when served under a subdirectory behind nginx (e.g. "/okyuyote").
+    # nginx strips it before proxying, so routes stay at the root; only outgoing URLs need it.
+    config.x.base_path = ENV.fetch("APP_BASE_PATH", "")
   end
 end

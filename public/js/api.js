@@ -40,7 +40,8 @@ const API = {
     if (body) {
       opts.body = JSON.stringify(body);
     }
-    const res = await fetch(path, opts);
+    // Resolve relative to the page so the API works under a base path (e.g. /okyuyote/v1/...)
+    const res = await fetch(path.replace(/^\//, ''), opts);
 
     // Extract JWT token from Authorization header on sign_in
     const authHeader = res.headers.get('Authorization');

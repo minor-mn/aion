@@ -1,5 +1,5 @@
 // SW Version — bump this on every deploy to trigger update + client reload
-const SW_VERSION = 'v11-webpush';
+const SW_VERSION = 'v12-subdir';
 
 // Push notification handler (Web Push API)
 self.addEventListener('push', (event) => {
@@ -28,8 +28,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     showNotificationWithLogging(title, {
       body: body,
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-192x192.png'
+      icon: 'icons/icon-192x192.png',
+      badge: 'icons/icon-192x192.png'
     })
   );
 });
@@ -57,17 +57,19 @@ self.addEventListener('message', (event) => {
   }
 });
 
-const CACHE_NAME = 'okyuyote-v11';
+const CACHE_NAME = 'okyuyote-v12';
+// Relative to this script, so the app works under any base path (e.g. /okyuyote/)
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/css/app.css',
-  '/js/app.js',
-  '/js/api.js',
-  '/images/header-bg.webp',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  './',
+  'index.html',
+  'css/app.css',
+  'js/app.js',
+  'js/api.js',
+  'images/header-bg.webp',
+  'icons/icon-192x192.png',
+  'icons/icon-512x512.png'
 ];
+const BASE_PATH = new URL('./', self.location.href).pathname;
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -100,7 +102,7 @@ self.addEventListener('fetch', event => {
   if (!url.protocol.startsWith('http')) return;
 
   // API requests: network first, no cache fallback
-  if (url.pathname.startsWith('/v1/') || url.pathname.startsWith('/users/')) {
+  if (url.pathname.startsWith(BASE_PATH + 'v1/') || url.pathname.startsWith(BASE_PATH + 'users/')) {
     event.respondWith(fetch(event.request));
     return;
   }

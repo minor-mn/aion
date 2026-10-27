@@ -1,0 +1,17 @@
+# Aion の定期実行設定の雛形。config/crontab にコピーして値を書き換え、
+# puma を動かしているユーザーで `crontab config/crontab` を実行して登録する。
+# 変数の定義行では $VAR が展開されないため、値は絶対パスで書くこと（bundle が見つかる PATH が必要）。
+# 実行ログは $RAILS_ROOT/log/cron.log に出力される。
+
+RAILS_ENV=production
+RAILS_ROOT=/path/to/aion
+PATH=/home/USER/.rbenv/shims:/usr/local/bin:/usr/bin:/bin
+
+# X のタイムラインからシフトを取り込む
+*/30 * * * * $RAILS_ROOT/script/cron_task.sh import_shifts
+
+# シフト開始通知を送る
+*/30 * * * * $RAILS_ROOT/script/cron_task.sh shift_notifications
+
+# 期限切れの一時レコードを削除する
+0 */4 * * *  $RAILS_ROOT/script/cron_task.sh cleanup

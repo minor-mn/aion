@@ -153,3 +153,19 @@ user.update!(role: :admin)
 
 - **SPA（フロントエンド）**: http://localhost:3000/
 - **Swagger UI（APIドキュメント）**: http://localhost:3000/openapi/index.html
+
+### 9. 定期実行（cron）
+
+X からのシフト取り込み、シフト通知、古いレコードの削除は cron から `script/cron_task.sh` を呼んで実行します。同じタスクが前回分の実行中なら、その回はスキップします。ログは `log/cron.log` に出力されます。
+
+設定の雛形は [config/crontab.example](config/crontab.example) にあります。`config/crontab` にコピーし、`RAILS_ROOT` と `PATH` を環境に合わせて書き換えてから、puma を動かしているユーザーで登録してください（`bundle` が見つかる `PATH` が必要です）。`config/crontab` は git 管理外です。
+
+```bash
+cp config/crontab.example config/crontab
+```
+
+```bash
+crontab config/crontab
+```
+
+`crontab` コマンドはそのユーザーの既存の crontab を置き換えます。ほかのジョブを登録している場合は `crontab -e` で追記してください。

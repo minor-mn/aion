@@ -19,4 +19,5 @@ properties:
   notify_minutes_before:
     type: integer
     minimum: 0
+    description: 0（通知しない）または30以上
     example: 30

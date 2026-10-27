@@ -46,7 +46,7 @@ Rails.application.configure do
   # Replace the default in-process memory cache store with a durable alternative.
   config.cache_store = :solid_cache_store
 
-  # Background work is run by the small worker command instead of a queue daemon.
+  # Background work is run by cron (script/cron_task.sh) instead of a queue daemon.
   config.active_job.queue_adapter = :inline
 
   # Raise delivery errors so issues are caught early.

@@ -4848,7 +4848,7 @@ app.component('my-page', {
                   <input v-model.number="notifyMinutesBefore" type="number" min="0" step="5">
                   <span class="minutes-suffix">分前</span>
                 </div>
-                <div class="form-hint">0の場合は通知しません</div>
+                <div class="form-hint">30分以上で指定してください。0の場合は通知しません</div>
               </div>
             </div>
           </template>

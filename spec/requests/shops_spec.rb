@@ -1,29 +1,17 @@
 require "rails_helper"
 
 RSpec.describe "Shops", type: :request do
-  let!(:user) { User.create!(email: "test@example.com", password: "password", role: "operator", confirmed_at: Time.current) }
-  let!(:basic_user) { User.create!(email: "basic@example.com", password: "password", role: "user", confirmed_at: Time.current) }
-  let!(:other_user) { User.create!(email: "other@example.com", password: "password", role: "user", confirmed_at: Time.current) }
+  let!(:user) { create_user(role: "operator") }
+  let!(:basic_user) { create_user(role: "user") }
+  let!(:other_user) { create_user(role: "user") }
   let(:auth_headers) do
-    post "/users/sign_in", params: {
-      user: { email: user.email, password: "password" }
-    }.to_json, headers: { "Content-Type" => "application/json" }
-
-    { "Authorization" => response.headers["Authorization"] }
+    auth_headers_for(user)
   end
   let(:basic_auth_headers) do
-    post "/users/sign_in", params: {
-      user: { email: basic_user.email, password: "password" }
-    }.to_json, headers: { "Content-Type" => "application/json" }
-
-    { "Authorization" => response.headers["Authorization"] }
+    auth_headers_for(basic_user)
   end
   let(:other_auth_headers) do
-    post "/users/sign_in", params: {
-      user: { email: other_user.email, password: "password" }
-    }.to_json, headers: { "Content-Type" => "application/json" }
-
-    { "Authorization" => response.headers["Authorization"] }
+    auth_headers_for(other_user)
   end
 
   describe "GET /v1/shops" do

@@ -1,14 +1,14 @@
 require "rails_helper"
 
 RSpec.describe "StaffShifts API", type: :request do
-  let!(:user) { User.create!(email: "test@example.com", password: "password", role: "operator", confirmed_at: Time.current) }
-  let!(:basic_user) { User.create!(email: "viewer@example.com", password: "password", role: "user", confirmed_at: Time.current) }
-  let!(:other_user) { User.create!(email: "other@example.com", password: "password", role: "user", confirmed_at: Time.current) }
+  let!(:user) { create_user(role: "operator") }
+  let!(:basic_user) { create_user(role: "user") }
+  let!(:other_user) { create_user(role: "user") }
   let!(:shop) { Shop.create(name: "Test Shop") }
   let!(:staff) { Staff.create(name: "Test Staff", shop_id: shop.id) }
-  let(:headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(user, :user, nil).first}" } }
-  let(:basic_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(basic_user, :user, nil).first}" } }
-  let(:other_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(other_user, :user, nil).first}" } }
+  let(:headers) { auth_headers_for(user) }
+  let(:basic_headers) { auth_headers_for(basic_user) }
+  let(:other_headers) { auth_headers_for(other_user) }
 
   describe "GET /v1/shops/:shop_id/staff_shifts" do
     before { StaffShift.create!(shop_id: shop.id, staff_id: staff.id, start_at: Time.current, end_at: 1.hour.from_now) }

@@ -1,14 +1,14 @@
 require "rails_helper"
 
 RSpec.describe "Events", type: :request do
-  let!(:operator) { User.create!(email: "operator@example.com", password: "password", role: "operator", confirmed_at: Time.current) }
-  let!(:basic_user) { User.create!(email: "basic@example.com", password: "password", role: "user", confirmed_at: Time.current) }
-  let!(:other_user) { User.create!(email: "other@example.com", password: "password", role: "user", confirmed_at: Time.current) }
+  let!(:operator) { create_user(role: "operator") }
+  let!(:basic_user) { create_user(role: "user") }
+  let!(:other_user) { create_user(role: "user") }
   let!(:shop) { Shop.create!(name: "Event Shop") }
 
-  let(:operator_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(operator, :user, nil).first}" } }
-  let(:basic_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(basic_user, :user, nil).first}" } }
-  let(:other_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(other_user, :user, nil).first}" } }
+  let(:operator_headers) { auth_headers_for(operator) }
+  let(:basic_headers) { auth_headers_for(basic_user) }
+  let(:other_headers) { auth_headers_for(other_user) }
 
   describe "GET /v1/events" do
     let!(:future_event) { Event.create!(shop: shop, title: "Future", start_at: 1.day.from_now, end_at: 2.days.from_now) }

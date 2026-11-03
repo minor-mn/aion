@@ -1,7 +1,7 @@
 require "rails_helper"
 
 RSpec.describe NotificationSetting do
-  let(:user) { User.create!(email: "setting@example.com", password: "password", confirmed_at: Time.current) }
+  let(:user) { create_user }
 
   def setting_with(minutes)
     described_class.new(user: user, notify_minutes_before: minutes)

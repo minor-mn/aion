@@ -27,6 +27,26 @@ class ApplicationController < ActionController::API
 
   private
 
+  def current_user
+    return @current_user if defined?(@current_user)
+
+    @current_user = authenticated_user
+  end
+
+  def authenticate_user!
+    return if current_user
+
+    render json: { error: "Authentication failed" }, status: :unauthorized
+  end
+
+  def authenticated_user
+    return if request.headers["Authorization"].blank?
+
+    User.from_claims(Rails.configuration.x.auth.authenticate(request))
+  rescue Umbra::InvalidToken
+    nil
+  end
+
   def authenticate_user_if_present!
     return if request.headers["Authorization"].blank?
 

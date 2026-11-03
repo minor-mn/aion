@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
+  <meta name="auth-server" content="https://an.umr.biz">
   <meta name="theme-color" content="#1a1a2e">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -71,12 +72,6 @@
       <div v-if="currentView !== 'home'" :key="currentView" class="view-slide-in-right">
         <!-- Login Page -->
         <login-page v-if="currentView === 'login'"></login-page>
-
-        <!-- Forgot Password Page -->
-        <forgot-password-page v-if="currentView === 'forgotPassword'"></forgot-password-page>
-
-        <!-- Reset Password Page -->
-        <reset-password-page v-if="currentView === 'resetPassword'"></reset-password-page>
 
         <!-- Register Page -->
         <register-page v-if="currentView === 'register'"></register-page>

@@ -1,5 +1,5 @@
 // SW Version — bump this on every deploy to trigger update + client reload
-const SW_VERSION = 'v12-subdir';
+const SW_VERSION = 'v13-passkey';
 
 // Push notification handler (Web Push API)
 self.addEventListener('push', (event) => {
@@ -57,7 +57,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-const CACHE_NAME = 'okyuyote-v12';
+const CACHE_NAME = 'okyuyote-v13';
 // Relative to this script, so the app works under any base path (e.g. /okyuyote/)
 const STATIC_ASSETS = [
   './',
@@ -101,8 +101,11 @@ self.addEventListener('fetch', event => {
   // Skip non-HTTP requests (e.g. chrome-extension://)
   if (!url.protocol.startsWith('http')) return;
 
+  // Only GET can be cached; the auth server's POST/PATCH go straight to the network
+  if (event.request.method !== 'GET') return;
+
   // API requests: network first, no cache fallback
-  if (url.pathname.startsWith(BASE_PATH + 'v1/') || url.pathname.startsWith(BASE_PATH + 'users/')) {
+  if (url.pathname.startsWith(BASE_PATH + 'v1/')) {
     event.respondWith(fetch(event.request));
     return;
   }

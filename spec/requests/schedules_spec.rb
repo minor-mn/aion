@@ -8,7 +8,7 @@ RSpec.describe "Schedules", type: :request do
     travel_to(Time.zone.parse("2024-05-01 17:20")) { example.run }
   end
 
-  let!(:user) { User.create!(email: "user@example.com", password: "password", confirmed_at: Time.current) }
+  let!(:user) { create_user }
   let!(:shop) { Shop.create!(name: "Test Shop") }
   let!(:staff1) { Staff.create!(name: "Alice", shop_id: shop.id) }
   let!(:staff2) { Staff.create!(name: "Bob", shop_id: shop.id) }
@@ -63,15 +63,7 @@ RSpec.describe "Schedules", type: :request do
     )
   end
   let!(:headers) do
-    post "/users/sign_in", params: {
-      user: {
-        email: user.email,
-        password: "password"
-      }
-    }.to_json, headers: { "Content-Type" => "application/json" }
-
-    token = response.headers["Authorization"]
-    { "Authorization" => token }
+    auth_headers_for(user)
   end
 
   describe "GET /v1/schedules" do

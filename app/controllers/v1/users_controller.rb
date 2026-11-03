@@ -8,17 +8,16 @@ class V1::UsersController < ApplicationController
   def index
     users = User.order(id: :desc).limit(pagination_limit).offset(pagination_offset)
     render json: {
-      users: users.as_json(only: %i[id email nickname role confirmed_at created_at updated_at])
+      users: users.as_json(only: %i[id username nickname role created_at updated_at])
     }, status: :ok
   end
 
   def update
-    @user.assign_attributes(profile_params)
     assign_role_param
 
     if @user.save
       render json: {
-        user: @user.as_json(only: %i[id email nickname role confirmed_at created_at updated_at])
+        user: @user.as_json(only: %i[id username nickname role created_at updated_at])
       }, status: :ok
     else
       render json: { errors: @user.errors.full_messages }, status: :unprocessable_entity
@@ -42,10 +41,6 @@ class V1::UsersController < ApplicationController
 
   def set_user
     @user = User.find(params[:id])
-  end
-
-  def profile_params
-    params.permit(:nickname)
   end
 
   def assign_role_param

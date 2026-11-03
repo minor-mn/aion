@@ -34,13 +34,11 @@ gem "thruster", require: false
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 
-gem "devise"
-gem "devise-jwt"
+# Passkey authentication by crystal-p2p-server (https://an.umr.biz/auth/)
+gem "umbra", github: "minor-mn/umbra", tag: "v1.0.0"
 
 gem "dotenv-rails"
 gem "rack-cors"
-
-gem "devise-i18n"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

@@ -14,9 +14,9 @@ get:
           example:
             user:
               id: 1
-              email: "user@example.com"
-              created_at: "2025-07-24T12:00:00Z"
-              updated_at: "2025-07-24T12:00:00Z"
+              username: "alice"
+              nickname: "Alice"
+              role: "user"
     "401":
       description: 認証エラー
       content:

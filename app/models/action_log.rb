@@ -7,8 +7,8 @@ class ActionLog < ApplicationRecord
   validates :target_type, presence: true
 
   def as_json(options = {})
-    result = super(options.except(:include_user_email))
-    result["user_email"] = user&.email if options[:include_user_email]
+    result = super(options.except(:include_user_username))
+    result["user_username"] = user&.username if options[:include_user_username]
     result
   end
 end

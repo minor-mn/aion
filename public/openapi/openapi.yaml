@@ -10,6 +10,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: >-
+        パスキー認証サーバ（https://an.umr.biz/auth/）が audience "umr" で発行したアクセストークン。
+        トークンはログインした端末の User-Agent に紐づくので、同じ User-Agent で送る。
+        初回のリクエストで、トークンの sub に紐付くユーザーが作られる。
 paths:
   /v1/schedules:
     $ref: "./paths/v1/schedules.yaml"
@@ -37,10 +41,6 @@ paths:
     $ref: "./paths/v1/staff_preferences.yaml"
   /v1/staff_preferences/{id}:
     $ref: "./paths/v1/staff_preference.yaml"
-  /users/sign_in:
-    $ref: "./paths/users/sign_in.yaml"
-  /users/sign_out:
-    $ref: "./paths/users/sign_out.yaml"
   /v1/user/me:
     $ref: "./paths/v1/user.yaml"
   /v1/user/notification_settings:
@@ -49,5 +49,3 @@ paths:
     $ref: "./paths/v1/notification_settings_test.yaml"
   /v1/user/push_subscriptions:
     $ref: "./paths/v1/push_subscriptions.yaml"
-  /users:
-    $ref: "./paths/users.yaml"

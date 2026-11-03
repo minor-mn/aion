@@ -1,6 +1,6 @@
 # Aion API
 
-This is a Ruby on Rails API application with JWT authentication and Swagger UI documentation.
+This is a Ruby on Rails API application with Swagger UI documentation. Users sign in with passkeys on the auth server of [crystal-p2p-server](https://an.umr.biz/auth/), and this app verifies its access tokens with [umbra](https://github.com/minor-mn/umbra).
 
 ## Prerequisites
 
@@ -26,11 +26,16 @@ bundle install
 
 ### 3. Set up environment variables
 
-Create a `.env` file in the project root with the following content:
+The auth server defaults to `https://an.umr.biz`. To use another one, set these in `.env`:
 
 ```env
-DEVISE_JWT_SECRET_KEY=<your_secret_key>
+AUTH_SERVER_URL=https://an.umr.biz
+AUTH_BASE_PATH=/auth
+AUTH_ISSUER=https://an.umr.biz
+AUTH_AUDIENCE=umr
 ```
+
+The browser talks to the auth server set by `<meta name="auth-server">` in `public/index.html`. A passkey can be used only on the origins the auth server allows (`allowed_origins` and `cors_allowed_origins`), so a local `http://localhost:3000` needs a local auth server that allows it.
 
 ### 4. Set up the database
 
@@ -46,14 +51,14 @@ bundle exec rails server -b 0.0.0.0
 
 ### 6. 管理者を設定
 
-アプリを開き、画面右上の「サインイン」を押します。表示された画面の「新規登録」から、管理者にしたいメールアドレスでアカウントを作成してください。確認メールに記載されたリンクを開いて登録を完了したあとで、同じメールアドレスを指定して管理者として設定します。
+アプリを開き、画面右上の「サインイン」からパスキーで新規登録（またはサインイン）してください。そのあとで、ユーザー名を指定して管理者として設定します。
 
 ```bash
 bundle exec rails console
 ```
 
 ```ruby
-user = User.find_by!(email: "admin@example.com") # 登録に使ったメールアドレスに置き換える
+user = User.find_by!(username: "alice") # 認証サーバのユーザー名に置き換える
 user.update!(role: :admin)
 ```
 
@@ -102,25 +107,7 @@ bundle install
 cp .env.example .env
 ```
 
-`.env` を編集し、最低限 `DEVISE_JWT_SECRET_KEY` を設定します：
-
-```bash
-# JWTシークレットキーを生成して設定
-echo "DEVISE_JWT_SECRET_KEY=$(bundle exec rails secret)" >> .env
-```
-
-メール送信が必要な場合は、SMTPの設定も `.env` に記述してください（`.env.example` を参照）。
-
-開発環境でメールの動作確認をするには [MailHog](https://github.com/mailhog/MailHog) が便利です：
-
-```bash
-# MailHogのインストール（Go製のSMTPテストサーバー）
-sudo apt install -y golang-go
-go install github.com/mailhog/MailHog@latest
-
-# MailHogの起動（SMTP: localhost:1025, Web UI: localhost:8025）
-~/go/bin/MailHog &
-```
+認証サーバはデフォルトで `https://an.umr.biz` を使います。変える場合は `.env` に `AUTH_SERVER_URL`・`AUTH_BASE_PATH`・`AUTH_ISSUER`・`AUTH_AUDIENCE` を設定し、`public/index.html` の `<meta name="auth-server">` も合わせてください。パスキーは認証サーバが許可したオリジン（`allowed_origins`・`cors_allowed_origins`）でしか使えません。
 
 ### 5. データベースの作成とマイグレーション
 
@@ -136,14 +123,14 @@ bundle exec rails server -b 0.0.0.0
 
 ### 7. 管理者を設定
 
-アプリを開き、画面右上の「サインイン」を押します。表示された画面の「新規登録」から、管理者にしたいメールアドレスでアカウントを作成してください。確認メールに記載されたリンクを開いて登録を完了したあとで、同じメールアドレスを指定して管理者として設定します。
+アプリを開き、画面右上の「サインイン」からパスキーで新規登録（またはサインイン）してください。そのあとで、ユーザー名を指定して管理者として設定します。
 
 ```bash
 bundle exec rails console
 ```
 
 ```ruby
-user = User.find_by!(email: "admin@example.com") # 登録に使ったメールアドレスに置き換える
+user = User.find_by!(username: "alice") # 認証サーバのユーザー名に置き換える
 user.update!(role: :admin)
 ```
 

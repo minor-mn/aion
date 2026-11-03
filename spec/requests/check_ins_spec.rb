@@ -4,14 +4,11 @@ RSpec.describe "CheckIns", type: :request do
   let!(:shop) { Shop.create!(name: "Test Shop", latitude: 35.681236, longitude: 139.767125) }
   let!(:staff_a) { Staff.create!(name: "Alice", shop_id: shop.id) }
 
-  let!(:user_a) { User.create!(email: "a@example.com", password: "password", confirmed_at: Time.current) }
-  let!(:user_b) { User.create!(email: "b@example.com", password: "password", confirmed_at: Time.current) }
+  let!(:user_a) { create_user }
+  let!(:user_b) { create_user }
 
   def sign_in(user)
-    post "/users/sign_in",
-         params: { user: { email: user.email, password: "password" } }.to_json,
-         headers: { "Content-Type" => "application/json" }
-    { "Authorization" => response.headers["Authorization"], "Content-Type" => "application/json" }
+    auth_headers_for(user).merge("Content-Type" => "application/json")
   end
 
   def create_check_in_for(user, checked_in_at: Time.current - 1.hour, checked_out_at: Time.current)

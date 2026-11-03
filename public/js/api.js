@@ -11,6 +11,11 @@ const RATE_LABELS = Object.freeze([
   { key: 'mood_rate',       label: 'トークや雰囲気作り' }
 ]);
 
+// Passkey authentication server (crystal-p2p-server). Set by <meta name="auth-server"> in index.html.
+const AUTH_SERVER_URL = (document.querySelector('meta[name="auth-server"]')?.content || 'https://an.umr.biz').replace(/\/+$/, '');
+const AUTH_PATH = '/auth';
+const AUTH_AUDIENCE = 'umr';
+
 // API Client for Aion
 const API = {
   token: localStorage.getItem('aion_token'),
@@ -43,10 +48,9 @@ const API = {
     // Resolve relative to the page so the API works under a base path (e.g. /okyuyote/v1/...)
     const res = await fetch(path.replace(/^\//, ''), opts);
 
-    // Extract JWT token from Authorization header on sign_in
-    const authHeader = res.headers.get('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      this.setToken(authHeader.replace('Bearer ', ''));
+    // The token expired, was used from another device, or is otherwise invalid.
+    if (res.status === 401 && this.token) {
+      this.setToken(null);
     }
 
     if (res.status === 204) return null;
@@ -65,40 +69,59 @@ const API = {
     return data;
   },
 
-  // Auth
-  register(email, password, passwordConfirmation) {
-    return this.request('POST', '/users', {
-      email, password, password_confirmation: passwordConfirmation
-    });
+  // Auth (passkey). Errors are thrown as { status, data: { error } } with the auth server's error code.
+  async authRequest(method, path, body = {}) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    const res = await fetch(`${AUTH_SERVER_URL}${AUTH_PATH}${path}`, { method, headers, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw { status: res.status, data };
+    }
+    return data;
   },
 
-  login(email, password) {
-    return this.request('POST', '/users/sign_in', {
-      user: { email, password }
+  async register(username, displayName) {
+    const options = await this.authRequest('POST', '/register/options', { username, display_name: displayName });
+    const credential = await navigator.credentials.create({ publicKey: Passkey.creationOptions(options.public_key) });
+    const result = await this.authRequest('POST', '/register/verify', {
+      challenge_id: options.challenge_id,
+      credential: Passkey.registrationJSON(credential),
+      audience: AUTH_AUDIENCE
     });
+    this.setToken(result.access_token);
   },
 
-  logout() {
-    return this.request('DELETE', '/users/sign_out').finally(() => {
+  // Sign in without a username. The authenticator lets the user pick a passkey.
+  async login() {
+    const options = await this.authRequest('POST', '/login/options', {});
+    const credential = await navigator.credentials.get({ publicKey: Passkey.requestOptions(options.public_key) });
+    const result = await this.authRequest('POST', '/login/verify', {
+      challenge_id: options.challenge_id,
+      credential: Passkey.assertionJSON(credential),
+      audience: AUTH_AUDIENCE
+    });
+    this.setToken(result.access_token);
+  },
+
+  async logout() {
+    try {
+      if (this.token) await this.authRequest('POST', '/logout', {});
+    } finally {
       this.setToken(null);
-    });
+    }
+  },
+
+  // The nickname belongs to the auth server. It returns a new token with the new nickname.
+  async updateNickname(displayName) {
+    const result = await this.authRequest('PATCH', '/me', { display_name: displayName });
+    this.setToken(result.access_token);
   },
 
   me() {
     return this.request('GET', '/v1/user/me');
-  },
-
-  // Password Reset
-  requestPasswordReset(email) {
-    return this.request('POST', '/users/password', { email });
-  },
-
-  resetPassword(token, password, passwordConfirmation) {
-    return this.request('PUT', '/users/password', {
-      reset_password_token: token,
-      password,
-      password_confirmation: passwordConfirmation
-    });
   },
 
   // Shops
@@ -226,11 +249,6 @@ const API = {
     return this.request('GET', `/v1/schedules?${params}`);
   },
 
-  // Profile
-  updateProfile(data) {
-    return this.request('PATCH', '/v1/user/profile', data);
-  },
-
   // Notification Settings
   getNotificationSettings() {
     return this.request('GET', '/v1/user/notification_settings');
@@ -321,6 +339,64 @@ const API = {
   },
   submitStaffRates(checkInId, staffRates) {
     return this.request('POST', `/v1/check_ins/${checkInId}/staff_rates`, { staff_rates: staffRates });
+  }
+};
+
+// WebAuthn values <-> the base64url JSON the auth server expects
+const Passkey = {
+  b64urlToBuffer(value) {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer;
+  },
+
+  bufferToB64url(buffer) {
+    let binary = '';
+    new Uint8Array(buffer).forEach((byte) => { binary += String.fromCharCode(byte); });
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  },
+
+  creationOptions(options) {
+    return {
+      ...options,
+      challenge: this.b64urlToBuffer(options.challenge),
+      user: { ...options.user, id: this.b64urlToBuffer(options.user.id) },
+      excludeCredentials: (options.excludeCredentials || []).map((c) => ({ ...c, id: this.b64urlToBuffer(c.id) }))
+    };
+  },
+
+  requestOptions(options) {
+    return {
+      ...options,
+      challenge: this.b64urlToBuffer(options.challenge),
+      allowCredentials: (options.allowCredentials || []).map((c) => ({ ...c, id: this.b64urlToBuffer(c.id) }))
+    };
+  },
+
+  registrationJSON(credential) {
+    return {
+      id: credential.id,
+      rawId: this.bufferToB64url(credential.rawId),
+      type: credential.type,
+      response: {
+        clientDataJSON: this.bufferToB64url(credential.response.clientDataJSON),
+        attestationObject: this.bufferToB64url(credential.response.attestationObject),
+        transports: credential.response.getTransports ? credential.response.getTransports() : []
+      }
+    };
+  },
+
+  assertionJSON(credential) {
+    return {
+      id: credential.id,
+      rawId: this.bufferToB64url(credential.rawId),
+      type: credential.type,
+      response: {
+        clientDataJSON: this.bufferToB64url(credential.response.clientDataJSON),
+        authenticatorData: this.bufferToB64url(credential.response.authenticatorData),
+        signature: this.bufferToB64url(credential.response.signature),
+        userHandle: credential.response.userHandle ? this.bufferToB64url(credential.response.userHandle) : null
+      }
+    };
   }
 };
 

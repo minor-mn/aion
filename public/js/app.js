@@ -72,8 +72,7 @@ const app = createApp({
     // ========== State ==========
     const currentUser = ref(null);
     const authResolved = ref(false);
-    const currentView = ref('home'); // home, login, register, forgotPassword, resetPassword, shopForm, staffForm, shiftForm, shiftImportPage, shiftBulkForm, shiftEdit
-    const resetPasswordToken = ref(null);
+    const currentView = ref('home'); // home, login, register, shopForm, staffForm, shiftForm, shiftImportPage, shiftBulkForm, shiftEdit
     const menuOpen = ref(false);
     const loading = ref(true);
     const error = ref('');
@@ -155,69 +154,105 @@ const app = createApp({
       }
     }
 
-    function checkAuth() {
-      if (!API.isLoggedIn()) {
+    // The token comes from the auth server and carries no Aion user id or role, so the user comes from /v1/user/me.
+    // The last response is kept so the app can start while offline.
+    const CURRENT_USER_KEY = 'aion_current_user';
+
+    function setCurrentUser(user) {
+      currentUser.value = user ? { id: user.id, username: user.username || '', nickname: user.nickname || '', role: user.role || 'user' } : null;
+      try {
+        if (user) {
+          localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser.value));
+        } else {
+          localStorage.removeItem(CURRENT_USER_KEY);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    async function refreshCurrentUser() {
+      try {
+        const data = await API.me();
+        setCurrentUser(data.user);
+      } catch (e) {
+        if (e && e.status === 401) setCurrentUser(null);
+      }
+    }
+
+    async function checkAuth() {
+      if (!API.isLoggedIn() || !decodeJwtPayload(API.token)) {
+        API.setToken(null);
+        setCurrentUser(null);
         loading.value = false;
         authResolved.value = true;
         return;
       }
-      const payload = decodeJwtPayload(API.token);
-      if (payload) {
-        currentUser.value = {
-          id: Number(payload.sub),
-          nickname: payload.nickname || '',
-          email: payload.email || '',
-          role: payload.role || 'user'
-        };
-      } else {
-        API.setToken(null);
-        currentUser.value = null;
+      try {
+        const cached = JSON.parse(localStorage.getItem(CURRENT_USER_KEY) || 'null');
+        if (cached) currentUser.value = cached;
+      } catch (e) {
+        // ignore
       }
+      await refreshCurrentUser();
       loading.value = false;
       authResolved.value = true;
     }
 
-    async function handleLogin(email, password) {
+    function passkeyErrorMessage(e, fallback) {
+      if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) return 'パスキーの操作がキャンセルされました';
+      if (e && e.name === 'InvalidStateError') return 'この端末にはすでにパスキーが登録されています。サインインしてください';
+      const messages = {
+        username_taken: 'このユーザー名はすでに使われています',
+        invalid_username: 'ユーザー名は英小文字・数字・「_」「.」「-」の3〜32文字で入力してください',
+        invalid_display_name: 'ニックネームが正しくありません',
+        registration_closed: '現在、新規登録を受け付けていません'
+      };
+      return messages[e?.data?.error] || fallback;
+    }
+
+    // Runs the passkey ceremony, then loads the Aion user for the new token.
+    async function signInWith(ceremony, failureMessage) {
       error.value = '';
+      success.value = '';
       try {
-        await API.login(email, password);
-        // Extract user info from JWT token (set by API.request via Authorization header)
-        const payload = decodeJwtPayload(API.token);
-        if (payload) {
-          currentUser.value = {
-            id: Number(payload.sub),
-            nickname: payload.nickname || '',
-            email: payload.email || '',
-            role: payload.role || 'user'
-          };
-        }
-        todayShops.value = [];
-        todayShifts.value = {};
-        todayEvents.value = [];
-        scheduleData.value = [];
-        lastHomeDataLoadedAt.value = 0;
-        currentView.value = 'home';
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-        success.value = 'サインインしました';
-        await Promise.all([
-          loadHomeData(true),
-          loadStaffPreferences()
-        ]);
-        loadConfig();
+        await ceremony();
+        setCurrentUser((await API.me()).user);
+        return true;
       } catch (e) {
-        error.value = e.data?.error || 'サインインに失敗しました';
+        API.setToken(null);
+        setCurrentUser(null);
+        error.value = passkeyErrorMessage(e, failureMessage);
+        return false;
       }
     }
 
-    async function handleRegister(email, password, passwordConfirmation) {
-      error.value = '';
-      try {
-        const data = await API.register(email, password, passwordConfirmation);
-        success.value = data.message || '登録が完了しました';
-        currentView.value = 'login';
-      } catch (e) {
-        error.value = e.data?.errors?.join(', ') || e.data?.message || '登録に失敗しました';
+    async function handleLogin() {
+      if (await signInWith(() => API.login(), 'サインインに失敗しました')) {
+        await afterSignIn('サインインしました');
       }
+    }
+
+    async function handleRegister(username, nickname) {
+      if (await signInWith(() => API.register(username, nickname), '登録に失敗しました')) {
+        await afterSignIn('登録しました');
+      }
+    }
+
+    async function afterSignIn(message) {
+      todayShops.value = [];
+      todayShifts.value = {};
+      todayEvents.value = [];
+      scheduleData.value = [];
+      lastHomeDataLoadedAt.value = 0;
+      currentView.value = 'home';
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      success.value = message;
+      await Promise.all([
+        loadHomeData(true),
+        loadStaffPreferences()
+      ]);
+      loadConfig();
     }
 
     async function handleLogout() {
@@ -226,7 +261,7 @@ const app = createApp({
       } catch (e) {
         // ignore
       }
-      currentUser.value = null;
+      setCurrentUser(null);
       activeCheckIn.value = null;
       menuOpen.value = false;
       scheduleData.value = [];
@@ -1297,7 +1332,7 @@ const app = createApp({
     const hashToView = {
       '': 'home', 'home': 'home',
       'map': 'mapView', 'login': 'login', 'register': 'register',
-      'forgot-password': 'forgotPassword', 'my-page': 'myPage',
+      'my-page': 'myPage',
       'users': 'userList', 'shops': 'shopForm', 'staffs': 'staffForm', 'shifts': 'shiftForm', 'shift-import': 'shiftImportPage', 'shift-bulk': 'shiftBulkForm',
       'events': 'eventForm',
       'introduction': 'introduction',
@@ -1305,7 +1340,7 @@ const app = createApp({
     };
     const viewToHash = {
       'home': '', 'mapView': 'map', 'login': 'login', 'register': 'register',
-      'forgotPassword': 'forgot-password', 'myPage': 'my-page',
+      'myPage': 'my-page',
       'userList': 'users', 'shopForm': 'shops', 'staffForm': 'staffs', 'shiftForm': 'shifts', 'shiftImportPage': 'shift-import', 'shiftBulkForm': 'shift-bulk',
       'eventForm': 'events',
       'introduction': 'introduction',
@@ -1540,22 +1575,6 @@ const app = createApp({
 
     // ========== Init ==========
     onMounted(async () => {
-      // Handle email confirmation redirect
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('confirmed') === 'true') {
-        success.value = 'メールアドレスが確認されました。サインインしてください。';
-        currentView.value = 'login';
-        window.history.replaceState({}, '', window.location.pathname);
-      } else if (params.get('confirmation_error')) {
-        error.value = params.get('confirmation_error');
-        currentView.value = 'login';
-        window.history.replaceState({}, '', window.location.pathname);
-      } else if (params.get('reset_password_token')) {
-        resetPasswordToken.value = params.get('reset_password_token');
-        currentView.value = 'resetPassword';
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-
       await checkAuth();
       await loadConfig();
       if (currentUser.value) loadStaffPreferences();
@@ -1595,7 +1614,6 @@ const app = createApp({
 
     return {
       registerPushSubscription, unregisterPushSubscription,
-      resetPasswordToken,
       currentUser, currentView, menuOpen, loading, authResolved, error, success,
       homeSlideFromLeft,
       calendarYear, calendarMonth, calendarSlideDirection, homeCalendarLoading, scheduleData, selectedDate, modalOpen, timelineModalOpen,
@@ -1603,7 +1621,7 @@ const app = createApp({
       todayShops, todayShifts, todayEvents, shops, staffs, users, shopHomeShop, shopHomeStaffs, shopHomeEvents, shopHomeLoading,
       staffHomeStaff, staffHomeLoading,
       editingShift, editingStaff, editingShop, shiftFormPreset,
-      handleLogin, handleRegister, handleLogout,
+      handleLogin, handleRegister, handleLogout, refreshCurrentUser,
       prevMonth, nextMonth, calendarTitle, calendarDays,
       openDayModal, openTodayTimelineModal, selectedDayData, selectedDayEvents, selectedDayShopGroups, selectedDayBirthdays, closeModal,
       rememberDayModalTouchPosition, guardDayModalBoundaryScroll, guardDayModalWheel,
@@ -2787,129 +2805,24 @@ app.component('login-page', {
       <h2>サインイン</h2>
       <div v-if="$root.error" class="alert alert-error">{{ $root.error }}</div>
       <div v-if="$root.success" class="alert alert-success">{{ $root.success }}</div>
-      <div class="form-group">
-        <label>メールアドレス</label>
-        <input v-model="email" type="email" placeholder="email@example.com" @keyup.enter="submit">
-      </div>
-      <div class="form-group">
-        <label>パスワード</label>
-        <input v-model="password" type="password" placeholder="パスワード" @keyup.enter="submit">
-      </div>
+      <p class="form-hint" style="margin-bottom:16px">登録したパスキーでサインインします。umr.biz の他のサービスで作ったアカウントも使えます。</p>
       <div class="form-actions">
         <button class="btn btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? 'サインイン中...' : 'サインイン' }}
+          {{ submitting ? 'サインイン中...' : 'パスキーでサインイン' }}
         </button>
       </div>
       <div class="auth-link">
         アカウントをお持ちでない方は <a @click="$root.navigate('register')">新規登録</a>
       </div>
-      <div class="auth-link">
-        <a @click="$root.navigate('forgotPassword')">パスワードを忘れた方はこちら</a>
-      </div>
     </div>
   `,
   data() {
-    return { email: '', password: '', submitting: false };
+    return { submitting: false };
   },
   methods: {
     async submit() {
-      if (!this.email || !this.password) return;
       this.submitting = true;
-      await this.$root.handleLogin(this.email, this.password);
-      this.submitting = false;
-    }
-  }
-});
-
-// ========== Forgot Password Component ==========
-app.component('forgot-password-page', {
-  template: `
-    <div class="auth-container">
-      <h2>パスワード再設定</h2>
-      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
-      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
-      <p style="margin-bottom:16px;color:#a0a0b8;font-size:0.9rem">登録済みのメールアドレスを入力してください。パスワード再設定用のリンクをメールで送信します。</p>
-      <div class="form-group">
-        <label>メールアドレス</label>
-        <input v-model="email" type="email" placeholder="email@example.com" @keyup.enter="submit">
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? '送信中...' : '再設定メールを送信' }}
-        </button>
-      </div>
-      <div class="auth-link">
-        <a @click="$root.navigate('login')">サインインに戻る</a>
-      </div>
-    </div>
-  `,
-  data() {
-    return { email: '', submitting: false, localError: '', localSuccess: '' };
-  },
-  methods: {
-    async submit() {
-      if (!this.email) return;
-      this.submitting = true;
-      this.localError = '';
-      this.localSuccess = '';
-      try {
-        const data = await API.requestPasswordReset(this.email);
-        this.localSuccess = data.message || 'パスワード再設定メールを送信しました。';
-        this.email = '';
-      } catch (e) {
-        this.localError = e.data?.errors?.join(', ') || 'メールの送信に失敗しました。';
-      }
-      this.submitting = false;
-    }
-  }
-});
-
-// ========== Reset Password Component ==========
-app.component('reset-password-page', {
-  template: `
-    <div class="auth-container">
-      <h2>新しいパスワードの設定</h2>
-      <div v-if="localError" class="alert alert-error">{{ localError }}</div>
-      <div v-if="localSuccess" class="alert alert-success">{{ localSuccess }}</div>
-      <div class="form-group">
-        <label>新しいパスワード</label>
-        <input v-model="password" type="password" placeholder="6文字以上">
-      </div>
-      <div class="form-group">
-        <label>新しいパスワード（確認）</label>
-        <input v-model="passwordConfirmation" type="password" placeholder="パスワード再入力" @keyup.enter="submit">
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? '設定中...' : 'パスワードを再設定' }}
-        </button>
-      </div>
-      <div class="auth-link">
-        <a @click="$root.navigate('login')">サインインに戻る</a>
-      </div>
-    </div>
-  `,
-  data() {
-    return { password: '', passwordConfirmation: '', submitting: false, localError: '', localSuccess: '' };
-  },
-  methods: {
-    async submit() {
-      if (!this.password || !this.passwordConfirmation) return;
-      this.submitting = true;
-      this.localError = '';
-      this.localSuccess = '';
-      try {
-        const data = await API.resetPassword(
-          this.$root.resetPasswordToken,
-          this.password,
-          this.passwordConfirmation
-        );
-        this.localSuccess = data.message || 'パスワードを再設定しました。';
-        this.$root.resetPasswordToken = null;
-        setTimeout(() => { this.$root.navigate('login'); }, 2000);
-      } catch (e) {
-        this.localError = e.data?.errors?.join(', ') || 'パスワードの再設定に失敗しました。';
-      }
+      await this.$root.handleLogin();
       this.submitting = false;
     }
   }
@@ -2923,20 +2836,16 @@ app.component('register-page', {
       <div v-if="$root.error" class="alert alert-error">{{ $root.error }}</div>
       <div v-if="$root.success" class="alert alert-success">{{ $root.success }}</div>
       <div class="form-group">
-        <label>メールアドレス</label>
-        <input v-model="email" type="email" placeholder="email@example.com">
+        <label>ユーザー名</label>
+        <input v-model="username" type="text" placeholder="英小文字・数字・_ . - の3〜32文字" autocapitalize="off" autocomplete="username">
       </div>
       <div class="form-group">
-        <label>パスワード</label>
-        <input v-model="password" type="password" placeholder="6文字以上">
-      </div>
-      <div class="form-group">
-        <label>パスワード（確認）</label>
-        <input v-model="passwordConfirmation" type="password" placeholder="パスワード再入力" @keyup.enter="submit">
+        <label>ニックネーム</label>
+        <input v-model="nickname" type="text" placeholder="ニックネーム" @keyup.enter="submit">
       </div>
       <div class="form-actions">
         <button class="btn btn-primary" @click="submit" :disabled="submitting">
-          {{ submitting ? '登録中...' : '新規登録' }}
+          {{ submitting ? '登録中...' : 'パスキーを作成して登録' }}
         </button>
       </div>
       <div class="auth-link">
@@ -2945,13 +2854,13 @@ app.component('register-page', {
     </div>
   `,
   data() {
-    return { email: '', password: '', passwordConfirmation: '', submitting: false };
+    return { username: '', nickname: '', submitting: false };
   },
   methods: {
     async submit() {
-      if (!this.email || !this.password || !this.passwordConfirmation) return;
+      if (!this.username) return;
       this.submitting = true;
-      await this.$root.handleRegister(this.email, this.password, this.passwordConfirmation);
+      await this.$root.handleRegister(this.username.trim().toLowerCase(), this.nickname.trim());
       this.submitting = false;
     }
   }
@@ -3271,12 +3180,12 @@ app.component('user-list-page', {
       <template v-if="editMode">
         <h3 style="margin-bottom:12px">ユーザー編集</h3>
         <div class="form-group">
-          <label>メールアドレス</label>
-          <input v-model="form.email" type="email" disabled>
+          <label>ユーザー名</label>
+          <input v-model="form.username" type="text" disabled>
         </div>
         <div class="form-group">
           <label>ニックネーム</label>
-          <input v-model="form.nickname" type="text" placeholder="ニックネーム">
+          <input v-model="form.nickname" type="text" disabled>
         </div>
         <div class="form-group">
           <label>ロール</label>
@@ -3300,7 +3209,7 @@ app.component('user-list-page', {
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <div class="shop-block-name">{{ user.nickname || 'ニックネーム未設定' }}</div>
-            <div style="font-size:0.8rem;color:#a0a0b8">{{ user.email }}</div>
+            <div style="font-size:0.8rem;color:#a0a0b8">{{ user.username || '(旧アカウント)' }}</div>
             <div style="font-size:0.8rem;color:#a0a0b8">role: {{ user.role }}</div>
           </div>
           <div style="display:flex;gap:6px">
@@ -3318,7 +3227,7 @@ app.component('user-list-page', {
   `,
   data() {
     return {
-      form: { email: '', nickname: '', role: 'user' },
+      form: { username: '', nickname: '', role: 'user' },
       editMode: false,
       editUserId: null,
       currentPage: 1,
@@ -3344,7 +3253,7 @@ app.component('user-list-page', {
       this.editMode = true;
       this.editUserId = user.id;
       this.form = {
-        email: user.email || '',
+        username: user.username || '',
         nickname: user.nickname || '',
         role: user.role
       };
@@ -3355,7 +3264,7 @@ app.component('user-list-page', {
     cancelEdit() {
       this.editMode = false;
       this.editUserId = null;
-      this.form = { email: '', nickname: '', role: 'user' };
+      this.form = { username: '', nickname: '', role: 'user' };
       this.localError = '';
       this.localSuccess = '';
     },
@@ -3364,7 +3273,7 @@ app.component('user-list-page', {
       this.localError = '';
       this.localSuccess = '';
       try {
-        await API.updateUser(this.editUserId, this.form);
+        await API.updateUser(this.editUserId, { role: this.form.role });
         this.localSuccess = '更新しました';
         this.cancelEdit();
         this.localSuccess = '更新しました';
@@ -4764,49 +4673,12 @@ app.component('my-page', {
         <div class="mypage-card">
           <h3 class="mypage-card-title">ニックネーム</h3>
           <div v-if="nicknameMsg" class="alert" :class="nicknameMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ nicknameMsg }}</div>
+          <div class="form-hint" style="margin-bottom:8px">ユーザー名: {{ $root.currentUser?.username }}</div>
           <div class="form-group">
             <input v-model="nickname" type="text" placeholder="ニックネームを入力">
           </div>
           <button class="btn btn-primary btn-block" @click="saveNickname" :disabled="savingNickname">
             {{ savingNickname ? '保存中...' : 'ニックネームを保存' }}
-          </button>
-        </div>
-
-        <!-- Email Change -->
-        <div class="mypage-card">
-          <h3 class="mypage-card-title">サインインID (メールアドレス) 変更</h3>
-          <div v-if="emailMsg" class="alert" :class="emailMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ emailMsg }}</div>
-          <div class="form-group">
-            <label>新しいメールアドレス</label>
-            <input v-model="newEmail" type="email" placeholder="新しいメールアドレス">
-          </div>
-          <div class="form-group">
-            <label>現在のパスワード</label>
-            <input v-model="emailCurrentPassword" type="password" placeholder="現在のパスワード">
-          </div>
-          <button class="btn btn-primary btn-block" @click="saveEmail" :disabled="savingEmail">
-            {{ savingEmail ? '変更中...' : 'メールアドレスを変更' }}
-          </button>
-        </div>
-
-        <!-- Password Change -->
-        <div class="mypage-card">
-          <h3 class="mypage-card-title">パスワード変更</h3>
-          <div v-if="passwordMsg" class="alert" :class="passwordMsgType === 'success' ? 'alert-success' : 'alert-error'">{{ passwordMsg }}</div>
-          <div class="form-group">
-            <label>現在のパスワード</label>
-            <input v-model="currentPassword" type="password" placeholder="現在のパスワード">
-          </div>
-          <div class="form-group">
-            <label>新しいパスワード</label>
-            <input v-model="newPassword" type="password" placeholder="6文字以上">
-          </div>
-          <div class="form-group">
-            <label>新しいパスワード（確認）</label>
-            <input v-model="newPasswordConfirmation" type="password" placeholder="パスワード再入力">
-          </div>
-          <button class="btn btn-primary btn-block" @click="savePassword" :disabled="savingPassword">
-            {{ savingPassword ? '変更中...' : 'パスワードを変更' }}
           </button>
         </div>
 
@@ -4880,19 +4752,6 @@ app.component('my-page', {
       savingNickname: false,
       nicknameMsg: '',
       nicknameMsgType: '',
-      // Email
-      newEmail: '',
-      emailCurrentPassword: '',
-      savingEmail: false,
-      emailMsg: '',
-      emailMsgType: '',
-      // Password
-      currentPassword: '',
-      newPassword: '',
-      newPasswordConfirmation: '',
-      savingPassword: false,
-      passwordMsg: '',
-      passwordMsgType: '',
       // Notification
       notifEnabled: false,
       scoreThresholdShop: 0,
@@ -4912,7 +4771,6 @@ app.component('my-page', {
     // Load current user info
     if (this.$root.currentUser) {
       this.nickname = this.$root.currentUser.nickname || '';
-      this.newEmail = this.$root.currentUser.email || '';
     }
     // Load notification settings
     try {
@@ -4940,82 +4798,17 @@ app.component('my-page', {
       this.savingNickname = true;
       this.nicknameMsg = '';
       try {
-        const data = await API.updateProfile({ nickname: this.nickname });
+        // The nickname is kept by the auth server; Aion copies it from the new token.
+        await API.updateNickname(this.nickname);
+        await this.$root.refreshCurrentUser();
+        this.nickname = this.$root.currentUser?.nickname || '';
         this.nicknameMsg = 'ニックネームを保存しました';
         this.nicknameMsgType = 'success';
-        if (data.token) {
-          API.setToken(data.token);
-          const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-          const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
-          this.$root.currentUser = { id: Number(payload.sub), nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
-        }
       } catch (e) {
-        this.nicknameMsg = e.data?.error || '保存に失敗しました';
+        this.nicknameMsg = e.data?.error === 'invalid_display_name' ? 'ニックネームが正しくありません' : '保存に失敗しました';
         this.nicknameMsgType = 'error';
       }
       this.savingNickname = false;
-    },
-    async saveEmail() {
-      this.savingEmail = true;
-      this.emailMsg = '';
-      if (!this.emailCurrentPassword) {
-        this.emailMsg = '現在のパスワードを入力してください';
-        this.emailMsgType = 'error';
-        this.savingEmail = false;
-        return;
-      }
-      try {
-        const data = await API.updateProfile({
-          email: this.newEmail,
-          current_password: this.emailCurrentPassword
-        });
-        this.emailMsg = 'メールアドレスを変更しました';
-        this.emailMsgType = 'success';
-        this.emailCurrentPassword = '';
-        if (data.token) {
-          API.setToken(data.token);
-          const base64 = data.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-          const payload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join('')));
-          this.$root.currentUser = { id: Number(payload.sub), nickname: payload.nickname || '', email: payload.email || '', role: payload.role || 'user' };
-        }
-      } catch (e) {
-        this.emailMsg = e.data?.error || '変更に失敗しました';
-        this.emailMsgType = 'error';
-      }
-      this.savingEmail = false;
-    },
-    async savePassword() {
-      this.savingPassword = true;
-      this.passwordMsg = '';
-      if (!this.currentPassword) {
-        this.passwordMsg = '現在のパスワードを入力してください';
-        this.passwordMsgType = 'error';
-        this.savingPassword = false;
-        return;
-      }
-      if (this.newPassword !== this.newPasswordConfirmation) {
-        this.passwordMsg = '新しいパスワードが一致しません';
-        this.passwordMsgType = 'error';
-        this.savingPassword = false;
-        return;
-      }
-      try {
-        const data = await API.updateProfile({
-          password: this.newPassword,
-          password_confirmation: this.newPasswordConfirmation,
-          current_password: this.currentPassword
-        });
-        this.passwordMsg = 'パスワードを変更しました';
-        if (data && data.token) API.setToken(data.token);
-        this.passwordMsgType = 'success';
-        this.currentPassword = '';
-        this.newPassword = '';
-        this.newPasswordConfirmation = '';
-      } catch (e) {
-        this.passwordMsg = e.data?.error || '変更に失敗しました';
-        this.passwordMsgType = 'error';
-      }
-      this.savingPassword = false;
     },
     async saveNotification() {
       this.savingNotif = true;

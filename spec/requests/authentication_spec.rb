@@ -1,108 +1,64 @@
 require "rails_helper"
 
 RSpec.describe "User authentication", type: :request do
-  let(:user_params) do
-    {
-      email: "test@example.com",
-      password: "password",
-      password_confirmation: "password"
-    }
-  end
-
   let(:headers) do
-    { "Content-Type" => "application/json", "Accept" => "application/json" }
+    { "Content-Type" => "application/json", "Accept" => "application/json", "User-Agent" => AUTH_USER_AGENT }
   end
 
-  # ユーザ作成
-  it "registers a user" do
-    post "/users", params: user_params.to_json, headers: headers
+  def token_headers(sub, **claims)
+    token = AUTH_ISSUER.token(sub: sub, headers: { "User-Agent" => AUTH_USER_AGENT }, **claims)
+    headers.merge("Authorization" => "Bearer #{token}")
+  end
+
+  # 初回のリクエストで、認証サーバのユーザーに紐付くユーザーを作る
+  it "creates a user on the first request with a token" do
+    expect {
+      get "/v1/user/me", headers: token_headers("sub-1", preferred_username: "alice", name: "Alice")
+    }.to change(User, :count).by(1)
 
     expect(response).to have_http_status(:ok)
-    json = JSON.parse(response.body)
-    expect(json["message"]).to include("確認メール")
+    json = JSON.parse(response.body)["user"]
+    user = User.find_by!(auth_sub: "sub-1")
+    expect(json).to eq("id" => user.id, "username" => "alice", "nickname" => "Alice", "role" => "user")
   end
 
-  # ログイン
-  it "logs in and returns a JWT" do
-    User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
+  # 2回目以降は同じユーザー。ニックネームは認証サーバの値に合わせる
+  it "reuses the user and follows the nickname" do
+    user = create_user(sub: "sub-1", username: "alice", nickname: "Alice", role: "operator")
 
-    post "/users/sign_in", params: { user: { email: "test@example.com", password: "password" } }, headers: headers, as: :json
+    expect {
+      get "/v1/user/me", headers: token_headers("sub-1", preferred_username: "alice", name: "Alice 2")
+    }.not_to change(User, :count)
 
-    expect(response).to have_http_status(:ok)
-    token = response.headers["Authorization"]
-    expect(token).to start_with("Bearer ")
+    json = JSON.parse(response.body)["user"]
+    expect(json["id"]).to eq(user.id)
+    expect(json["nickname"]).to eq("Alice 2")
+    expect(json["role"]).to eq("operator")
   end
 
-  # ログイン失敗
-  it "fails to log in with incorrect credentials" do
-    User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
-
-    post "/users/sign_in", params: { user: { email: "test@example.com", password: "wrongpassword" } }.to_json, headers: headers
+  it "rejects a request without a token" do
+    get "/v1/user/me", headers: headers
 
     expect(response).to have_http_status(:unauthorized)
-    json = JSON.parse(response.body)
-    expect(json["error"]).to eq("Authentication failed")
+    expect(JSON.parse(response.body)["error"]).to eq("Authentication failed")
   end
 
-  # ユーザ情報
-  it "fetches current user info with valid token" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
+  it "rejects a token for another audience" do
+    get "/v1/user/me", headers: token_headers("sub-1", aud: "p2p")
 
-    post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
-    token = response.headers["Authorization"]
-
-    get "/v1/user/me", headers: headers.merge("Authorization" => token)
-    expect(response).to have_http_status(:ok)
-
-    json = JSON.parse(response.body)
-    expect(json["user"]["email"]).to eq(user.email)
-    expect(json["user"]["role"]).to eq("user")
+    expect(response).to have_http_status(:unauthorized)
   end
 
-  # ログアウト
-  it "logs out a user by revoking the token" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
+  it "rejects an expired token" do
+    get "/v1/user/me", headers: token_headers("sub-1", ttl: -3600)
 
-    post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
-    token = response.headers["Authorization"]
-
-    delete "/users/sign_out", headers: headers.merge("Authorization" => token)
-    expect(response).to have_http_status(:ok)
+    expect(response).to have_http_status(:unauthorized)
   end
 
-  # 更新
-  it "updates user email and password" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
+  it "rejects a token used from another device" do
+    get "/v1/user/me", headers: token_headers("sub-1").merge("User-Agent" => "other")
 
-    # ログインしてトークン取得
-    post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
-    token = response.headers["Authorization"]
-
-    # ユーザー情報を更新
-    patch "/users",
-      params: {
-        email: "updated@example.com",
-        password: "newpassword",
-        password_confirmation: "newpassword",
-        current_password: "password"
-      }.to_json,
-      headers: headers.merge("Authorization" => token)
-
-    expect(response).to have_http_status(:ok)
-    json = JSON.parse(response.body)
-    expect(json["message"]).to eq("Updated.")
-    expect(json["user"]["email"]).to eq("test@example.com")
-    expect(user.reload.unconfirmed_email).to eq("updated@example.com")
-  end
-
-  # 削除
-  it "deletes a user" do
-    user = User.create!(email: "test@example.com", password: "password", password_confirmation: "password", confirmed_at: Time.current)
-
-    post "/users/sign_in", params: { user: { email: user.email, password: "password" } }.to_json, headers: headers
-    token = response.headers["Authorization"]
-
-    delete "/users", headers: headers.merge("Authorization" => token)
-    expect(response).to have_http_status(:no_content)
+    expect(response).to have_http_status(:unauthorized)
+    expect(User.find_by(auth_sub: "sub-1")).to be_nil
   end
 end

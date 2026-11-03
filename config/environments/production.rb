@@ -49,27 +49,6 @@ Rails.application.configure do
   # Background work is run by cron (script/cron_task.sh) instead of a queue daemon.
   config.active_job.queue_adapter = :inline
 
-  # Raise delivery errors so issues are caught early.
-  config.action_mailer.raise_delivery_errors = true
-
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST", "example.com"), script_name: config.x.base_path }
-
-  # SMTP settings for sending emails.
-  config.action_mailer.delivery_method = :smtp
-  smtp_settings = {
-    address: ENV.fetch("SMTP_ADDRESS", "localhost"),
-    port: ENV.fetch("SMTP_PORT", 587).to_i,
-    domain: ENV.fetch("SMTP_DOMAIN", "example.com"),
-    enable_starttls_auto: ENV.fetch("SMTP_ENABLE_STARTTLS", "false") == "true"
-  }
-  if ENV["SMTP_USERNAME"].present?
-    smtp_settings[:user_name] = ENV["SMTP_USERNAME"]
-    smtp_settings[:password] = ENV["SMTP_PASSWORD"]
-    smtp_settings[:authentication] = :plain
-  end
-  config.action_mailer.smtp_settings = smtp_settings
-
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
   config.i18n.fallbacks = true

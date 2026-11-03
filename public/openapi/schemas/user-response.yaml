@@ -3,15 +3,16 @@ properties:
   id:
     type: integer
     example: 1
-  email:
+  username:
     type: string
-    format: email
-    example: "user@example.com"
-  created_at:
+    description: 認証サーバのユーザー名
+    example: "alice"
+  nickname:
     type: string
-    format: date-time
-    example: "2025-07-24T12:00:00Z"
-  updated_at:
+    nullable: true
+    description: 認証サーバのニックネーム
+    example: "Alice"
+  role:
     type: string
-    format: date-time
-    example: "2025-07-24T12:00:00Z"
+    enum: [admin, operator, user]
+    example: "user"

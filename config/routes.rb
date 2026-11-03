@@ -1,18 +1,8 @@
 Rails.application.routes.draw do
-  devise_for :users,
-    defaults: { format: :json },
-    controllers: {
-      sessions: "users/sessions",
-      registrations: "users/registrations",
-      confirmations: "users/confirmations",
-      passwords: "users/passwords"
-    }
-
   namespace :v1, defaults: { format: :json } do
     # user
     namespace :user do
       get "me", to: "me#show"
-      patch "profile", to: "profile#update"
       resource :notification_settings, only: %i[show update] do
         post :test, on: :collection
       end

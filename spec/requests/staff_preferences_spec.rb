@@ -1,17 +1,12 @@
 require "rails_helper"
 
 RSpec.describe "StaffPreferences", type: :request do
-  let!(:user) { User.create!(email: "user@example.com", password: "password", confirmed_at: Time.current) }
+  let!(:user) { create_user }
   let!(:shop) { Shop.create!(name: "Test Shop") }
   let!(:staff) { Staff.create!(name: "Alice", shop_id: shop.id) }
 
   let!(:headers) do
-    post "/users/sign_in",
-         params: { user: { email: user.email, password: "password" } }.to_json,
-         headers: { "Content-Type" => "application/json" }
-
-    token = response.headers["Authorization"]
-    { "Authorization" => token }
+    auth_headers_for(user)
   end
 
   describe "GET /v1/staff_preferences" do

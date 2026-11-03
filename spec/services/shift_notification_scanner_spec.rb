@@ -2,7 +2,7 @@ require "rails_helper"
 
 RSpec.describe ShiftNotificationScanner do
   let(:now) { Time.zone.parse("2026-05-23 16:00") }
-  let(:user) { User.create!(email: "notify@example.com", password: "password", confirmed_at: Time.current) }
+  let(:user) { create_user }
   let(:shop) { Shop.create!(name: "Test Shop") }
   let(:staff) { Staff.create!(name: "Alice", shop: shop) }
 

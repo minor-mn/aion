@@ -1,8 +1,8 @@
 require "rails_helper"
 
 RSpec.describe "ShiftImportCandidates API", type: :request do
-  let!(:operator) { User.create!(email: "operator@example.com", password: "password", role: "operator", confirmed_at: Time.current) }
-  let!(:basic_user) { User.create!(email: "user@example.com", password: "password", role: "user", confirmed_at: Time.current) }
+  let!(:operator) { create_user(role: "operator") }
+  let!(:basic_user) { create_user(role: "user") }
   let!(:shop) { Shop.create!(name: "Test Shop") }
   let!(:staff) { Staff.create!(name: "Alice", shop: shop) }
   let!(:candidate) do
@@ -20,8 +20,8 @@ RSpec.describe "ShiftImportCandidates API", type: :request do
     )
   end
 
-  let(:operator_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(operator, :user, nil).first}" } }
-  let(:basic_headers) { { "Authorization" => "Bearer #{Warden::JWTAuth::UserEncoder.new.call(basic_user, :user, nil).first}" } }
+  let(:operator_headers) { auth_headers_for(operator) }
+  let(:basic_headers) { auth_headers_for(basic_user) }
 
   describe "GET /v1/shift_import_candidates" do
     it "allows an operator" do

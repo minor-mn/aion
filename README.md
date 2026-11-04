@@ -156,3 +156,71 @@ crontab config/crontab
 ```
 
 `crontab` コマンドはそのユーザーの既存の crontab を置き換えます。ほかのジョブを登録している場合は `crontab -e` で追記してください。
+
+## デプロイ
+
+main ブランチのコミットにタグを打ち、GitHub の Actions → **Deploy** → **Run workflow** でタグ名を指定して実行します。ワークフロー（[.github/workflows/deploy.yml](.github/workflows/deploy.yml)）は、タグが main 上のコミットであることを確認してから本番サーバに SSH し、`git fetch` → タグのチェックアウト → [script/deploy.sh](script/deploy.sh)（`bundle install`・`db:migrate`・`script/restart_app.sh`）を実行します。
+
+```bash
+git tag v1.0.0 origin/main
+git push origin v1.0.0
+```
+
+### 1. GitHub → 本番サーバ（Actions が SSH で入るための鍵）
+
+手元で鍵を作り、公開鍵を本番サーバの puma を動かしているユーザーに登録します。
+
+```bash
+ssh-keygen -t ed25519 -N "" -C "aion-github-actions" -f aion_actions_key
+```
+
+```bash
+cat aion_actions_key.pub >> ~/.ssh/authorized_keys   # 本番サーバ上で
+```
+
+本番サーバのホスト鍵を取得しておきます（`known_hosts` 用）。
+
+```bash
+ssh-keyscan -p 22 your.server.example.com
+```
+
+### 2. 本番サーバ → GitHub（サーバが git fetch するための鍵）
+
+本番サーバ上で鍵を作り、公開鍵をリポジトリの Settings → Deploy keys に **読み取り専用**（Allow write access はオフ）で登録します。
+
+```bash
+ssh-keygen -t ed25519 -N "" -C "aion-server-deploy" -f ~/.ssh/aion_deploy_key
+```
+
+`~/.ssh/config` に追記します。
+
+```
+Host github.com
+  IdentityFile ~/.ssh/aion_deploy_key
+  IdentitiesOnly yes
+```
+
+アプリのディレクトリの remote を SSH にして、取得できることを確認します。
+
+```bash
+git remote set-url origin git@github.com:minor-mn/aion.git
+```
+
+```bash
+git fetch --tags origin
+```
+
+### 3. GitHub の production 環境の secrets
+
+リポジトリの Settings → Environments で `production` を作り（必要なら Required reviewers やデプロイ可能なブランチ・タグを設定）、Environment secrets に以下を登録します。
+
+| 名前 | 内容 |
+| --- | --- |
+| `SSH_HOST` | 本番サーバのホスト名または IP |
+| `SSH_PORT` | SSH ポート（未設定なら 22） |
+| `SSH_USER` | puma を動かしているユーザー |
+| `SSH_PRIVATE_KEY` | 手順 1 の秘密鍵 `aion_actions_key` の中身 |
+| `SSH_KNOWN_HOSTS` | 手順 1 の `ssh-keyscan` の出力 |
+| `DEPLOY_PATH` | 本番サーバ上のアプリのディレクトリ（絶対パス） |
+
+ワークフローは `bash -l` でコマンドを実行するので、`bundle` が見つかる `PATH`（rbenv の初期化など）はそのユーザーのログインシェルの設定（`~/.bash_profile` / `~/.profile`）に入れておいてください。

@@ -273,5 +273,35 @@ RSpec.describe ShiftImports::ImportFromXList do
       expect(shift.start_at.to_i).to eq(Time.zone.parse("2026-04-26 20:30").to_i)
       expect(shift.end_at.to_i).to eq(Time.zone.parse("2026-04-27 05:00").to_i)
     end
+
+    it "defaults to 17:00-23:00 when both start_time and end_time are missing on add" do
+      allow(parser).to receive(:parse_post).and_return(
+        {
+          "shop_name" => "Test Shop",
+          "actions" => [
+            {
+              "action" => "add",
+              "date" => "2026-11-01",
+              "start_time" => nil,
+              "end_time" => nil
+            }
+          ]
+        }
+      )
+
+      result = service.send(
+        :import_tweet,
+        { "id" => "1006", "text" => "11月前半🎀\n1", "created_at" => "2026-10-30T11:00:00Z" },
+        media_by_key: {},
+        username: "staff_a",
+        staff: staff,
+        shop: shop
+      )
+
+      expect(result).to eq(imported_count: 1, had_errors: false)
+      shift = StaffShift.order(:id).last
+      expect(shift.start_at.to_i).to eq(Time.zone.parse("2026-11-01 17:00").to_i)
+      expect(shift.end_at.to_i).to eq(Time.zone.parse("2026-11-01 23:00").to_i)
+    end
   end
 end

@@ -17,7 +17,7 @@ module EventImports
       IPAddr.new("fe80::/10")
     ].freeze
 
-    def initialize(url:, parser: EventImports::OpenaiEventParser.new)
+    def initialize(url:, parser: EventImports::EventParser.build)
       @url = url.to_s.strip
       @parser = parser
     end

@@ -1,6 +1,6 @@
 module ShiftImports
   class ImportSingleTweet
-    def initialize(tweet_id, client: XListClient.new, parser: ShiftImports::OpenaiShiftParser.new, matcher: CandidateMatcher.new)
+    def initialize(tweet_id, client: XListClient.new, parser: ShiftImports::ShiftParser.build, matcher: CandidateMatcher.new)
       @tweet_id = tweet_id.to_s
       @client = client
       @parser = parser

@@ -42,4 +42,5 @@ start_process() {
   return 1
 }
 
-start_process "rails server" "$SERVER_PID_FILE" "$SERVER_LOG_FILE" bundle exec rails s
+start_process "rails server" "$SERVER_PID_FILE" "$SERVER_LOG_FILE" \
+  env PORT=3001 PUMA_BIND=tcp://127.0.0.1:3001 bundle exec rails s

@@ -3,7 +3,7 @@ module ShiftImports
     TWITTER_NOT_FOUND_DELETE_THRESHOLD = 25
     DELETE_INTENT_REGEX = /(いませ|やすみ|休み|居ませ)/.freeze
 
-    def initialize(client: XListClient.new, parser: ShiftImports::OpenaiShiftParser.new, matcher: CandidateMatcher.new)
+    def initialize(client: XListClient.new, parser: ShiftImports::ShiftParser.build, matcher: CandidateMatcher.new)
       @client = client
       @parser = parser
       @matcher = matcher
@@ -283,6 +283,13 @@ module ShiftImports
 
     def build_times(action_data, normalized_action)
       date = action_data.fetch("date")
+      if normalized_action == "add" && action_data["start_time"].blank? && action_data["end_time"].blank?
+        return [
+          Time.zone.parse("#{date} 17:00"),
+          Time.zone.parse("#{date} 23:00")
+        ]
+      end
+
       start_at = Time.zone.parse("#{date} #{action_data['start_time'].presence || '00:00'}")
       end_at = nil
 

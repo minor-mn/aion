@@ -5,11 +5,22 @@ module EventImports
   class OpenaiEventParser
     API_BASE = "https://api.openai.com/v1".freeze
     DEFAULT_MODEL = "gpt-4.1-mini".freeze
-    MODEL = ENV.fetch("OPENAI_MODEL", DEFAULT_MODEL)
 
-    def initialize(api_key: ENV["OPENAI_API_KEY"], model: ENV["OPENAI_MODEL"].presence || DEFAULT_MODEL)
-      @api_key = api_key
-      @model = model
+    attr_reader :model
+
+    def self.model_from(env = ENV)
+      env["OPENAI_MODEL"].to_s.strip.presence || env["OPENAI_API_MODEL"].to_s.strip.presence
+    end
+
+    def self.configured?(env = ENV)
+      env["OPENAI_API_KEY"].present? && model_from(env).present?
+    end
+
+    MODEL = model_from(ENV) || DEFAULT_MODEL
+
+    def initialize(api_key: ENV["OPENAI_API_KEY"], model: self.class.model_from(ENV) || DEFAULT_MODEL)
+      @api_key = api_key.to_s.strip
+      @model = model.to_s.strip.presence || DEFAULT_MODEL
     end
 
     def parse_page(url:, title:, text:, image_urls: [])

@@ -37,11 +37,25 @@ module ShiftImports
       required: %w[shop_name actions]
     }.freeze
 
-    def initialize(api_key: ENV["GEMINI_API_KEY"], model: ENV["GEMINI_MODEL"], client: nil)
+    attr_reader :fallback_parser
+
+    def initialize(api_key: ENV["GEMINI_API_KEY"], model: ENV["GEMINI_MODEL"], client: nil, fallback_parser: nil)
       @client = client || GeminiClient.new(api_key: api_key, model: model)
+      @fallback_parser = fallback_parser
     end
 
     def parse_post(text, image_urls: [], posted_at: nil)
+      parse_with_gemini(text, image_urls: image_urls, posted_at: posted_at)
+    rescue StandardError => e
+      raise unless @fallback_parser
+
+      TwitterStreamLogger.warn("gemini_fallback_to_openai error=#{e.class}: #{e.message}")
+      @fallback_parser.parse_post(text, image_urls: image_urls, posted_at: posted_at)
+    end
+
+    private
+
+    def parse_with_gemini(text, image_urls:, posted_at:)
       @client.validate_configuration!
 
       TwitterStreamLogger.info(
@@ -55,6 +69,8 @@ module ShiftImports
 
       TwitterStreamLogger.info("gemini_request_finish status=#{response.code}")
       parsed = @client.parse_json_response(response)
+      raise "Gemini returned non-object JSON: #{parsed.class}" unless parsed.is_a?(Hash)
+
       TwitterStreamLogger.info("gemini_parse_success actions=#{parsed.fetch('actions', []).size}")
       parsed
     rescue JSON::ParserError => e

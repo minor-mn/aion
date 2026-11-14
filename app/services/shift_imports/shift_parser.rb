@@ -2,14 +2,22 @@ module ShiftImports
   module ShiftParser
     def self.build(env: ENV)
       if GeminiClient.configured?(env)
+        fallback_parser = if OpenaiShiftParser.configured?(env)
+          OpenaiShiftParser.new(
+            api_key: env["OPENAI_API_KEY"],
+            model: OpenaiShiftParser.model_from(env)
+          )
+        end
+
         GeminiShiftParser.new(
           api_key: env["GEMINI_API_KEY"],
-          model: env["GEMINI_MODEL"]
+          model: env["GEMINI_MODEL"],
+          fallback_parser: fallback_parser
         )
       else
         OpenaiShiftParser.new(
           api_key: env["OPENAI_API_KEY"],
-          model: env["OPENAI_MODEL"].presence || OpenaiShiftParser::DEFAULT_MODEL
+          model: OpenaiShiftParser.model_from(env) || OpenaiShiftParser::DEFAULT_MODEL
         )
       end
     end

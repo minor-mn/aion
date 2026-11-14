@@ -2,14 +2,22 @@ module EventImports
   module EventParser
     def self.build(env: ENV)
       if GeminiClient.configured?(env)
+        fallback_parser = if OpenaiEventParser.configured?(env)
+          OpenaiEventParser.new(
+            api_key: env["OPENAI_API_KEY"],
+            model: OpenaiEventParser.model_from(env)
+          )
+        end
+
         GeminiEventParser.new(
           api_key: env["GEMINI_API_KEY"],
-          model: env["GEMINI_MODEL"]
+          model: env["GEMINI_MODEL"],
+          fallback_parser: fallback_parser
         )
       else
         OpenaiEventParser.new(
           api_key: env["OPENAI_API_KEY"],
-          model: env["OPENAI_MODEL"].presence || OpenaiEventParser::DEFAULT_MODEL
+          model: OpenaiEventParser.model_from(env) || OpenaiEventParser::DEFAULT_MODEL
         )
       end
     end
